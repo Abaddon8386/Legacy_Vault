@@ -1,3 +1,15 @@
+/**
+ * Bảng "Thông tin phân bổ tài sản" của một phiên bản văn bản pháp lý (Legal xem khi thẩm định / phê duyệt).
+ * Dữ liệu lấy từ version.allocations (đã được legalLiveService/legalApprovalService tải từ API xác minh pháp lý). Mỗi dòng gồm: tài sản (tên, loại TEXT/CREDENTIAL/FILE/DOCUMENT),
+ * người nhận (tên, đã liên kết tài khoản hay chưa), phần được hưởng (description) và căn cứ xác định người nhận (COURT_DOCUMENT hoặc OWNER_DESIGNATED, kèm phiên bản nguồn).
+ * Nếu có người nhận chưa liên kết tài khoản thì hiện ghi chú: vẫn được duyệt, Staff xác nhận tài khoản trước khi bàn giao.
+ * Được dùng bởi LegalDistributionWorkspace, LegalDossierReviewPage và LegalApprovalReviewPage.
+ *
+ * @param {object} props
+ * @param {object} props.version Phiên bản văn bản {version, documentNumber, allocations[]}.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ giao diện.
+ * @returns {JSX.Element} Section chứa bảng phân bổ hoặc thông báo chưa có phân bổ.
+ */
 export default function LegalAllocations({ version, lang }) {
   const en = lang === 'en';
   const allocations = version?.allocations;

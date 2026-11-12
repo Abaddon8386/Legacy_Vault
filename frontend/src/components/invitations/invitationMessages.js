@@ -1,3 +1,6 @@
+/**
+ * Bảng chuỗi giao diện song ngữ (vi/en) cho luồng nhận lời mời và hiển thị mã mời của chủ hầm.
+ */
 export const invitationMessages = {
   vi: {
     title: 'Nhận lời mời', entry: 'Bạn có mã mời người thụ hưởng?', code: 'Mã mời',
@@ -47,6 +50,11 @@ export const invitationMessages = {
   },
 };
 
+/**
+ * Chuyển lỗi API thành khóa thông báo: 429 hoặc RATE_LIMITED -> limited; INVITATION_INVALID/EXPIRED/USED/REVOKED/IDENTITY_MISMATCH -> invalid/expired/used/revoked/mismatch; còn lại -> error.
+ * @param {ApiError} error
+ * @returns {string} Khóa trong {@link invitationMessages}.
+ */
 export function invitationErrorKey(error) {
   if (error?.status === 429) return 'limited';
   return ({ INVITATION_INVALID: 'invalid', INVITATION_EXPIRED: 'expired', INVITATION_USED: 'used',

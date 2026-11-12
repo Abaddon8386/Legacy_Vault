@@ -1,7 +1,17 @@
 import { useId } from 'react';
 import './ChoiceButtons.css';
 
-/** One choice from a short list, shown as buttons. Native radios keep keyboard and form behaviour. */
+/**
+ * Chọn một giá trị từ danh sách ngắn, hiển thị dạng nút nhưng dùng radio gốc để giữ bàn phím và hành vi form.
+ *
+ * @param {object} props
+ * @param {string} props.title Tiêu đề nhóm (có dấu * bắt buộc).
+ * @param {Array<[string, string, boolean?]>} props.options Danh sách [giá trị, nhãn, bị khóa?].
+ * @param {string} props.value Giá trị đang chọn.
+ * @param {(value:string)=>void} props.onChange Gọi khi chọn.
+ * @param {boolean} [props.disabled=false] Khóa cả nhóm.
+ * @param {boolean} [props.equal=false] Các lựa chọn rộng bằng nhau.
+ */
 export default function ChoiceButtons({ title, options, value, onChange, disabled = false, equal = false }) {
   const name = useId();
   return <fieldset className={`lv-choice-group${equal ? ' lv-choice-group--equal' : ''}`} disabled={disabled}>

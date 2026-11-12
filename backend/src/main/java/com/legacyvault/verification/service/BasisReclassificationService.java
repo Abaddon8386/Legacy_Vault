@@ -25,13 +25,31 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-/** PS-102: COURT-only writes; optional will comparison never substitutes court validation.
- * Legacy NOTARIAL records remain readable without automatic conversion. Lock Vault -> Case -> Dossier. */
+/**
+ * PS-102: COURT-only writes; optional will comparison never substitutes court validation.
+ * Legacy NOTARIAL records remain readable without automatic conversion. Lock Vault -> Case -> Dossier.
+ *
+ * <p>ST-16 (LV-HOLD-001): Legal phân loại lại hồ sơ căn cứ đang tạm giữ (ON_HOLD) sang COURT hoặc NOTARIAL để tiếp tục quy trình.
+ *
+ * Được gọi bởi {@code LegalBasisDossierController} qua
+ * {@code POST /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/reclassification}
+ * (vai trò {@code LEGAL_VERIFIER}), body {@link ClassifyBasisRequest}. Khóa Vault → ca → dossier; lưu lịch sử phân loại cũ vào
+ * {@code legal_basis_classification_history}, ghi audit {@code LEGAL_BASIS_RECLASSIFIED} và thông báo cho Staff.
+ */
 @Service
 public class BasisReclassificationService {
 
+    /**
+     * Loại thực thể ghi vào audit log.
+     */
     static final String ENTITY_TYPE = "LEGAL_BASIS_DOSSIER";
+    /**
+     * Mã bước quy trình ghi vào audit (ST-16).
+     */
     static final String STEP_ID = "ST-16";
+    /**
+     * Mã quy tắc nghiệp vụ ghi vào audit (LV-HOLD-001: tạm giữ).
+     */
     static final String RULE_ID = "LV-HOLD-001";
 
     private final LegalCaseLookupRepository caseLookup;
@@ -45,6 +63,9 @@ public class BasisReclassificationService {
     private final LegalBasisLockedState lockedState;
     private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
+    /**
+     * Khởi tạo service với các repository (ca, Vault, hồ sơ, lịch sử phân loại) và các thành phần phụ trợ (view, audit, thông báo).
+     */
     public BasisReclassificationService(LegalCaseLookupRepository caseLookup, VerificationCaseRepository caseRepository,
             VaultRepository vaultRepository, LegalBasisDossierRepository dossiers,
             LegalBasisClassificationHistoryRepository history, WillComparisonService willComparisons,
@@ -62,6 +83,19 @@ public class BasisReclassificationService {
         this.notifications = notifications;
     }
 
+    /**
+     * Phân loại lại hồ sơ đang ON_HOLD.
+     *
+     * Các bước: kiểm tra request; khóa Vault → ca → dossier; yêu cầu ca mở, Vault ở trạng thái ON_HOLD, dossier nhánh ON_HOLD
+     * và đang DRAFT; lưu bản chụp phân loại cũ vào lịch sử; cập nhật dossier sang nhánh mới ({@code dossier.reclassify});
+     * chuyển Vault về trạng thái chờ căn cứ pháp lý ({@code markAwaitingLegalBasisAfterHold}); ghi audit; gửi thông báo cho Staff.
+     *
+     * @param caseId UUID công khai của ca xác minh
+     * @param principal Legal đang đăng nhập
+     * @param request nhánh mới (không được là ON_HOLD) và lý do (tối đa 1000 ký tự)
+     * @return hồ sơ căn cứ sau khi phân loại lại (kèm lý do và thông báo)
+     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED, RESOURCE_NOT_FOUND, BASIS_DOSSIER_INVALID_STATE
+     */
     @Transactional
     public BasisDossierResponse reclassify(UUID caseId, CustomUserPrincipal principal, ClassifyBasisRequest request) {
         Long legalUserId = CustomUserPrincipal.requireUserId(principal);
@@ -124,6 +158,12 @@ public class BasisReclassificationService {
         return views.view(verificationCase, true).withNotification(notification);
     }
 
+    /**
+     * Kiểm tra request: có nhánh (khác ON_HOLD) và lý do không rỗng, tối đa 1000 ký tự.
+     *
+     * @return lý do đã trim
+     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED nếu không hợp lệ
+     */
     private static String validate(ClassifyBasisRequest request) {
         if (request == null || request.route() == null || request.routeReason() == null
                 || request.route() == ClassifyBasisRequest.Route.ON_HOLD) {

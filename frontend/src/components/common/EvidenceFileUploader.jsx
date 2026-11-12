@@ -14,6 +14,22 @@ import {
 import './EvidenceFileUploader.css';
 import FeedbackNotice from './FeedbackNotice.jsx';
 
+/**
+ * Ô tải tệp chứng cứ (giấy tờ) cho nhân viên/pháp lý: vùng kéo-thả hoặc bấm chọn một tệp, kiểm tra bằng {@code validateEvidenceFile} ({@code utils/staffEvidenceUpload.js}; loại và dung lượng cho phép),
+ * hiển thị bảng tên/dung lượng, nút bỏ tệp, thanh tiến trình theo pha (uploading, processing, success) và thông báo lỗi. Không tự gọi API: việc tải lên do component cha thực hiện, cha truyền {@code uploadProgress}.
+ *
+ * @param {object} props
+ * @param {File} [props.file] Tệp đang chọn.
+ * @param {(file:(File|null))=>void} props.onFileChange Gọi khi chọn hoặc bỏ tệp (null khi không hợp lệ).
+ * @param {{phase:string,percent?:number,loaded?:number,total?:number}} [props.uploadProgress]
+ * @param {string} [props.error] Lỗi từ cha.
+ * @param {boolean} [props.disabled=false]
+ * @param {string} [props.lang='vi']
+ * @param {boolean} [props.required=true]
+ * @param {string} [props.label]
+ * @param {string} [props.hint]
+ * @param {string} [props.idPrefix='evidence-file']
+ */
 export default function EvidenceFileUploader({
   file = null,
   onFileChange,
@@ -34,6 +50,9 @@ export default function EvidenceFileUploader({
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
+  /**
+   * Kiểm tra tệp được chọn/thả; hợp lệ thì gọi {@code onFileChange(file)}, sai thì lưu lỗi cục bộ và gọi {@code onFileChange(null)}.
+   */
   const handleSelectFile = (candidateFile) => {
     setLocalError(null);
     if (!candidateFile) return;
@@ -50,24 +69,36 @@ export default function EvidenceFileUploader({
     }
   };
 
+  /**
+   * Xử lý chọn tệp từ hộp thoại hệ thống rồi xóa giá trị input để cho phép chọn lại cùng tệp.
+   */
   const handleInputChange = (e) => {
     const selected = e.target.files?.[0] || null;
     handleSelectFile(selected);
     e.target.value = '';
   };
 
+  /**
+   * Bật trạng thái kéo-thả khi tệp được kéo qua vùng thả.
+   */
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (!disabled) setIsDragging(true);
   };
 
+  /**
+   * Tắt trạng thái kéo-thả khi rời vùng thả.
+   */
   const handleDragLeave = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
   };
 
+  /**
+   * Nhận tệp thả vào vùng thả (tệp đầu tiên) và kiểm tra.
+   */
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -78,6 +109,9 @@ export default function EvidenceFileUploader({
     handleSelectFile(droppedFile);
   };
 
+  /**
+   * Bỏ tệp đang chọn và đặt lại input.
+   */
   const handleRemoveFile = () => {
     if (disabled) return;
     setLocalError(null);

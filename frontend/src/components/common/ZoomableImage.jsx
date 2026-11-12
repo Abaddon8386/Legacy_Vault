@@ -2,9 +2,17 @@ import { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import './ZoomableImage.css';
 
+/**
+ * Giới hạn và bước thu phóng (phần trăm).
+ */
 const MIN_ZOOM = 50, MAX_ZOOM = 300, ZOOM_STEP = 25;
 
-/** Image fitted to its frame at 100%; zooming in scrolls inside the frame. Height comes from --lv-zoom-height. */
+/**
+ * Ảnh vừa khung ở 100%, phóng to thì cuộn trong khung; có thanh nút thu nhỏ / về mặc định / phóng to (50%-300%, bước 25%). Chiều cao lấy từ biến CSS {@code --lv-zoom-height}.
+ * Dùng bởi {@code AssetImageGallery} và {@code EvidencePreviewModal}.
+ *
+ * @param {{src:string, alt:string, lang?:string}} props
+ */
 export default function ZoomableImage({ src, alt, lang = 'vi' }) {
   const en = lang === 'en';
   const [zoom, setZoom] = useState(100);

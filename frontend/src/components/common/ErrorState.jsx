@@ -1,6 +1,21 @@
 import { Button } from './Button.jsx';
 import './ErrorState.css';
 
+/**
+ * Trạng thái lỗi tải dữ liệu, cấu hình theo mã HTTP của {@code error.status}: 401 (đăng nhập lại), 403 (không có quyền, thử lại), 404 (không tìm thấy kho, tạo mới) và mặc định (lỗi kết nối, thử lại).
+ * Hành động chính tương ứng: {@code onNavigateToLogin}, {@code onCreateVault} hoặc {@code onRetry}; thêm nút "Thử lại" phụ khi hành động chính không phải thử lại.
+ *
+ * @param {object} props
+ * @param {{status?:number}} props.error Lỗi nhận được (thường là ApiError).
+ * @param {()=>void} [props.onRetry]
+ * @param {()=>void} [props.onNavigateToLogin]
+ * @param {()=>void} [props.onCreateVault]
+ * @param {string} [props.lang='vi']
+ * @param {string} [props.title] Ghi đè tiêu đề.
+ * @param {string} [props.message] Ghi đè mô tả.
+ * @param {string} [props.actionLabel] Ghi đè nhãn nút.
+ * @param {string} [props.badge] Ghi đè huy hiệu.
+ */
 export default function ErrorState({
   error,
   onRetry,

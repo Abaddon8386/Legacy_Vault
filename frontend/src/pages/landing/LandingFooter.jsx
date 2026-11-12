@@ -1,6 +1,13 @@
 import { Shield } from 'lucide-react';
 import { publicInfoContent } from './publicInfoContent.js';
 
+/**
+ * Chân trang của trang chủ công khai: logo, các nhóm liên kết (sản phẩm, tài nguyên, bảo mật, về LegacyVault) trỏ tới các mục trên trang chủ
+ * và các trang `/support`, `/privacy`, `/about` (render bởi `PublicInfoPage`) kèm `?lang=`. Không gọi API.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ */
 export default function LandingFooter({ lang }) {
   const en = lang === 'en';
   const support = `/support?lang=${lang}`;

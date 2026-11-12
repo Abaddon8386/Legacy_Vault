@@ -4,15 +4,40 @@ import { adminI18n } from './adminI18n.js';
 import { fetchAdminOverview } from '../../utils/adminService.js';
 import './AdminPages.css';
 
+/**
+ * Danh sách thẻ số liệu tổng quan: mỗi phần tử là cặp [khóa trong dữ liệu `GET /api/v1/admin/overview`, icon lucide].
+ * Khóa cũng là khóa i18n trong `adminI18n` để lấy nhãn hiển thị.
+ */
 const metrics = [
   ['totalAccounts', UsersRound], ['activeVaults', Vault],
   ['processingCases', ClipboardList], ['totalRolesAssigned', ShieldCheck],
 ];
+/**
+ * Danh sách vai trò hiển thị trong khối phân bố vai trò: [mã vai trò (không có tiền tố ROLE_), khóa i18n của nhãn].
+ * Giá trị đếm lấy từ `data.roleDistribution[mã]` của API tổng quan.
+ */
 const roles = [
   ['VAULT_OWNER', 'roleOwner'], ['BENEFICIARY', 'roleBeneficiary'],
   ['STAFF_EXECUTOR', 'roleStaff'], ['LEGAL_VERIFIER', 'roleLegal'], ['ADMIN', 'roleAdmin'],
 ];
 
+/**
+ * Trang tổng quan dành cho quản trị viên (ROLE_ADMIN).
+ *
+ * Cách hoạt động: gọi `useAdminQuery(fetchAdminOverview, ...)` để lấy số liệu từ `GET /api/v1/admin/overview`
+ * (qua `utils/adminService.js`), hiển thị 4 thẻ số liệu, phân bố vai trò và các thẻ truy cập nhanh
+ * (người dùng, nhật ký, gói dịch vụ, hồ sơ cá nhân). Được `App.jsx` render khi vai trò hiện tại là ADMIN.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ giao diện.
+ * @param {string|null} [props.accessToken] JWT dùng để gọi API; null thì không gọi.
+ * @param {boolean} [props.fetchOnMount=false] Có gọi API thật hay chỉ hiển thị trạng thái "API chưa sẵn sàng".
+ * @param {Function|null} [props.onUnauthorized] Callback khi API trả 401 (đăng xuất/hết phiên).
+ * @param {Function|null} [props.onOpenProfile] Mở trang hồ sơ cá nhân.
+ * @param {Function|null} [props.onOpenSubscriptions] Mở trang quản lý gói dịch vụ.
+ * @param {Function|null} [props.onNavigate] Điều hướng nội bộ admin (nhận 'users' hoặc 'logs').
+ * @returns {JSX.Element} Giao diện tổng quan.
+ */
 export default function AdminHome({
   lang = 'vi', accessToken = null, fetchOnMount = false, onUnauthorized = null,
   onOpenProfile = null, onOpenSubscriptions = null, onNavigate = null,
@@ -22,7 +47,13 @@ export default function AdminHome({
   const { data, loading, apiPending, error, reload } = useAdminQuery(
     fetchAdminOverview, accessToken, { lang }, fetchOnMount, onUnauthorized, t.accessDenied
   );
+  /**
+   * Định dạng giá trị số liệu: "…" khi đang tải, "—" khi API chưa sẵn sàng, ngược lại là số hoặc chuỗi "không có".
+   */
   const value = number => loading ? '…' : apiPending ? '—' : number ?? t.notAvailable;
+  /**
+   * Định dạng mốc thời gian của lần thu thập số liệu theo ngôn ngữ hiện tại; giá trị không hợp lệ trả nguyên chuỗi gốc.
+   */
   const date = timestamp => {
     if (!timestamp) return t.notAvailable;
     const parsed = new Date(timestamp);
@@ -30,6 +61,9 @@ export default function AdminHome({
       dateStyle: 'medium', timeStyle: 'medium',
     });
   };
+  /**
+   * Các thẻ truy cập nhanh: [tiêu đề, mô tả, nhãn nút, handler khi bấm].
+   */
   const actions = [
     [t.usersTitle, t.usersSubtitle, t.viewUsersBtn, () => onNavigate?.('users')],
     [t.logsTitle, t.logsSubtitle, t.viewLogsBtn, () => onNavigate?.('logs')],

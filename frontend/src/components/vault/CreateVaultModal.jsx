@@ -4,6 +4,10 @@ import StatusBadge from '../common/StatusBadge.jsx';
 import MagneticButton from '../common/MagneticButton.jsx';
 import './CreateVaultModal.css';
 
+/**
+ * Hộp thoại tạo kho di sản số (tên kho, mô tả). Validate bằng {@code validateVaultInput}; submit gọi {@code onSubmitVault(form)} do cha cung cấp (trong {@code VaultOverviewPage} là {@code createVault} = {@code POST /vaults}, 201). Thành công thì đóng, thất bại thì hiện lỗi chung.
+ * Props: {@code onClose}, {@code onSubmitVault}, {@code lang}, {@code initialShowErrors}. State: {@code form}, {@code errors}, {@code isSubmitting}, {@code submitError}. Effect: focus ô đầu, khóa cuộn trang và khôi phục focus.
+ */
 function CreateVaultModalDialog({
   onClose,
   onSubmitVault,
@@ -116,6 +120,9 @@ function CreateVaultModalDialog({
 
   const t = content[lang] || content.vi;
 
+  /**
+   * Cập nhật một trường của form và xóa lỗi của trường đó.
+   */
   const handleChange = (field, val) => {
     setForm((prev) => ({ ...prev, [field]: val }));
     if (errors[field]) {
@@ -128,6 +135,9 @@ function CreateVaultModalDialog({
     if (submitError) setSubmitError('');
   };
 
+  /**
+   * Validate rồi gọi {@code onSubmitVault}; chống gửi đôi bằng {@code pendingRef}.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (pendingRef.current) return;
@@ -291,6 +301,9 @@ function CreateVaultModalDialog({
   );
 }
 
+/**
+ * Vỏ ngoài: chỉ render hộp thoại khi {@code isOpen} (để state form được reset mỗi lần mở).
+ */
 export default function CreateVaultModal({ isOpen, ...props }) {
   if (!isOpen) return null;
   return <CreateVaultModalDialog {...props} />;

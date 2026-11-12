@@ -13,16 +13,29 @@ import java.util.UUID;
 
 /**
  * Chỉ có thêm mới và đọc: bản ghi tiếp nhận giấy tờ khai tử là chứng cứ nên không có hàm sửa hay xóa (LV-AUD-001).
+ *
+ * Bảng {@code death_document_records}. Được {@code DeathDocumentIntakeService} (Staff) và
+ * {@code LegalDeathVerificationService} (Legal) dùng.
  */
 public interface DeathDocumentRecordRepository extends JpaRepository<DeathDocumentRecord, Long> {
 
+    /**
+     * Danh sách giấy tờ khai tử của ca, mới nhất trước (phục vụ {@code GET .../death-documents}).
+     */
     List<DeathDocumentRecord> findByVerificationCaseIdOrderByReceivedAtDescDeathDocumentRecordIdDesc(
             Long verificationCaseId
     );
 
+    /**
+     * Tìm giấy tờ theo UUID công khai trong phạm vi ca.
+     */
     Optional<DeathDocumentRecord> findByPublicIdAndVerificationCaseId(UUID publicId, Long verificationCaseId);
 
-    /** Dùng cho luồng Legal quyết định (ST-12): khóa bản ghi để hai quyết định không chạy song song. */
+    /**
+     * Dùng cho luồng Legal quyết định (ST-12): khóa bản ghi để hai quyết định không chạy song song.
+     *
+     * Khóa ghi bi quan (PESSIMISTIC_WRITE) cho đến hết transaction.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
         select d
@@ -31,5 +44,8 @@ public interface DeathDocumentRecordRepository extends JpaRepository<DeathDocume
         """)
     Optional<DeathDocumentRecord> findByPublicIdForUpdate(@Param("publicId") UUID publicId);
 
+    /**
+     * Tìm giấy tờ theo UUID công khai (không khóa).
+     */
     Optional<DeathDocumentRecord> findByPublicId(UUID publicId);
 }

@@ -7,10 +7,19 @@
  * - State preserves language-neutral error keys for instant dynamic VI <-> EN rendering.
  */
 
+/**
+ * Dùng bởi App.jsx và pages/legal/LegalBasisRouteSelectionPage.jsx.
+ */
 import { legalBasisRouteI18n } from '../pages/legal/legalBasisRouteI18n.js';
 
+/**
+ * Các tuyến căn cứ pháp lý có thể chọn: NOTARIAL (công chứng), COURT (tòa án), ON_HOLD (tạm giữ).
+ */
 export const LEGAL_BASIS_ROUTES = ['NOTARIAL', 'COURT', 'ON_HOLD'];
 
+/**
+ * Các khóa lỗi (i18n) của form chọn tuyến căn cứ pháp lý.
+ */
 export const BASIS_ROUTE_ERROR_KEYS = {
   ROUTE_REQUIRED: 'routeRequired',
   ROUTE_INVALID: 'routeInvalid',
@@ -23,6 +32,8 @@ export const BASIS_ROUTE_ERROR_KEYS = {
  *
  * @param {Object|null|undefined} session
  * @returns {boolean}
+ *
+ * Chỉ session còn hạn có vai trò LEGAL_VERIFIER mới được vào màn hình chọn tuyến (chỉ là chốt giao diện; backend vẫn kiểm tra quyền).
  */
 export function canAccessLegalBasisRoute(session) {
   if (!session || !session.accessToken || typeof session.expiresAt !== 'number') {
@@ -51,6 +62,8 @@ export function canAccessLegalBasisRoute(session) {
  * @param {string} formValues.reason - Verifier adjudication rationale
  * @param {string} [formValues.docketReference] - Optional docket reference
  * @returns {{ isValid: boolean, errors: Object.<string, string> }}
+ *
+ * Kiểm tra form: route phải thuộc LEGAL_BASIS_ROUTES và lý do (reason) không rỗng sau trim. Trả {isValid, errors} với errors là khóa lỗi trung lập ngôn ngữ.
  */
 export function validateBasisRouteForm(formValues = {}) {
   const errors = {};
@@ -80,6 +93,8 @@ export function validateBasisRouteForm(formValues = {}) {
  * @param {string} errorKey
  * @param {string} [lang='vi']
  * @returns {string}
+ *
+ * Đổi khóa lỗi thành thông điệp theo ngôn ngữ (legalBasisRouteI18n).
  */
 export function getBasisRouteErrorMessage(errorKey, lang = 'vi') {
   const dictionary = legalBasisRouteI18n[lang] || legalBasisRouteI18n.vi;
@@ -92,6 +107,8 @@ export function getBasisRouteErrorMessage(errorKey, lang = 'vi') {
  * @param {Object.<string, string>} errors
  * @param {string} [lang='vi']
  * @returns {Object.<string, string>}
+ *
+ * Đổi cả map khóa lỗi {trường: khóa} thành map thông điệp đã dịch.
  */
 export function formatBasisRouteErrors(errors = {}, lang = 'vi') {
   const formatted = {};

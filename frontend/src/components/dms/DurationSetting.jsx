@@ -4,7 +4,13 @@ import DurationFields from './DurationFields.jsx';
 import { formatDurationMinutes } from './durationFormat.js';
 import './DurationSetting.css';
 
-/** One time setting: a read-only value when locked, otherwise presets with a custom option. Save appears only after a change. */
+/**
+ * Khối cài đặt một khoảng thời gian (chu kỳ kiểm tra hoặc ân hạn): khi {@code locked} chỉ hiển thị giá trị hiện tại; ngược lại hiển thị các nút preset, nút "Tùy chỉnh" mở ô nhập ngày/giờ/phút,
+ * và nút Lưu/Hủy chỉ xuất hiện khi có thay đổi ({@code dirty}). Không gọi API; cha xử lý {@code onSubmit}. Dùng bởi {@code DmsGraceSettings} và {@code pages/dms/DMSOverviewPage.jsx}.
+ *
+ * Props chính: {@code savedTotal}/{@code total} (phút đã lưu/đang nhập), {@code presets} ({minutes,label}), {@code onPreset}, {@code fields}, {@code help}, {@code error}, {@code dirty}, {@code disabled}, {@code saving}, {@code saveDisabled}, {@code onSubmit}, {@code onCancel}, {@code locked}, {@code lockedText}, {@code children}.
+ * State: {@code custom} (đang mở ô tùy chỉnh; tự mở khi giá trị không khớp preset nào).
+ */
 export default function DurationSetting({ id, title, className = '', lang = 'vi', savedTotal, total, presets = [], onPreset, legend, fields, help, helpId, error, errorId,
   dirty, disabled, saving, saveDisabled, onSubmit, onCancel, locked, lockedText, children }) {
   const en = lang === 'en';

@@ -1,5 +1,15 @@
 import { useEffect, useRef } from 'react'
 
+/**
+ * Hook quản lý focus và bàn phím cho hộp thoại: khi mở thì khóa cuộn trang, focus vào ô nhập/điều khiển đầu tiên, bẫy phím Tab trong hộp thoại, đóng bằng Escape (trừ khi {@code blocked}),
+ * và khi đóng khôi phục cuộn và trả focus về phần tử trước đó (hoặc {@code returnFocusRef}).
+ *
+ * @param {boolean} isOpen Hộp thoại đang mở.
+ * @param {()=>void} onClose Gọi khi nhấn Escape.
+ * @param {boolean} [blocked=false] Chặn Escape (ví dụ đang gửi dữ liệu).
+ * @param {{current:HTMLElement}} [returnFocusRef=null] Nơi trả focus.
+ * @returns {{current:HTMLElement}} Ref gắn vào phần tử hộp thoại.
+ */
 export function useModalFocus(isOpen, onClose, blocked = false, returnFocusRef = null) {
   const dialogRef = useRef(null)
   const closeRef = useRef(onClose)

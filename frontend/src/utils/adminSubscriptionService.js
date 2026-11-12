@@ -1,7 +1,15 @@
+/**
+ * Dịch vụ frontend quản trị gói sử dụng (subscription plan) cho ROLE_ADMIN: xem, tạo bản nháp, sửa, công bố, ngừng áp dụng
+ * phiên bản gói, tra cứu tài khoản và giao dịch. Mọi hàm gọi các endpoint /api/v1/admin/subscriptions/** qua request().
+ * Được dùng bởi pages/admin/AdminSubscriptionPage.jsx.
+ */
 import { request, ApiError } from '../api/http.js';
 
 export { ApiError };
 
+/**
+ * Thông điệp lỗi/thông báo song ngữ (vi, en) cho màn hình quản trị gói sử dụng.
+ */
 export const adminSubscriptionMessages = {
   vi: {
     unauthorized: 'Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.',
@@ -31,6 +39,10 @@ export const adminSubscriptionMessages = {
   },
 };
 
+/**
+ * Định dạng số byte thành chuỗi dễ đọc (B, KB, MB, GB, TB).
+ * @param {number} bytes Số byte; giá trị không hợp lệ hoặc <= 0 cho '0 B'.
+ */
 export function formatBytes(bytes) {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -39,12 +51,21 @@ export function formatBytes(bytes) {
   return `${Number.isInteger(val) || i === 0 ? Math.round(val) : val.toFixed(1)} ${units[i]}`;
 }
 
+/**
+ * Định dạng số tiền VND kèm hậu tố mô hình thanh toán trọn đời.
+ * @param {number} amount Số tiền.
+ * @param {string} lang 'vi' (mặc định) hoặc 'en'.
+ */
 export function formatVnd(amount, lang = 'vi') {
   if (!Number.isFinite(amount) || amount === 0) return '0 ₫';
   return new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'vi-VN').format(amount)
     + (lang === 'en' ? ' VND / lifetime' : ' ₫ / trọn đời');
 }
 
+/**
+ * Chuyển lỗi (ApiError) thành thông điệp thân thiện theo ngôn ngữ, dựa trên status HTTP và mã lỗi backend
+ * (PLAN_VERSION_CONFLICT, SUBSCRIPTION_CATALOG_STALE, PLAN_VERSION_NOT_EDITABLE, PLAN_VERSION_ALREADY_EXISTS...).
+ */
 export function adminSubscriptionErrorMessage(error, lang = 'vi') {
   const t = adminSubscriptionMessages[lang] || adminSubscriptionMessages.vi;
   if (!error) return t.genericError;
@@ -61,22 +82,37 @@ export function adminSubscriptionErrorMessage(error, lang = 'vi') {
   return error.message || t.genericError;
 }
 
+/**
+ * Gọi GET /api/v1/admin/subscriptions/plans: danh sách các gói.
+ */
 export async function fetchAdminPlans(options = {}) {
   return request('/admin/subscriptions/plans', options);
 }
 
+/**
+ * Gọi GET /api/v1/admin/subscriptions/plans/{planCode}: chi tiết một gói.
+ */
 export async function fetchAdminPlanDetail(planCode, options = {}) {
   return request(`/admin/subscriptions/plans/${encodeURIComponent(planCode)}`, options);
 }
 
+/**
+ * Gọi GET /api/v1/admin/subscriptions/plans/{planCode}/versions: các phiên bản của gói.
+ */
 export async function fetchAdminPlanVersions(planCode, options = {}) {
   return request(`/admin/subscriptions/plans/${encodeURIComponent(planCode)}/versions`, options);
 }
 
+/**
+ * Gọi GET /api/v1/admin/subscriptions/plans/{planCode}/versions/{version}: một phiên bản cụ thể.
+ */
 export async function fetchAdminPlanVersion(planCode, version, options = {}) {
   return request(`/admin/subscriptions/plans/${encodeURIComponent(planCode)}/versions/${encodeURIComponent(version)}`, options);
 }
 
+/**
+ * Gọi POST /api/v1/admin/subscriptions/plans/{planCode}/versions (mong đợi 201) để tạo bản nháp (DRAFT) mới. Backend có thể trả PLAN_VERSION_ALREADY_EXISTS nếu đã có nháp.
+ */
 export async function createAdminPlanDraft(planCode, body = {}, options = {}) {
   return request(`/admin/subscriptions/plans/${encodeURIComponent(planCode)}/versions`, {
     method: 'POST',
@@ -86,6 +122,9 @@ export async function createAdminPlanDraft(planCode, body = {}, options = {}) {
   });
 }
 
+/**
+ * Gọi PUT /api/v1/admin/subscriptions/plans/{planCode}/versions/{version} để sửa bản nháp. Chỉ bản DRAFT sửa được (PLAN_VERSION_NOT_EDITABLE).
+ */
 export async function updateAdminPlanDraft(planCode, version, body, options = {}) {
   return request(`/admin/subscriptions/plans/${encodeURIComponent(planCode)}/versions/${encodeURIComponent(version)}`, {
     method: 'PUT',
@@ -94,6 +133,10 @@ export async function updateAdminPlanDraft(planCode, version, body, options = {}
   });
 }
 
+/**
+ * Gọi POST /api/v1/admin/subscriptions/plans/{planCode}/versions/{version}/publish để công bố phiên bản.
+ * Chấp nhận (body, options) hoặc chỉ (options): hàm tự phân biệt tham số thứ ba là body hay options dựa vào các khóa quen thuộc (accessToken, lang, fetchFn, signal).
+ */
 export async function publishAdminPlanVersion(planCode, version, bodyOrOptions = {}, maybeOptions = {}) {
   let body = undefined;
   let options = {};
@@ -112,6 +155,9 @@ export async function publishAdminPlanVersion(planCode, version, bodyOrOptions =
   });
 }
 
+/**
+ * Gọi POST /api/v1/admin/subscriptions/plans/{planCode}/versions/{version}/deprecate để ngừng áp dụng phiên bản.
+ */
 export async function deprecateAdminPlanVersion(planCode, version, options = {}) {
   return request(`/admin/subscriptions/plans/${encodeURIComponent(planCode)}/versions/${encodeURIComponent(version)}/deprecate`, {
     method: 'POST',
@@ -119,12 +165,18 @@ export async function deprecateAdminPlanVersion(planCode, version, options = {})
   });
 }
 
+/**
+ * Gọi GET /api/v1/admin/subscriptions/accounts?query= tra cứu mức sử dụng của tài khoản; kiểm tra các số đếm assetCount, assetLimit, storageBytes, storageBytesLimit phải là số nguyên không âm (nếu không ném INVALID_RESPONSE).
+ */
 export async function lookupAdminAccount(query, options = {}) {
   const data=await request(`/admin/subscriptions/accounts?query=${encodeURIComponent(query)}`, options);
   if(!data || !['assetCount','assetLimit','storageBytes','storageBytesLimit'].every(k=>Number.isSafeInteger(data[k]) && data[k]>=0)) throw new ApiError('INVALID_RESPONSE');
   return data;
 }
 
+/**
+ * Gọi GET /api/v1/admin/subscriptions/transactions[?query=] tra cứu giao dịch (bản đơn giản, không chuẩn hóa; xem adminPaymentService.js cho bản có kiểm tra hợp đồng).
+ */
 export async function lookupAdminTransactions(query = '', options = {}) {
   return request(`/admin/subscriptions/transactions${query ? `?query=${encodeURIComponent(query)}` : ''}`, options);
 }

@@ -10,8 +10,11 @@ import { loadDistributionWorkflow } from '../../workflows/distributionWorkflowSe
 import { legalDate } from './legalPresentation.js';
 import './LegalHandoverReopen.css';
 
+/** Đường dẫn trang "controlled-unlock" lấy từ LEGAL_NAVIGATION_REGISTRY, dùng khi mở một yêu cầu mở lại bàn giao. */
 const unlockPath = LEGAL_NAVIGATION_REGISTRY.find(item => item.id === 'controlled-unlock').path;
+/** Thời gian chờ tối đa (20 giây) cho một quyết định mở lại; quá hạn thì hủy request và báo kết quả chưa xác nhận. */
 const DECISION_TIMEOUT_MS = 20000;
+/** Nhãn trạng thái bàn giao nhóm: UNCONFIRMED, SUSPENDED, AWAITING_LEGAL, READY -> [vi, en]. */
 const statusText = {
   UNCONFIRMED: ['Staff chưa ghi nhận người có mặt', 'Staff has not recorded attendance'],
   SUSPENDED: ['Bàn giao đang tạm khóa', 'The whole handover is suspended'],
@@ -19,6 +22,7 @@ const statusText = {
   READY: ['Đã đủ điều kiện về người nhận; chưa đồng nghĩa đã bàn giao', 'Recipient requirement satisfied; this does not mean delivered'],
 };
 
+/** Nhãn các thao tác trong lịch sử bàn giao nhóm: ATTENDANCE, REQUEST, APPROVE, REJECT -> [vi, en]. */
 const operationText = {
   ATTENDANCE: ['Staff ghi nhận người có mặt', 'Staff recorded attendance'],
   REQUEST: ['Staff gửi yêu cầu mở lại', 'Staff requested reopening'],
@@ -26,7 +30,16 @@ const operationText = {
   REJECT: ['Legal từ chối mở lại', 'Legal refused reopening'],
 };
 
-/** Reopen decisions never claim a result the server did not confirm; an unknown outcome is re-read before anything is retried. */
+/**
+ * Reopen decisions never claim a result the server did not confirm; an unknown outcome is re-read before anything is retried.
+ *
+ * Tạo thông báo lỗi cho quyết định mở lại: TIMEOUT / NETWORK_ERROR (chưa biết đã lưu hay chưa, đã tải lại trạng thái, có thể gửi lại nhờ khóa idempotency),
+ * GROUP_HANDOVER_BLOCKED / GROUP_HANDOVER_STALE (yêu cầu đã đổi, chưa lưu gì); lỗi khác dùng workflowFailure.
+ *
+ * @param {{code?: string, status?: number}} error Lỗi.
+ * @param {'vi'|'en'} lang Ngôn ngữ.
+ * @returns {string} Mô tả lỗi.
+ */
 function reopenFailure(error, lang) {
   const en = lang === 'en';
   if (error?.code === 'TIMEOUT' || error?.code === 'NETWORK_ERROR') {
@@ -40,11 +53,28 @@ function reopenFailure(error, lang) {
   return workflowFailure(error, lang).description;
 }
 
+/**
+ * Tab "Bàn giao tạm dừng" của Legal: xét các yêu cầu Staff gửi để mở lại bàn giao nhóm. Vỏ bọc dựng lại ReopenScope khi đổi token/ngôn ngữ.
+ *
+ * @param {object} props
+ * @param {object} props.session Phiên đăng nhập.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {string} [props.caseId=''] Hồ sơ đang chọn (rỗng thì hiển thị cả hàng đợi).
+ * @param {(url: string) => void} [props.onNavigate] Điều hướng.
+ * @param {() => void} [props.onUnauthorized] 401.
+ * @param {(count: (number|null)) => void} [props.onAvailability] Báo số yêu cầu đang chờ (để hiện chấm trên tab) - dùng bởi LegalLiveWorkflow.
+ * @returns {JSX.Element}
+ */
 export default function LegalHandoverReopen({ session, lang = 'vi', caseId = '', onNavigate, onUnauthorized, onAvailability }) {
   return <ReopenScope key={`${session.accessToken}:${lang}`} session={session} lang={lang} caseId={caseId}
     onNavigate={onNavigate} onUnauthorized={onUnauthorized} onAvailability={onAvailability} />;
 }
 
+/**
+ * Tải và hiển thị hàng đợi yêu cầu mở lại. Gọi loadReopenRequests (GET /api/v1/legal-verifications/group-handover/reopen-requests): một lần lọc theo caseId (size 1) để luôn thấy yêu cầu của hồ sơ đang chọn,
+ * một lần cho danh sách có phân trang. Tự tải lại khi cửa sổ lấy focus hoặc có sự kiện 'lv-workflow-notifications-changed'. Khi chọn một yêu cầu thì render ReopenDetail; open(item) điều hướng sang bước controlled-unlock của hồ sơ đó.
+ * waitingCount báo về cha qua onAvailability.
+ */
 function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized, onAvailability }) {
   const en = lang === 'en';
   const [page, setPage] = useState(0);
@@ -98,6 +128,7 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized, onAvai
   // Reports how many requests wait for the selected case (or in the whole queue when none is selected); null until the first read.
   const waitingCount = caseId ? (forCase ? (target ? 1 : 0) : null) : (list ? Math.max(list.data?.totalElements ?? 0, items?.length ?? 0) : null);
   useEffect(() => { onAvailability?.(waitingCount); }, [waitingCount, onAvailability]);
+  /** Mở một yêu cầu trong hàng đợi: ghi nhớ yêu cầu và điều hướng tới trang mở khóa của hồ sơ tương ứng. */
   const open = item => {
     setOpened(item); setOutcome(null);
     onNavigate?.(`${unlockPath}?${new URLSearchParams({ lang, caseId: item.caseId })}`);
@@ -136,6 +167,18 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized, onAvai
   </section>;
 }
 
+/**
+ * Chi tiết một yêu cầu mở lại và form quyết định. Tải song song: loadLegalGroupHandover (GET /api/v1/legal-verifications/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover),
+ * loadDistributionWorkflow(caseId, 'LEGAL') để lấy tên người nhận và loadGroupHandoverEvents (.../group-handover/events) cho lịch sử. Hiển thị trạng thái, lý do của Staff, danh sách người nhận có mặt/chưa có mặt, lịch sử.
+ * Chỉ cho quyết định khi view.capabilities.canDecide, yêu cầu còn khớp và có đủ tên người nhận. Tự tải lại khi cửa sổ lấy focus.
+ *
+ * @param {object} props
+ * @param {object} props.item Yêu cầu {caseId, sessionId, requestId, caseNumber, vaultName, ...}.
+ * @param {object} props.session Phiên đăng nhập.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {(result: object) => void} props.onDecided Gọi sau khi quyết định thành công.
+ * @param {() => void} [props.onUnauthorized] 401.
+ */
 function ReopenDetail({ item, session, lang, onDecided, onUnauthorized }) {
   const en = lang === 'en';
   const [attempt, setAttempt] = useState(0);
@@ -186,6 +229,12 @@ function ReopenDetail({ item, session, lang, onDecided, onUnauthorized }) {
   const request = view?.request;
   const decidable = !!view && view.capabilities.canDecide && !!request && view.state.requestId === request.requestId && namesReady;
 
+  /**
+   * Gửi quyết định APPROVE hoặc REJECT bằng decideReopenRequest (POST .../group-handover/reopen-requests/{requestId}/decision) kèm expectedRevision, lý do và khóa idempotency (UUID giữ lại cho cùng nội dung để gửi lại không tạo quyết định trùng).
+   * Có timeout 20 giây; lỗi mạng/timeout hoặc 409 sẽ tải lại trạng thái. Thành công: xóa lý do, gọi onDecided và phát sự kiện 'lv-workflow-notifications-changed'.
+   *
+   * @param {'APPROVE'|'REJECT'} decision Quyết định.
+   */
   async function save(decision) {
     if (lock.current || !decidable || !reason.trim()) return;
     lock.current = true; setBusy(true); setSaveError(null);

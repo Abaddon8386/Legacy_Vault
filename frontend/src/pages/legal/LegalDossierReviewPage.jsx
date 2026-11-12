@@ -18,6 +18,18 @@ import {
 import { legalDossierReviewI18n } from './legalDossierReviewI18n.js';
 import './LegalDossierReviewPage.css';
 
+/**
+ * Trang tĩnh "Thẩm định hồ sơ" cho Legal (App.jsx render). Hiển thị lưu ý nghiệp vụ, cảnh báo khi hồ sơ đã cập nhật phiên bản mới so với lần thẩm định gần nhất (STALE),
+ * và form quyết định APPROVE / REJECT / HOLD / RE_REVIEW kèm ghi chú. Dữ liệu hồ sơ và lịch sử được truyền qua props (initialDossier, initialHistory).
+ * Quyết định và ghi chú tự đặt lại khi định danh hồ sơ (id + phiên bản + SHA-256) đổi. Kiểm tra bằng validateLegalDossierReviewForm (utils/legalDossierReviewValidation.js);
+ * nút gửi bị vô hiệu hóa và không gọi API (thẩm định thật được làm ở LegalLiveWorkflow).
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {object} [props.initialDossier=null] Hồ sơ {id, version, sha256, ...}.
+ * @param {Array<object>} [props.initialHistory=null] Lịch sử thẩm định, phần tử đầu là gần nhất.
+ * @returns {JSX.Element}
+ */
 export default function LegalDossierReviewPage({
   lang = 'vi',
   initialDossier = null,
@@ -54,6 +66,7 @@ export default function LegalDossierReviewPage({
     return checkDossierReviewStatus(initialDossier, lastRecord) === 'STALE';
   }, [initialDossier, initialHistory]);
 
+  /** Chọn quyết định thẩm định; nếu đang có lỗi ở trường quyết định thì kiểm tra lại ngay. */
   const handleDecisionSelect = (selectedDecision) => {
     setDecision(selectedDecision);
     if (errors.decision) {
@@ -65,10 +78,12 @@ export default function LegalDossierReviewPage({
     }
   };
 
+  /** Cập nhật nội dung ghi chú thẩm định. */
   const handleNoteChange = (val) => {
     setNote(val);
   };
 
+  /** Danh sách lựa chọn quyết định hiển thị (id, nhãn, icon, kiểu): APPROVE, REJECT, HOLD, RE_REVIEW. */
   const decisionOptions = [
     {
       id: 'APPROVE',

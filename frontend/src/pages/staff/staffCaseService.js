@@ -1,6 +1,23 @@
+/**
+ * staffCaseService.js - Lấy danh sách hồ sơ xác minh cho Staff (Staff Case Dashboard).
+ * Re-export SYNTHETIC_STAFF_CASES và isStaffSimulationPermitted từ staffCasePreview.js.
+ */
 import { request, ApiError } from '../../api/http.js';
 import { SYNTHETIC_STAFF_CASES, isStaffSimulationPermitted } from './staffCasePreview.js';
 export { SYNTHETIC_STAFF_CASES, isStaffSimulationPermitted } from './staffCasePreview.js';
+/**
+ * Lấy một trang danh sách hồ sơ xác minh của Staff.
+ *
+ * Chế độ mô phỏng (dev preview/test): lọc SYNTHETIC_STAFF_CASES theo trạng thái và từ khóa q (số hồ sơ, tên kho, tên chủ kho) rồi phân trang trong bộ nhớ.
+ * Chế độ thật: kiểm tra tham số (page nguyên >= 0, size 1..100, status thuộc ALL, OPEN, CANCELLED, CLOSED) rồi gọi
+ * GET /api/v1/staff/verification-cases?page=&size=&status=&q= (HTTP 200, cache no-store). Phản hồi được kiểm tra chặt (phân trang, UUID, trạng thái, thời gian, định dạng caseNumber HS-yyyy-nnnnnn)
+ * và mỗi phần tử được bổ sung id = caseId, caseNumber (hoặc caseId nếu thiếu), gracePeriodEndedAt = triggeredAt.
+ * Được dùng bởi StaffCaseDashboard, LiveHandoverPage, BeneficiaryConfirmationPage và StaffCaseSelectorModal.
+ * @param {Object} [options] { page = 0, size = 5, status = 'ALL', q, signal, accessToken, lang, isDevPreview, isTest }
+ * @returns {Promise<{content: Object[], page: number, size: number, totalElements: number, totalPages: number, isSimulation: boolean}>}
+ * @throws {Error} AbortError khi bị hủy.
+ * @throws {ApiError} VALIDATION_FAILED (400) khi tham số sai; INVALID_RESPONSE khi phản hồi sai hợp đồng; lỗi API khác từ request().
+ */
 export async function fetchStaffCases(options = {}) {
   const { page = 0, size = 5, status = 'ALL', q, signal } = options;
 

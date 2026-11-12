@@ -16,6 +16,17 @@ import {
 import { legalBasisRouteI18n } from './legalBasisRouteI18n.js';
 import './LegalBasisRouteSelectionPage.css';
 
+/**
+ * Trang tĩnh "Thẩm định căn cứ" cho Legal (App.jsx render). Cho chọn phương án căn cứ pháp lý: NOTARIAL (công chứng), COURT (Tòa án) hoặc ON_HOLD (tạm dừng), kèm mã tham chiếu hồ sơ và lý do.
+ * Biểu mẫu chỉ kiểm tra cục bộ bằng validateBasisRouteForm (utils/legalBasisRouteValidation.js); nút gửi bị vô hiệu hóa và KHÔNG gọi API nào - việc phân loại thật được làm ở LegalLiveWorkflow.
+ * Việc chọn căn cứ không làm đổi trạng thái hồ sơ hay mở khóa tài sản (quy tắc LV-BASIS-001).
+ *
+ * @param {object} props
+ * @param {object} props.session Phiên đăng nhập (hiển thị tên/email người thẩm định).
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ (chuỗi lấy từ legalBasisRouteI18n).
+ * @param {{docketReference?: string, status?: string}} [props.initialDocket=null] Thông tin hồ sơ đã ghi nhận (nếu có).
+ * @returns {JSX.Element}
+ */
 export default function LegalBasisRouteSelectionPage({
   session,
   lang = 'vi',
@@ -41,6 +52,7 @@ export default function LegalBasisRouteSelectionPage({
     ? `${session.user.fullName} (${session.user.email})`
     : session?.user?.email || (lang === 'en' ? 'Legal Verifier' : 'Chuyên viên Pháp lý');
 
+  /** Chọn phương án căn cứ; nếu đã kiểm tra một lần thì kiểm tra lại ngay và cập nhật lỗi/trạng thái. */
   const handleRouteChange = (selectedRoute) => {
     setRoute(selectedRoute);
     if (validatedOnce) {
@@ -54,6 +66,7 @@ export default function LegalBasisRouteSelectionPage({
     }
   };
 
+  /** Cập nhật lý do; nếu đã kiểm tra một lần thì kiểm tra lại ngay. */
   const handleReasonChange = (newReason) => {
     setReason(newReason);
     if (validatedOnce) {
@@ -67,6 +80,7 @@ export default function LegalBasisRouteSelectionPage({
     }
   };
 
+  /** Kiểm tra form cục bộ bằng validateBasisRouteForm, lưu lỗi từng trường và trạng thái 'success' / 'error'. */
   const handleValidateLocal = () => {
     setValidatedOnce(true);
     const res = validateBasisRouteForm({

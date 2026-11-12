@@ -6,8 +6,15 @@
  * or within AppShell without an external translation dictionary.
  */
 
+/**
+ * Khóa localStorage ghi nhớ người dùng đã đóng thông báo pháp lý ở màn quản lý tài sản.
+ */
 export const LEGAL_DISMISSED_KEY = 'legacyvault_legal_notice_dismissed';
 
+/**
+ * Từ điển chuỗi song ngữ (vi/en) tự chứa cho `AssetManagementPage` và các component con (bảng, form thêm/sửa, chi tiết).
+ * Dùng làm dự phòng để trang không lỗi khi render độc lập, không có từ điển ngoài.
+ */
 export const ASSET_I18N = {
   vi: {
     assets: {
@@ -241,6 +248,9 @@ export function getAssetTranslations(t, lang = 'vi') {
   return ASSET_I18N[lang] || ASSET_I18N.vi;
 }
 
+/**
+ * Bổ sung chuỗi cho các thao tác PS-6 (xem/sửa tài sản, ảnh, tài liệu đính kèm).
+ */
 const PS6_I18N = {
   "vi": {
     "colActions": "Thao tác",

@@ -3,9 +3,18 @@
  * Validates Vault Owner registration fields with i18n error messaging (vi/en).
  */
 
+/**
+ * Biểu thức kiểm tra email. Dùng lại ở accountEditValidation.js, passwordRecoveryValidation.js và trang đăng ký.
+ */
 export const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+/**
+ * Số điện thoại: tùy chọn dấu + và 8-15 chữ số.
+ */
 export const PHONE_REGEX = /^\+?[0-9]{8,15}$/;
 
+/**
+ * Thông điệp lỗi song ngữ của form đăng ký.
+ */
 export const validationMessages = {
   vi: {
     fullNameRequired: 'Vui lòng nhập họ và tên.',
@@ -38,6 +47,8 @@ export const validationMessages = {
  * @param {Object} values - { fullName, email, phone, password, confirmPassword, agreeTerms }
  * @param {string} lang - 'vi' | 'en'
  * @returns {Object} errors map, empty if valid
+ *
+ * Kiểm tra form đăng ký chủ kho: họ tên (bắt buộc, <=150), email (<=254), phone tùy chọn, mật khẩu và xác nhận (validatePasswordFields), đồng ý điều khoản. Trả map {trường: thông điệp}; rỗng nghĩa là hợp lệ. Dùng bởi RegisterPageHenedo.jsx.
  */
 export function validateRegistration(values, lang = 'vi') {
   const msgs = validationMessages[lang] || validationMessages.vi;
@@ -76,6 +87,9 @@ export function validateRegistration(values, lang = 'vi') {
 }
 
 // Shared by registration and password recovery; keep the existing 8–72 policy.
+/**
+ * Kiểm tra cặp mật khẩu và xác nhận (8-72 ký tự, phải khớp). Dùng chung cho đăng ký, khôi phục mật khẩu và PasswordSetupProvider.
+ */
 export function validatePasswordFields(values = {}, lang = 'vi') {
   const msgs = validationMessages[lang] || validationMessages.vi;
   const errors = {};

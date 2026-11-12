@@ -28,6 +28,9 @@ import com.legacyvault.verification.repository.VerificationCaseRepository;
  *   <li>the handover session of this case and Staff exists and is OPEN.</li>
  * </ol>
  * Locks Vault -> case -> dossier -> session and keeps them until the caller transaction ends.
+ *
+ * <p>Bổ sung: không có endpoint riêng; được {@link HandoverDeliveryService} gọi cho các endpoint
+ * {@code /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/eligible-assets|deliveries}.
  */
 @Component
 public class HandoverAuthorizationGuard {
@@ -37,6 +40,9 @@ public class HandoverAuthorizationGuard {
     private final HandoverSessionRepository sessions;
     private final LegalBasisDossierVersionRepository versions;
 
+    /**
+     * Khởi tạo với repository ca, cổng quy trình pháp lý, repository phiên bàn giao và phiên bản hồ sơ.
+     */
     public HandoverAuthorizationGuard(VerificationCaseRepository cases, LegalWorkflowGuard workflow,
             HandoverSessionRepository sessions, LegalBasisDossierVersionRepository versions) {
         this.cases = cases;
@@ -45,6 +51,16 @@ public class HandoverAuthorizationGuard {
         this.versions = versions;
     }
 
+    /**
+     * Thực hiện đủ các kiểm tra ở mô tả lớp và trả về các đối tượng đã khóa. Phải chạy trong transaction sẵn có ({@code Propagation.MANDATORY}).
+     *
+     * @param casePublicId UUID công khai của ca
+     * @param sessionPublicId UUID công khai của phiên bàn giao
+     * @param staffUserId ID Staff đang gọi
+     * @return Vault, ca, hồ sơ, phiên và số phiên bản hiện hành
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND, HANDOVER_VAULT_NOT_UNLOCKED, HANDOVER_SESSION_INVALID_STATE
+     *         và các lỗi của {@code LegalWorkflowGuard}
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public Authorized authorize(UUID casePublicId, UUID sessionPublicId, Long staffUserId) {
         VerificationCase initial = cases.findByPublicIdAndAssignedStaffUserId(casePublicId, staffUserId)
@@ -71,6 +87,9 @@ public class HandoverAuthorizationGuard {
         return new Authorized(vault, verificationCase, dossier, session, versionNo);
     }
 
+    /**
+     * Tạo lỗi {@code RESOURCE_NOT_FOUND}.
+     */
     private static BusinessException notFound() {
         return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
     }

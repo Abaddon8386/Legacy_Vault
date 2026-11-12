@@ -32,30 +32,61 @@ import com.legacyvault.common.security.CustomUserPrincipal;
 import jakarta.validation.Valid;
 
 /**
- * PS-114: PDF / Word documents attached to an Asset. Owner of the Vault only (other roles 403, other Owners' Vaults and
- * Assets 404). Listing returns metadata; reading a file needs the current login password like other protected content.
+ * Controller REST quản lý tài liệu PDF / Word đính kèm vào Asset (PS-114, D-API-43).
+ *
+ * Base path: {@code /api/v1/vaults/{vaultId}/assets/{assetId}/documents}. Chỉ Owner của Vault (role
+ * {@code VAULT_OWNER}; role khác 403, Vault/Asset của Owner khác 404). Liệt kê chỉ trả metadata; đọc file cần mật khẩu
+ * đăng nhập hiện tại như các nội dung bảo mật khác. Mọi nghiệp vụ nằm trong {@link AssetDocumentService}.
  */
 @RestController
 @RequestMapping("/api/v1/vaults/{vaultId}/assets/{assetId}/documents")
 @PreAuthorize("hasRole('VAULT_OWNER')")
 public class AssetDocumentController {
 
+	/**
+	 * Service nghiệp vụ tài liệu đính kèm Asset.
+	 */
 	private final AssetDocumentService service;
 
+	/**
+	 * Khởi tạo controller với {@link AssetDocumentService}.
+	 *
+	 * @param service service nghiệp vụ tài liệu Asset
+	 */
 	public AssetDocumentController(AssetDocumentService service) {
 		this.service = service;
 	}
 
+	/**
+	 * Lấy id người dùng (Owner) từ principal; ném lỗi xác thực nếu principal null.
+	 *
+	 * @param principal principal đang đăng nhập
+	 * @return id Owner
+	 */
 	private static Long owner(CustomUserPrincipal principal) {
 		return CustomUserPrincipal.requireUserId(principal);
 	}
 
+	/**
+	 * {@code GET /api/v1/vaults/{vaultId}/assets/{assetId}/documents} - liệt kê metadata các tài liệu của Asset
+	 * (role VAULT_OWNER). Response {@code no-store}, không chứa nội dung file.
+	 *
+	 * @return danh sách {@link DocumentInfo}
+	 */
 	@GetMapping
 	public ResponseEntity<List<DocumentInfo>> list(@PathVariable UUID vaultId, @PathVariable UUID assetId,
 			@AuthenticationPrincipal CustomUserPrincipal principal) {
 		return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.list(vaultId, assetId, owner(principal)));
 	}
 
+	/**
+	 * {@code POST /api/v1/vaults/{vaultId}/assets/{assetId}/documents} (multipart/form-data, part {@code documents}) -
+	 * tải lên một hoặc nhiều tài liệu PDF/DOC/DOCX cho Asset (role VAULT_OWNER). Tất cả file của một request được lưu
+	 * hoặc không file nào (xem {@link AssetDocumentService#add}).
+	 *
+	 * @param documents các file tải lên (có thể null -> 400 VALIDATION_FAILED)
+	 * @return 201 với danh sách {@link DocumentInfo} hiện có của Asset
+	 */
 	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ResponseStatus(HttpStatus.CREATED)
 	public List<DocumentInfo> add(@PathVariable UUID vaultId, @PathVariable UUID assetId,
@@ -64,7 +95,15 @@ public class AssetDocumentController {
 		return service.add(vaultId, assetId, owner(principal), documents);
 	}
 
-	/** POST because the password travels in the body; the response is a file, never cached or sniffed. */
+	/**
+	 * {@code POST /api/v1/vaults/{vaultId}/assets/{assetId}/documents/{documentId}/download} - tải nội dung tài liệu
+	 * sau khi nhập lại mật khẩu (role VAULT_OWNER). Dùng POST vì mật khẩu nằm trong body. Response là file đính kèm với
+	 * {@code no-store}, {@code nosniff} và CSP {@code default-src 'none'; sandbox} để trình duyệt không thực thi nội dung.
+	 *
+	 * Body: {@link RevealAssetRequest}. Gọi {@link AssetDocumentService#open}.
+	 *
+	 * @return 200 với byte của file giải mã (Content-Disposition: attachment)
+	 */
 	@PostMapping("/{documentId}/download")
 	public ResponseEntity<byte[]> open(@PathVariable UUID vaultId, @PathVariable UUID assetId, @PathVariable UUID documentId,
 			@Valid @RequestBody RevealAssetRequest request, @AuthenticationPrincipal CustomUserPrincipal principal) {
@@ -80,6 +119,12 @@ public class AssetDocumentController {
 				.body(file.content());
 	}
 
+	/**
+	 * {@code DELETE /api/v1/vaults/{vaultId}/assets/{assetId}/documents/{documentId}} - xóa tài liệu khỏi Asset
+	 * (role VAULT_OWNER). Trả 204 No Content.
+	 *
+	 * @see AssetDocumentService#delete
+	 */
 	@DeleteMapping("/{documentId}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void delete(@PathVariable UUID vaultId, @PathVariable UUID assetId, @PathVariable UUID documentId,

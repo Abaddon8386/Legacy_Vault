@@ -16,16 +16,42 @@ import com.legacyvault.verification.service.StaffVaultCaseGuard;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 
+/**
+ * Staff ghi và xem lịch sử liên hệ với Trustee (ST-10, rule LV-EXT-001), được {@code TrusteeContactController} gọi.
+ * Bảng {@code trustees}, {@code trustee_contact_records}; audit {@code TRUSTEE_CONTACT_RECORDED}; mọi thao tác phải thuộc hồ sơ OPEN
+ * của Vault được giao cho Staff ({@code StaffVaultCaseGuard}).
+ */
 @Service
 public class TrusteeContactService {
 
+	/**
+	 * Truy vấn Trustee.
+	 */
 	private final TrusteeRepository trustees;
+	/**
+	 * Lưu / đọc bản ghi liên hệ.
+	 */
 	private final TrusteeContactRecordRepository records;
+	/**
+	 * Lấy Staff đang đăng nhập.
+	 */
 	private final StaffContextService staff;
+	/**
+	 * Ghi audit.
+	 */
 	private final AuditService audit;
+	/**
+	 * Kiểm tra hồ sơ OPEN của Vault được giao cho Staff.
+	 */
 	private final StaffVaultCaseGuard cases;
+	/**
+	 * Dùng để refresh Trustee với khóa ghi bi quan.
+	 */
 	private final EntityManager entities;
 
+	/**
+	 * Khởi tạo service với các phụ thuộc do Spring inject.
+	 */
 	public TrusteeContactService(TrusteeRepository trustees, TrusteeContactRecordRepository records,
 			StaffContextService staff, AuditService audit, StaffVaultCaseGuard cases, EntityManager entities) {
 		this.trustees = trustees;
@@ -36,6 +62,17 @@ public class TrusteeContactService {
 		this.entities = entities;
 	}
 
+	/**
+	 * Ghi một kết quả liên hệ Trustee ({@code POST /api/v1/staff/trustees/{trusteeId}/contact-outcomes}).
+	 *
+	 * Các bước: lấy Staff -> tìm Trustee -> {@code cases.requireOpenForWrite} -> refresh Trustee với PESSIMISTIC_WRITE (nếu đã bị thu hồi trong lúc chờ khóa thì chặn) ->
+	 * lưu {@link TrusteeContactRecord} -> audit {@code TRUSTEE_CONTACT_RECORDED}.
+	 *
+	 * @param trusteeId public id Trustee
+	 * @param request kênh, kết quả, trạng thái dự phòng, ghi chú
+	 * @return {@link TrusteeContactDtos.RecordResponse}
+	 * @throws com.legacyvault.common.exception.BusinessException RESOURCE_NOT_FOUND, TRUSTEE_REVOKED, hoặc lỗi guard hồ sơ
+	 */
 	@Transactional
 	public TrusteeContactDtos.RecordResponse record(UUID trusteeId, TrusteeContactDtos.RecordRequest request) {
 		User actor = staff.requireStaff();
@@ -60,6 +97,11 @@ public class TrusteeContactService {
 		return TrusteeContactDtos.RecordResponse.from(record);
 	}
 
+	/**
+	 * Lịch sử liên hệ của Trustee ({@code GET .../contact-outcomes}), mới nhất trước; yêu cầu hồ sơ OPEN của Vault được giao cho Staff.
+	 *
+	 * @throws com.legacyvault.common.exception.BusinessException RESOURCE_NOT_FOUND hoặc lỗi guard hồ sơ
+	 */
 	@Transactional(readOnly = true)
 	public List<TrusteeContactDtos.RecordResponse> history(UUID trusteeId) {
 		User actor = staff.requireStaff();
@@ -70,6 +112,9 @@ public class TrusteeContactService {
 				.map(TrusteeContactDtos.RecordResponse::from).toList();
 	}
 
+	/**
+	 * Trim; null hoặc rỗng trả về null.
+	 */
 	private String clean(String value) {
 		if (value == null) return null;
 		String cleaned = value.trim();

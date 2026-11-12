@@ -10,10 +10,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class InvitationRedeemFailureRecorder {
     private final JdbcTemplate jdbc;
 
+    /**
+     * Hàm khởi tạo, nhận {@code JdbcTemplate}.
+     */
     public InvitationRedeemFailureRecorder(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
 
+    /**
+     * Ghi một lần thất bại vào {@code dbo.invitation_redeem_failures} trong giao dịch riêng ({@code REQUIRES_NEW}) để vẫn được lưu
+     * khi giao dịch đổi mã bị rollback. Gọi từ {@code InvitationRedeemService.redeem}.
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void record(Long accountId, String invitationCodeHash) {
         jdbc.update("""

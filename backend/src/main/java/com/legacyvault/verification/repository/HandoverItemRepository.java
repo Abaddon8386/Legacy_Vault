@@ -9,6 +9,10 @@ import org.springframework.data.repository.query.Param;
 
 import com.legacyvault.verification.entity.HandoverItem;
 
+/**
+ * Bảng {@code handover_items}. Được {@code HandoverDeliveryService} dùng cho {@code POST/GET .../deliveries} và
+ * {@code .../eligible-assets}.
+ */
 public interface HandoverItemRepository extends JpaRepository<HandoverItem, Long> {
 
     /** Allocation lines (of the given ids) that already have a recorded delivery. */
@@ -26,5 +30,8 @@ public interface HandoverItemRepository extends JpaRepository<HandoverItem, Long
           and u.userId = i.deliveredByStaffUserId
         order by i.deliveredAt asc, i.id asc
         """)
+    /**
+     * Các mục đã giao của phiên dạng {@link HandoverItemRow} (UUID công khai), sắp theo thời điểm giao.
+     */
     List<HandoverItemRow> findRowsBySession(@Param("sessionId") Long sessionId);
 }

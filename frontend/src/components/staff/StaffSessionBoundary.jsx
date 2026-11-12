@@ -8,11 +8,43 @@ import StaffCaseSelectorModal from './StaffCaseSelectorModal.jsx';
 import './StaffSessionBoundary.css';
 import StaffGroupHandover from './StaffGroupHandover.jsx';
 
+/**
+ * Ranh giới (guard) kiểm tra hồ sơ và phiên bàn giao trước khi hiển thị trang con của Staff.
+ * Ở chế độ `preview` không có token thì render thẳng `children`; ngược lại bọc `SessionScope`
+ * với `key` theo (caseId, sessionId, accessToken, revision) để tải lại khi các giá trị này đổi.
+ *
+ * @param {object} props xem `SessionScope`; thêm `preview`, `revision`.
+ */
 export default function StaffSessionBoundary(props) {
   if (props.preview && !props.accessToken) return props.children;
   return <SessionScope key={JSON.stringify([props.caseId, props.sessionId, props.accessToken, props.revision])} {...props} />;
 }
 
+/**
+ * Tải và kiểm tra điều kiện của hồ sơ + phiên bàn giao, rồi quyết định hiển thị trang con hay thông báo chờ.
+ * Các bước trong effect (chỉ khi `caseId` là UUID):
+ * 1. `loadStaffCase` (`GET /api/v1/staff/verification-cases/{caseId}`); nếu `UNASSIGNED_CLAIMABLE` thì yêu cầu nhận xử lý trước.
+ * 2. Có `sessionId`: `getLiveSession` (`GET .../handover-sessions/{sessionId}`); với thao tác `delivery`
+ *    mà phiên không còn `OPEN` thì coi là đã kết thúc.
+ * 3. Nếu kho đang ở `AWAITING_LEGAL_BASIS`/`LEGAL_BASIS_VERIFICATION` thì nạp `loadDistributionWorkflow` (vai trò STAFF).
+ * 4. Không cần phiên (`requireSession` false): kiểm tra tiền điều kiện bằng `staffSessionPrerequisite`.
+ * 5. Ngược lại `listLiveSessions` (`GET .../handover-sessions`), tự chọn phiên OPEN hoặc phiên duy nhất, ghi
+ *    `sessionId` vào URL (history.replaceState) và gọi `onSessionChange`; nhiều phiên thì cho người dùng chọn.
+ * Kết quả `ready` sẽ clone `children` với `caseItem` và `sessionId`; thao tác `delivery` còn được bọc bởi
+ * `StaffGroupHandover`. Lỗi 401 gọi `onUnauthorized`; các lỗi khác hiển thị qua `workflowFailure`.
+ *
+ * @param {object} props
+ * @param {React.ReactElement} props.children trang con cần bảo vệ.
+ * @param {string} props.caseId id hồ sơ.
+ * @param {string} [props.sessionId] id phiên đang chọn.
+ * @param {string} props.accessToken JWT của staff.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {boolean} [props.requireSession=true] có bắt buộc phải có phiên bàn giao không.
+ * @param {Function} [props.onCaseChange] chọn hồ sơ khác (từ modal chọn hồ sơ).
+ * @param {Function} [props.onSessionChange] chọn phiên khác.
+ * @param {Function} [props.onUnauthorized] gọi khi API trả 401.
+ * @param {'view'|'delivery'} [props.operation='view'] loại thao tác của trang con.
+ */
 function SessionScope({children, caseId, sessionId, accessToken, lang = 'vi', requireSession = true,
   onCaseChange, onSessionChange, onUnauthorized, operation = 'view'}) {
   const en = lang === 'en';
@@ -25,6 +57,7 @@ function SessionScope({children, caseId, sessionId, accessToken, lang = 'vi', re
     if (!isHandoverId(caseId)) return;
     const controller = new AbortController();
     const options = {accessToken, lang:callbacks.current.lang, signal:controller.signal};
+    /** Thực hiện chuỗi tải hồ sơ/phiên ở trên và ghi kết quả vào state `result` (bỏ qua nếu đã abort). */
     async function load() {
       try {
         let item = await loadStaffCase(caseId, options);

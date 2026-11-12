@@ -56,13 +56,30 @@ import java.util.UUID;
  *
  * PS-37: Sau khi tiếp nhận phiên bản mới, đánh giá lại snapshot để phát
  * hiện thay đổi và đánh dấu REVIEW_REQUIRED nếu cần.
+ *
+ * <p>Bổ sung: được gọi qua {@link DistributionWorkflowService#receive} bởi {@code StaffBasisIntakeController} tại
+ * {@code POST /api/v1/staff/verification-cases/{caseId}/basis-dossier/versions} (multipart, vai trò {@code STAFF_EXECUTOR}).
+ * Ghi các bảng {@code legal_basis_dossiers}, {@code legal_basis_dossier_versions}, {@code legal_basis_version_allocations}
+ * và có thể tạo mới {@code beneficiaries} (người nhận chỉ có tên trong văn bản Tòa án). Audit {@code LEGAL_BASIS_RECEIVED}.
  */
 @Service
 public class BasisIntakeService {
+    /**
+     * Dịch vụ ghi thông báo workflow gửi sang Legal.
+     */
     private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
+    /**
+     * Loại thực thể ghi vào audit log.
+     */
     static final String ENTITY_TYPE = "LEGAL_BASIS_DOSSIER";
+    /**
+     * Mã bước quy trình ghi vào audit (ST-18: tiếp nhận văn bản căn cứ).
+     */
     static final String STEP_ID = "ST-18";
+    /**
+     * Mã quy tắc nghiệp vụ ghi vào audit.
+     */
     static final String RULE_ID = "LV-BASIS-001";
 
     private final StaffCaseLockRepository staffCases;
@@ -79,8 +96,15 @@ public class BasisIntakeService {
     private final AuditService auditService;
     private final LegalBasisLockedState lockedState;
     private final LegalBasisReviewService reviewService;
+    /**
+     * Dung lượng tối đa của file tải lên (byte), cấu hình {@code legacyvault.will.max-file-bytes}, mặc định 10 MiB.
+     */
     private final long maxFileBytes;
 
+    /**
+     * Khởi tạo service với các repository (ca, Vault, hồ sơ, phiên bản, phân bổ, tài sản, người nhận), mã hóa
+     * (AES cho file, mã hóa số giấy tờ người nhận), audit, rà soát PS-37, thông báo và giới hạn dung lượng file.
+     */
     public BasisIntakeService(
             StaffCaseLockRepository staffCases,
             VaultRepository vaultRepository,
@@ -122,6 +146,23 @@ public class BasisIntakeService {
      *
      * Thứ tự khóa bắt buộc: Vault -> VerificationCase -> Dossier.
      * Sau khi lưu phiên bản và audit, đánh giá lại snapshot PS-37.
+     *
+     * <p>Tiếp nhận phiên bản dossier mới.
+     *
+     * Các bước: kiểm tra tham số; tìm ca của Staff; khóa Vault → VerificationCase → Dossier (nếu chưa có dossier thì mở dossier
+     * theo loại giấy tờ nộp); kiểm tra ca mở, Vault ở trạng thái tiếp nhận căn cứ, dossier nhận được phiên bản mới, không ON_HOLD;
+     * kiểm tra loại văn bản khớp nhánh ({@link #requireTypeMatchesRoute}) và phạm vi phân bổ nếu có ({@link #resolveScope});
+     * đọc file ({@code WillFile.inspect}: giới hạn dung lượng, tính SHA-256); tạo phiên bản số kế tiếp, mã hóa nội dung bằng
+     * AES với AAD là UUID phiên bản; lưu phân bổ; đánh dấu dossier PROVIDED; ghi audit {@code LEGAL_BASIS_RECEIVED} (không ghi số
+     * văn bản, ghi chú hay tên file); đánh giá lại snapshot PS-37; gửi thông báo cho Legal.
+     *
+     * @param caseId UUID công khai của ca xác minh
+     * @param principal Staff đang đăng nhập (phải là người nhận ca)
+     * @param metadata metadata văn bản căn cứ (loại, cơ quan cấp, số, ngày, công chứng, phân bổ tùy chọn)
+     * @param file file scan văn bản
+     * @return hồ sơ căn cứ sau khi thêm phiên bản (kèm thông báo)
+     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED, RESOURCE_NOT_FOUND, VERIFICATION_CASE_NOT_OPEN,
+     *         BASIS_DOSSIER_INVALID_STATE và các lỗi của {@code LegalWorkflowGuard} khi đang ON_HOLD
      */
     @Transactional
     public BasisDossierResponse intake(
@@ -299,7 +340,14 @@ public class BasisIntakeService {
         return views.view(verificationCase, false).withNotification(notification);
     }
 
-    /** Route follows the submitted document type; an unknown type is a validation error. */
+    /**
+     * Route follows the submitted document type; an unknown type is a validation error.
+     *
+     * <p>Mở dossier mới theo loại văn bản nộp: {@code NOTARIAL_PARTITION} → nhánh công chứng (không tranh chấp);
+     * {@code COURT_JUDGMENT}/{@code COURT_DECISION} → nhánh Tòa án (có tranh chấp).
+     *
+     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED nếu loại văn bản không nhận diện được
+     */
     private static LegalBasisDossier openDossier(Long verificationCaseId, BasisIntakeMetadata metadata, Long staffUserId) {
         String type = metadata.legalBasisType();
         String route = "NOTARIAL_PARTITION".equals(type) ? LegalBasisDossier.ROUTE_NOTARIAL
@@ -315,6 +363,12 @@ public class BasisIntakeService {
     /**
      * Gắn ciphertext với đúng phiên bản.
      * Sao chép ciphertext sang phiên bản khác sẽ khiến giải mã thất bại.
+     *
+     * <p>Dữ liệu liên kết (AAD) cho mã hóa AES-GCM, dạng {@code LEGAL_BASIS_VERSION:<UUID phiên bản>}.
+     * Cũng được {@code IntakeAttachmentService} dùng khi giải mã nội dung phiên bản.
+     *
+     * @param versionPublicId UUID công khai của phiên bản
+     * @return AAD dạng byte UTF-8
      */
     static byte[] associatedData(UUID versionPublicId) {
         return ("LEGAL_BASIS_VERSION:" + versionPublicId)
@@ -326,6 +380,16 @@ public class BasisIntakeService {
      *
      * Mỗi dòng phải tham chiếu tài sản và beneficiary thuộc cùng Vault;
      * không cho phép trùng cặp asset-beneficiary.
+     *
+     * <p>Kiểm tra và quy đổi các dòng phân bổ từ client thành {@link ScopeLine}: mỗi dòng phải chọn đúng một trong hai
+     * (người nhận có sẵn trong kho hoặc người mới từ văn bản Tòa án, chỉ hợp lệ ở nhánh COURT), không trùng cặp
+     * tài sản-người nhận, tài sản không phải loại DOCUMENT và thuộc cùng Vault, người nhận có sẵn thuộc cùng Vault.
+     *
+     * @param inputs danh sách phân bổ từ client
+     * @param vaultId ID Vault đang xử lý
+     * @param route nhánh của dossier
+     * @return danh sách dòng đã kiểm tra
+     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED khi dữ liệu sai
      */
     private List<ScopeLine> resolveScope(
             List<AllocationInput> inputs,
@@ -391,12 +455,23 @@ public class BasisIntakeService {
         return scope;
     }
 
+    /**
+     * Kết quả lưu phân bổ: các dòng đã lưu và bản đồ người nhận mới tạo từ văn bản Tòa án (khóa theo {@code courtKey}).
+     *
+     * @param lines các dòng phân bổ đã lưu
+     * @param courtRecipients người nhận mới tạo trong giao dịch này
+     */
     private record Persisted(List<LegalBasisVersionAllocation> lines, Map<String, Beneficiary> courtRecipients) {
     }
 
     /**
      * BE-02: người chỉ có tên trong văn bản Tòa án được tạo ngay trong giao dịch này, gắn đúng phiên bản vừa lưu.
      * Cùng một người ở nhiều dòng chỉ tạo một lần.
+     *
+     * <p>Lưu các dòng phân bổ gắn với đúng phiên bản vừa tạo; người nhận chỉ có tên trong văn bản Tòa án được tạo ngay trong giao dịch
+     * này ({@link #createCourtRecipient}), cùng một người ở nhiều dòng chỉ tạo một lần.
+     *
+     * @return các dòng đã lưu và người nhận mới tạo
      */
     private Persisted persistAllocations(Vault vault, Long dossierVersionId, List<ScopeLine> scope,
             List<AllocationInput> inputs) {
@@ -433,6 +508,15 @@ public class BasisIntakeService {
      * Distribution workflow (Staff submits allocations): validates every asset/recipient of the Vault, retires the
      * previous allocation of the same document version and stores the new one. The caller holds the
      * Vault -> case -> dossier locks and decides whether the phase allows it; nothing is approved here.
+     *
+     * <p>Dùng cho distribution workflow khi Staff nộp phân bổ ({@code submitAllocations}): kiểm tra mọi tài sản/người nhận của Vault,
+     * thay thế (supersede) phân bổ cũ của cùng phiên bản tài liệu rồi lưu phân bổ mới. Người gọi phải đang giữ khóa Vault → ca → dossier.
+     *
+     * @param vault Vault đã khóa
+     * @param dossier hồ sơ căn cứ đã khóa
+     * @param dossierVersionId ID phiên bản tài liệu
+     * @param inputs các dòng phân bổ mới
+     * @return số dòng đã lưu
      */
     public int replaceAllocations(Vault vault, LegalBasisDossier dossier, Long dossierVersionId,
             List<AllocationInput> inputs) {
@@ -441,7 +525,14 @@ public class BasisIntakeService {
         return persistAllocations(vault, dossierVersionId, scope, inputs).lines().size();
     }
 
-    /** Một dòng phạm vi đã kiểm tra: người nhận có sẵn ({@code beneficiaryId}) hoặc người sẽ tạo từ văn bản. */
+    /**
+     * Một dòng phạm vi đã kiểm tra: người nhận có sẵn ({@code beneficiaryId}) hoặc người sẽ tạo từ văn bản.
+     *
+     * @param assetId ID nội bộ của tài sản
+     * @param beneficiaryId ID nội bộ người nhận có sẵn, hoặc null nếu là người mới từ văn bản
+     * @param courtKey khóa nhận diện người nhận mới (họ tên + số giấy tờ + ngày sinh), null nếu là người có sẵn
+     * @param court dữ liệu người nhận mới từ văn bản Tòa án, null nếu là người có sẵn
+     */
     private record ScopeLine(
             Long assetId,
             Long beneficiaryId,
@@ -450,7 +541,13 @@ public class BasisIntakeService {
     ) {
     }
 
-    /** Cùng họ tên + số giấy tờ + ngày sinh trong một phiên bản được coi là cùng một người nhận. */
+    /**
+     * Cùng họ tên + số giấy tờ + ngày sinh trong một phiên bản được coi là cùng một người nhận.
+     *
+     * @param court dữ liệu người nhận từ văn bản Tòa án
+     * @return khóa chuẩn hóa dạng {@code court:<họ tên thường>|<số giấy tờ>|<ngày sinh>}
+     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED nếu thiếu họ tên
+     */
     private static String courtKey(BeneficiaryDtos.UpsertRequest court) {
         String name = normalize(court.fullName());
         if (name == null) {
@@ -462,6 +559,12 @@ public class BasisIntakeService {
                 + "|" + (court.dateOfBirth() == null ? "" : court.dateOfBirth());
     }
 
+    /**
+     * Tạo người nhận từ văn bản Tòa án ({@code Beneficiary.fromCourtDocument}) gắn với phiên bản; số giấy tờ được mã hóa bằng
+     * {@link IdentityNumberCipher}, email được chuẩn hóa chữ thường. Lưu vào bảng {@code beneficiaries}.
+     *
+     * @return người nhận đã lưu
+     */
     private Beneficiary createCourtRecipient(
             Vault vault,
             Long dossierVersionId,
@@ -486,6 +589,9 @@ public class BasisIntakeService {
 
     /**
      * Kiểm tra loại văn bản khớp với nhánh pháp lý của dossier.
+     *
+     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED nếu loại văn bản không khớp nhánh hoặc
+     *         văn bản công chứng thiếu tổ chức, số hay ngày công chứng
      */
     private static void requireTypeMatchesRoute(
             BasisIntakeMetadata metadata,
@@ -514,6 +620,8 @@ public class BasisIntakeService {
 
     /**
      * Serialize metadata tham chiếu chứng cứ.
+     *
+     * @return JSON {@code {"evidenceReference": ...}} hoặc null nếu không có tham chiếu
      */
     private String evidenceJson(String evidenceReference) {
         String value = normalize(evidenceReference);
@@ -534,6 +642,9 @@ public class BasisIntakeService {
 
     /**
      * Chuẩn hóa chuỗi rỗng thành null.
+     *
+     * @param value chuỗi đầu vào (có thể null)
+     * @return chuỗi đã trim hoặc null nếu rỗng
      */
     private static String normalize(String value) {
         if (value == null) {

@@ -2,6 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { fetchStaffCaseBeneficiaries, recordCounterAttestation, requestInvitationEmail, counterLinkTabUrl } from './liveHandoverService.js';
 import { linkExistingBeneficiaryAccount } from './beneficiaryAccountService.js';
 import { staffAuthFeedback } from './staffFeedback.js';
+/**
+ * Chuyển lỗi API của thao tác tại quầy thành thông báo (vi/en): lỗi hết phiên (`staffAuthFeedback`), hồ sơ đã đóng,
+ * hoặc tra theo mã lỗi (`HANDOVER_SESSION_ALREADY_OPEN`, `HANDOVER_SESSION_INVALID_STATE`, `RESOURCE_NOT_FOUND`,
+ * `INVALID_RESPONSE`, `LEGAL_APPROVAL_REQUIRED`, `LEGAL_WORKFLOW_ON_HOLD`).
+ *
+ * @param {Error} error lỗi từ `request()`.
+ * @param {boolean} en true cho tiếng Anh.
+ * @param {object} [caseItem] hồ sơ hiện tại, dùng để nhận biết hồ sơ đã đóng.
+ * @returns {string}
+ */
 function errorText(error, en, caseItem) {
   const auth = staffAuthFeedback(error, en ? 'en' : 'vi');
   if (auth) return `${auth.title}. ${auth.description}`;
@@ -21,6 +31,30 @@ function errorText(error, en, caseItem) {
   return texts[error?.code]?.[en ? 1 : 0] || (en ? 'Unable to complete the request. Reload to check the latest state before retrying.' : 'Chưa thực hiện được yêu cầu. Tải lại để kiểm tra trạng thái mới nhất trước khi thử lại.');
 }
 
+/**
+ * Phần "Người nhận tại quầy" kiểu cũ (dùng khi không có `counterLinkActions`) trong `LiveHandoverPage.jsx`.
+ * Liệt kê người thụ hưởng của hồ sơ và cho Staff:
+ * - tải danh sách: `GET /api/v1/staff/verification-cases/{caseId}/beneficiaries` (`fetchStaffCaseBeneficiaries`), chỉ khi
+ *   hồ sơ chưa đóng và đã mở rộng mục này (chế độ `accounts` mở sẵn);
+ * - ghi nhận đối chiếu CCCD tại quầy: `POST .../beneficiaries/{beneficiaryId}/identity-attestations`
+ *   (`recordCounterAttestation`) với mã chứng từ (bắt buộc, tối đa 200 ký tự) và email xác nhận tùy chọn;
+ * - gửi email lời mời: `POST .../beneficiaries/{beneficiaryId}/invitation-email` (`requestInvitationEmail`, kèm `expectedGeneration`);
+ * - liên kết tài khoản có sẵn bằng email: `linkExistingBeneficiaryAccount`
+ *   (`POST /api/v1/staff/beneficiaries/{beneficiaryId}/account-link`), chỉ ở chế độ `accounts`; ngoài chế độ này hiện
+ *   đường dẫn sang tab "Đối chiếu và liên kết" (`counterLinkTabUrl`).
+ * Hiển thị bước xử lý (`counterStep`: chờ đối chiếu, chờ quyết định tài khoản, đã liên kết). Các thao tác ghi dùng khóa
+ * `mutation` để không chạy đồng thời; sau khi thành công tăng `beneficiaryRevision` để tải lại.
+ *
+ * @param {object} props
+ * @param {string} props.caseId id hồ sơ xác minh.
+ * @param {object} props.caseItem hồ sơ (cần `status`).
+ * @param {string} [props.selectedSessionId] phiên bàn giao đang chọn, dùng tạo liên kết sang tab liên kết.
+ * @param {string} props.accessToken JWT của staff.
+ * @param {'vi'|'en'} props.lang ngôn ngữ.
+ * @param {'sessions'|'accounts'} props.mode chế độ trang hiện tại.
+ * @param {Function} [props.onError] báo lỗi lên cha.
+ * @returns {JSX.Element}
+ */
 export default function LegacyCounterBeneficiariesSection({ caseId, caseItem, selectedSessionId, accessToken, lang, mode, onError }) {
   const en = lang === 'en';
   const [expanded, setExpanded] = useState(() => mode === 'accounts');
@@ -78,6 +112,7 @@ export default function LegacyCounterBeneficiariesSection({ caseId, caseItem, se
     };
   }, [caseId, accessToken, expanded, lang, beneficiaryRevision, caseItem?.status]);
 
+  /** Gửi biểu mẫu ghi nhận đối chiếu tại quầy cho người thụ hưởng đang chọn, rồi đóng biểu mẫu và tải lại danh sách. */
   const handleAttest = async (e) => {
     e.preventDefault();
     if (!attestTarget || !evidenceRef.trim() || mutation.current) return;
@@ -105,6 +140,7 @@ export default function LegacyCounterBeneficiariesSection({ caseId, caseItem, se
     }
   };
 
+  /** Yêu cầu backend xếp hàng gửi email lời mời cho một người thụ hưởng (cần `invitation.generation` hợp lệ). */
   const handleRequestInvitationEmail = async (ben) => {
     if (mutation.current || !Number.isSafeInteger(ben.invitation?.generation)) return;
     const c = new AbortController();
@@ -125,6 +161,7 @@ export default function LegacyCounterBeneficiariesSection({ caseId, caseItem, se
     }
   };
 
+  /** Nhãn (vi/en) của các bước xử lý tại quầy của một người thụ hưởng. */
   const stepLabels = en ? {
     AWAITING_IDENTITY_VERIFICATION: 'Awaiting in-person identity check',
     AWAITING_ACCOUNT_DECISION: 'Identity checked · Awaiting account decision',

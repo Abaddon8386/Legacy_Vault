@@ -13,6 +13,9 @@ import { mockDmsAdapter } from '../../utils/dmsService.js';
 import { fetchSubscription, formatStorageBytes } from '../../utils/subscriptionService.js';
 import './VaultSummary.css';
 
+/**
+ * Định dạng thời điểm kiểm tra tiếp theo theo ngôn ngữ (en-US hoặc vi-VN); trả chuỗi rỗng nếu không hợp lệ.
+ */
 function formatNextDate(dateStr, lang) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -39,6 +42,9 @@ function formatNextDate(dateStr, lang) {
   return `${datePart} (${timePart})`;
 }
 
+/**
+ * Dữ liệu mô phỏng cho chế độ xem thử, chọn theo tham số URL {@code scenario}/{@code summary}/{@code dms} (monitoring, not_configured, api_error, triggered...).
+ */
 function getSimulationData(lang = 'vi') {
   if (typeof window === 'undefined') {
     return {
@@ -83,6 +89,12 @@ function getSimulationData(lang = 'vi') {
   };
 }
 
+/**
+ * Thẻ tóm tắt kho trên trang tổng quan: số tài sản, cấu hình (người thụ hưởng, sẵn sàng), trạng thái DMS và kế hoạch dung lượng.
+ * Dữ liệu: {@code fetchVaultSummary} ({@code utils/vaultSummaryService.js}, tổng hợp từ danh sách tài sản, người thụ hưởng và {@code GET /dms}) và {@code fetchSubscription} ({@code utils/subscriptionService.js}). Ở chế độ mô phỏng dùng dữ liệu giả. 401 gọi {@code onUnauthorized}.
+ * Props: {@code vaultId}, {@code vaultStatus}, {@code ownerId}, {@code accessToken}, {@code lang}, {@code onUnauthorized}, {@code refreshKey} (đổi để tải lại), {@code isSimulation}, {@code onNavigate}.
+ * State: {@code state} (tóm tắt), {@code subState} (gói dịch vụ), khóa yêu cầu để bỏ kết quả cũ.
+ */
 export default function VaultSummary({
   vaultId,
   vaultStatus = 'ACTIVE',

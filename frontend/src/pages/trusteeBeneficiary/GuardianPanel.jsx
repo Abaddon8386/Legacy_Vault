@@ -3,6 +3,13 @@ import { guardianService } from '../../services/guardianService.js';
 import { EMAIL_REGEX, PHONE_REGEX } from '../../utils/trusteeValidation.js';
 import '../../components/common/RelatedAttachments.css';
 
+/**
+ * Kiểm tra bản nháp người giám hộ: họ tên, quan hệ bắt buộc; email theo EMAIL_REGEX; số điện thoại theo PHONE_REGEX (tối đa 20 ký tự), không chứa ký tự điều khiển.
+ *
+ * @param {object} [values] {fullName, relationship, email, phone}.
+ * @param {'vi'|'en'} [lang='vi'] Ngôn ngữ thông báo.
+ * @returns {Object<string, string>} Lỗi theo từng trường (rỗng nếu hợp lệ).
+ */
 function validateGuardianDraft(values = {}, lang = 'vi') {
   const en = lang === 'en';
   const errors = {};
@@ -70,6 +77,7 @@ function validateGuardianDraft(values = {}, lang = 'vi') {
   return errors;
 }
 
+/** Định dạng thời điểm ISO thành ngày theo UTC (DD/MM/YYYY hoặc YYYY-MM-DD); trả "—" nếu rỗng, trả chuỗi gốc nếu không parse được. */
 function formatGuardianTimestamp(isoString, en) {
   if (!isoString || typeof isoString !== 'string') return '—';
   const date = new Date(isoString);
@@ -80,6 +88,7 @@ function formatGuardianTimestamp(isoString, en) {
   return en ? `${y}-${m}-${d}` : `${d}/${m}/${y}`;
 }
 
+/** Nhãn trạng thái một bản ghi lịch sử người giám hộ: chưa kết thúc là "Hiện hành", REPLACED là "Đã thay thế", REVOKED là "Đã thu hồi". */
 function formatEndReason(reason, endedAt, en) {
   if (!endedAt) return en ? 'Current' : 'Hiện hành';
   if (reason === 'REPLACED') return en ? 'Replaced' : 'Đã thay thế';
@@ -87,6 +96,12 @@ function formatEndReason(reason, endedAt, en) {
   return reason || (en ? 'Ended' : 'Đã kết thúc');
 }
 
+/**
+ * Bảng quản lý người giám hộ của một người thụ hưởng, nằm trong TrusteeBeneficiaryPage. Vỏ bọc đặt key theo (vaultId, beneficiaryId, accessToken) để reset khi đổi đối tượng.
+ *
+ * @param {object} props Truyền xuống GuardianContent (vaultId, beneficiaryId, beneficiaryName, beneficiaryDob, isMinorHint, isAdultHint, accessToken, lang, onUnauthorized).
+ * @returns {JSX.Element}
+ */
 export default function GuardianPanel(props) {
   return (
     <GuardianContent
@@ -96,6 +111,26 @@ export default function GuardianPanel(props) {
   );
 }
 
+/**
+ * Nội dung bảng người giám hộ. Dùng guardianService (services/guardianService.js):
+ * - get: GET /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/guardian;
+ * - save: PUT .../guardian (kèm expectedRevision để chống ghi đè);
+ * - revoke: POST .../guardian/revoke;
+ * - history: GET .../guardian/history?page&size=20.
+ * Người đã đủ 18 tuổi không cần giám hộ nhưng nếu đã có bản ghi từ trước thì vẫn được tải (isAdultHint) và có thể thu hồi. Các thao tác chạy độc quyền qua run() với AbortController; 401 -> onUnauthorized.
+ *
+ * @param {object} props
+ * @param {string} props.vaultId Id kho.
+ * @param {string} props.beneficiaryId Id người thụ hưởng.
+ * @param {string} [props.beneficiaryName] Tên người thụ hưởng.
+ * @param {string} [props.beneficiaryDob] Ngày sinh.
+ * @param {boolean} [props.isMinorHint=false] Người thụ hưởng dưới 18 tuổi.
+ * @param {boolean} [props.isAdultHint=false] Người thụ hưởng đã đủ 18 tuổi.
+ * @param {string} props.accessToken JWT.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {() => void} [props.onUnauthorized] 401.
+ * @returns {JSX.Element}
+ */
 function GuardianContent({
   vaultId,
   beneficiaryId,
@@ -140,6 +175,12 @@ function GuardianContent({
     return () => c.abort();
   }, [isAdultHint, vaultId, beneficiaryId, accessToken, lang, onUnauthorized]);
 
+  /**
+   * Chạy một tác vụ API với khóa độc quyền: tạo AbortController, bật busy/busyAction ('load' | 'save' | 'revoke' | 'history'), xóa lỗi, bắt lỗi (401 -> onUnauthorized) và nhả khóa khi xong.
+   *
+   * @param {string} actionType Loại tác vụ.
+   * @param {(options: object, controller: AbortController) => Promise<void>} task Hàm thực hiện.
+   */
   async function run(actionType, task) {
     if (controller.current) return;
     const c = new AbortController();
@@ -166,6 +207,7 @@ function GuardianContent({
     }
   }
 
+  /** Tải người giám hộ hiện tại (guardianService.get) và đặt lại bản nháp, lịch sử, trạng thái thu hồi. */
   const load = () =>
     run('load', async (options, c) => {
       const value = await guardianService.get(vaultId, beneficiaryId, options);
@@ -178,12 +220,14 @@ function GuardianContent({
       }
     });
 
+  /** Tải một trang lịch sử người giám hộ (guardianService.history) và lưu vào state history. */
   const showHistory = (page) =>
     run('history', async (options, c) => {
       const value = await guardianService.history(vaultId, beneficiaryId, page, options);
       if (!c.signal.aborted) setHistory(value);
     });
 
+  /** Mở form nhập người giám hộ, điền sẵn từ người giám hộ hiện tại (nếu có) và xóa lỗi/thông báo cũ. */
   const openDraftForm = () => {
     setConfirmRevoke(false);
     setSuccessMsg(null);
@@ -197,9 +241,11 @@ function GuardianContent({
     });
   };
 
+  /** Thứ tự các trường dùng để tìm và focus lỗi đầu tiên. */
   const fieldOrder = ['fullName', 'relationship', 'email', 'phone'];
   const validationErrors = draft ? validateGuardianDraft(draft, lang) : {};
 
+  /** Xử lý lưu người giám hộ: kiểm tra bản nháp (focus trường lỗi đầu), nếu hợp lệ gọi guardianService.save kèm context.revision rồi cập nhật state và hiện thông báo 'saved'. */
   const handleSaveSubmit = (e) => {
     e.preventDefault();
     if (!draft || busy) return;
@@ -244,6 +290,7 @@ function GuardianContent({
     });
   };
 
+  /** Xác nhận thu hồi người giám hộ: gọi guardianService.revoke với context.revision, cập nhật state và hiện thông báo 'revoked'. */
   const handleConfirmRevoke = () => {
     if (!context || busy) return;
     run('revoke', async (options, c) => {

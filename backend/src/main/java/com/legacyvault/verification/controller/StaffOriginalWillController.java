@@ -34,6 +34,10 @@ public class StaffOriginalWillController {
         this.service = service;
     }
 
+    /**
+     * {@code POST .../original-will-intakes}: ghi nhận di chúc giấy gốc. Body {@link RecordOriginalWillRequest};
+     * trả 201 Created kèm {@link OriginalWillIntakeResponse}.
+     */
     @PostMapping
     public ResponseEntity<OriginalWillIntakeResponse> record(
             @PathVariable UUID caseId,
@@ -46,6 +50,9 @@ public class StaffOriginalWillController {
         return ResponseEntity.created(location).body(created);
     }
 
+    /**
+     * {@code GET .../original-will-intakes}: liệt kê các lần tiếp nhận của ca.
+     */
     @GetMapping
     public List<OriginalWillIntakeResponse> list(
             @PathVariable UUID caseId,
@@ -54,6 +61,9 @@ public class StaffOriginalWillController {
         return service.list(caseId, principal);
     }
 
+    /**
+     * {@code GET .../original-will-intakes/{intakeId}}: đọc một lần tiếp nhận.
+     */
     @GetMapping("/{intakeId}")
     public OriginalWillIntakeResponse get(
             @PathVariable UUID caseId,

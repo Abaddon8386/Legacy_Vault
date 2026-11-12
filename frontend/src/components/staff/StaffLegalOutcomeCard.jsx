@@ -3,9 +3,21 @@ import { BasisVersionOutcome } from './StaffDocumentOutcome.jsx';
 import { outcomeResults, versionOutcomeChip } from './documentOutcomeResults.js';
 import './StaffLegalOutcomeCard.css';
 
+/** Biểu tượng tương ứng với tông màu của chip kết quả Legal. */
 const icons = { positive: CheckCircle2, negative: XCircle, warning: AlertTriangle, history: History };
 
 // The latest Legal decision on a document version, drawn as a flat verdict band (not an information card).
+/**
+ * Dải kết luận phẳng thể hiện quyết định mới nhất của Ban Pháp lý đối với một phiên bản giấy tờ:
+ * biểu tượng, nhãn kết quả (từ `versionOutcomeChip`), lý do, ghi chú lịch sử và thời điểm quyết định.
+ * Khi chưa có kết quả hợp lệ thì hiện thẻ "Quyết định của Ban Pháp lý" chứa `BasisVersionOutcome` dạng gọn.
+ * Không gọi API.
+ *
+ * @param {object} props
+ * @param {object} props.version phiên bản giấy tờ có `legalHistory`.
+ * @param {boolean} [props.en=false] tiếng Anh.
+ * @returns {JSX.Element}
+ */
 export default function StaffLegalOutcomeCard({ version, en = false }) {
   const latest = version?.legalHistory?.[0];
   const chip = versionOutcomeChip(version, en);

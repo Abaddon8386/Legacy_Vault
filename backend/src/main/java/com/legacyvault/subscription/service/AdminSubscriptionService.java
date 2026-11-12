@@ -33,20 +33,58 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.*;
 
+/**
+ * Nghiệp vụ quản trị gói đăng ký, được {@code AdminSubscriptionController} ({@code /api/v1/admin/subscriptions}, role ADMIN) gọi.
+ *
+ * <p>Vòng đời version: DRAFT (sửa được) -> PUBLISHED (đang bán, mỗi gói tối đa một) -> DEPRECATED. Mọi thao tác thay đổi đều khóa gói
+ * ({@code SubscriptionPlanRepository.lockPlan}) để tuần tự hóa với việc chụp giá khi Owner tạo đơn thanh toán, và ghi audit
+ * ({@code SUBSCRIPTION_PLAN_DRAFT_CREATED}, {@code SUBSCRIPTION_PLAN_DRAFT_UPDATED}, {@code SUBSCRIPTION_PLAN_PUBLISHED}, {@code SUBSCRIPTION_PLAN_DEPRECATED}).
+ * Bảng: {@code subscription_plan_versions}, {@code subscription_plans}, {@code subscription_payments}, {@code users}, {@code vaults}.
+ */
 @Service
 public class AdminSubscriptionService {
 
+    /**
+     * Dung lượng tối đa mỗi file của mọi gói: đúng 10 MB.
+     */
     public static final long STANDARD_MAX_FILE_BYTES = 10485760L; // 10 MB exactly
+    /**
+     * Các mã gói hợp lệ.
+     */
     private static final Set<String> ALLOWED_PLANS = Set.of("BASIC", "STANDARD", "EXTENDED");
 
+    /**
+     * Repository các version gói.
+     */
     private final SubscriptionPlanVersionRepository planVersionRepository;
+    /**
+     * Repository catalog gói đang bán (đồng bộ khi publish / deprecate, khóa gói).
+     */
     private final SubscriptionPlanRepository activePlanRepository;
+    /**
+     * Tra cứu tài khoản.
+     */
     private final UserRepository userRepository;
+    /**
+     * Đọc mức sử dụng của Owner.
+     */
     private final OwnerUsageRepository ownerUsageRepository;
+    /**
+     * Tra cứu Vault của Owner.
+     */
     private final VaultRepository vaultRepository;
+    /**
+     * Ghi audit.
+     */
     private final AuditService auditService;
+    /**
+     * Đọc đơn thanh toán và gói hiệu lực.
+     */
     private final com.legacyvault.subscription.repository.PaymentRepository payments;
 
+    /**
+     * Khởi tạo service với các repository do Spring inject.
+     */
     public AdminSubscriptionService(
         SubscriptionPlanVersionRepository planVersionRepository,
         SubscriptionPlanRepository activePlanRepository,
@@ -65,6 +103,11 @@ public class AdminSubscriptionService {
         this.payments = payments;
     }
 
+    /**
+     * Tóm tắt 3 gói BASIC, STANDARD, EXTENDED ({@code GET /plans}): version PUBLISHED, bản nháp, tổng số version, giá và giới hạn (mặc định 5 Asset / 100 MB nếu gói chưa có version).
+     *
+     * @return danh sách {@link PlanSummaryDto}
+     */
     @Transactional(readOnly = true)
     public List<PlanSummaryDto> listPlans() {
         List<String> planCodes = List.of("BASIC", "STANDARD", "EXTENDED");
@@ -113,6 +156,11 @@ public class AdminSubscriptionService {
         return summaries;
     }
 
+    /**
+     * Chi tiết một gói kèm mọi version ({@code GET /plans/{planCode}}).
+     *
+     * @throws com.legacyvault.common.exception.BusinessException PLAN_VERSION_NOT_FOUND nếu mã gói không hợp lệ
+     */
     @Transactional(readOnly = true)
     public PlanDetailDto getPlanDetail(String planCode) {
         String normalizedCode = validateAndNormalizePlanCode(planCode);
@@ -134,6 +182,9 @@ public class AdminSubscriptionService {
         return new PlanDetailDto(normalizedCode, nameVi, nameEn, activeVer, dtos);
     }
 
+    /**
+     * Danh sách version của gói, mới nhất trước ({@code GET /plans/{planCode}/versions}).
+     */
     @Transactional(readOnly = true)
     public List<SubscriptionPlanVersionDto> listPlanVersions(String planCode) {
         String normalizedCode = validateAndNormalizePlanCode(planCode);
@@ -143,6 +194,11 @@ public class AdminSubscriptionService {
             .toList();
     }
 
+    /**
+     * Một version cụ thể ({@code GET /plans/{planCode}/versions/{version}}).
+     *
+     * @throws com.legacyvault.common.exception.BusinessException PLAN_VERSION_NOT_FOUND
+     */
     @Transactional(readOnly = true)
     public SubscriptionPlanVersionDto getPlanVersion(String planCode, int version) {
         String normalizedCode = validateAndNormalizePlanCode(planCode);
@@ -151,6 +207,17 @@ public class AdminSubscriptionService {
         return toVersionDto(v);
     }
 
+    /**
+     * Tạo bản nháp từ một version nguồn ({@code POST /plans/{planCode}/versions}): khóa gói; mỗi gói chỉ một DRAFT; nguồn phải thuộc đúng gói; số version = max + 1;
+     * sao chép nội dung / giá / giới hạn (file luôn 10 MB; giá legacy MONTHLY được đặt lại về giá mặc định). Lưu rồi audit {@code SUBSCRIPTION_PLAN_DRAFT_CREATED}.
+     *
+     * @param planCode mã gói
+     * @param request version nguồn và ghi chú
+     * @param adminUserId admin thực hiện
+     * @param ipAddress IP ghi audit
+     * @return {@link SubscriptionPlanVersionDto} của bản nháp
+     * @throws com.legacyvault.common.exception.BusinessException VALIDATION_FAILED, PLAN_VERSION_ALREADY_EXISTS, PLAN_VERSION_NOT_FOUND
+     */
     @Transactional
     public SubscriptionPlanVersionDto createDraftVersion(String planCode, CreateDraftRequest request, Long adminUserId, String ipAddress) {
         String normalizedCode = validateAndNormalizePlanCode(planCode);
@@ -222,6 +289,12 @@ public class AdminSubscriptionService {
         }
     }
 
+    /**
+     * Sửa bản nháp ({@code PUT /plans/{planCode}/versions/{version}}): khóa gói; chỉ DRAFT; {@code concurrencyToken} phải khớp (nếu không PLAN_VERSION_CONFLICT);
+     * kiểm tra file = 10 MB, dung lượng >= 10 MB, giá >= 0 (BASIC phải 0), billing LIFETIME, số Asset >= 1. Lưu rồi audit {@code SUBSCRIPTION_PLAN_DRAFT_UPDATED} kèm trạng thái trước / sau.
+     *
+     * @throws com.legacyvault.common.exception.BusinessException PLAN_VERSION_NOT_FOUND, PLAN_VERSION_NOT_EDITABLE, PLAN_VERSION_CONFLICT, VALIDATION_FAILED
+     */
     @Transactional
     public SubscriptionPlanVersionDto updateDraftVersion(String planCode, int version, UpdatePlanVersionRequest request, Long adminUserId, String ipAddress) {
         String normalizedCode = validateAndNormalizePlanCode(planCode);
@@ -307,6 +380,12 @@ public class AdminSubscriptionService {
         }
     }
 
+    /**
+     * Công bố bản nháp ({@code POST /plans/{planCode}/versions/{version}/publish}): khóa gói; version PUBLISHED cũ chuyển DEPRECATED; version này thành PUBLISHED;
+     * đồng bộ giá và giới hạn sang {@code subscription_plans} ({@code updatePlanConfig}); audit {@code SUBSCRIPTION_PLAN_PUBLISHED}.
+     *
+     * @throws com.legacyvault.common.exception.BusinessException PLAN_VERSION_NOT_FOUND, PLAN_VERSION_NOT_EDITABLE (không phải DRAFT), PLAN_VERSION_CONFLICT
+     */
     @Transactional
     public SubscriptionPlanVersionDto publishVersion(String planCode, int version, Long adminUserId, String ipAddress) {
         String normalizedCode = validateAndNormalizePlanCode(planCode);
@@ -372,6 +451,10 @@ public class AdminSubscriptionService {
         }
     }
 
+    /**
+     * Ngừng một version ({@code POST /plans/{planCode}/versions/{version}/deprecate}): khóa gói; không áp dụng cho BASIC (VALIDATION_FAILED); version DRAFT hoặc đã DEPRECATED
+     * -> PLAN_VERSION_NOT_EDITABLE; gọi {@code retire} để gói không còn bán trong catalog; audit {@code SUBSCRIPTION_PLAN_DEPRECATED}.
+     */
     @Transactional
     public SubscriptionPlanVersionDto deprecateVersion(String planCode, int version, Long adminUserId, String ipAddress) {
         String normalizedCode = validateAndNormalizePlanCode(planCode);
@@ -413,6 +496,14 @@ public class AdminSubscriptionService {
         return toVersionDto(saved);
     }
 
+    /**
+     * Tra cứu mức sử dụng và gói hiệu lực của tài khoản ({@code GET /accounts?query=}): tìm theo id số, email hoặc UUID công khai. Giới hạn lấy từ BASIC,
+     * trừ khi có đơn thanh toán thành công (khi đó lấy snapshot gói đã mua, trạng thái {@code VERIFIED_VNPAY_PAYMENT}).
+     *
+     * @param query id số, email hoặc UUID
+     * @return {@link AccountUsageLookupDto}
+     * @throws com.legacyvault.common.exception.BusinessException VALIDATION_FAILED (rỗng), RESOURCE_NOT_FOUND
+     */
     @Transactional(readOnly = true)
     public AccountUsageLookupDto lookupAccount(String query) {
         if (query == null || query.isBlank()) {
@@ -494,11 +585,20 @@ public class AdminSubscriptionService {
         );
     }
 
+    /**
+     * Tra cứu giao dịch với tham số mặc định (trang 0, kích thước 20), chỉ lọc theo {@code query}.
+     */
     @Transactional(readOnly = true, isolation = Isolation.SERIALIZABLE)
     public PageEnvelope<Transaction> lookupTransactions(String query) {
         return lookupTransactions(query,null,null,null,null,0,20);
     }
 
+    /**
+     * Tra cứu giao dịch có lọc và phân trang ({@code GET /transactions}), isolation SERIALIZABLE để đếm và phân trang nhất quán khi IPN đang đổi dữ liệu.
+     * Kiểm tra: page >= 0, size 1..100, from < to, query <= 254 ký tự không có ký tự điều khiển, status thuộc PENDING, SUCCEEDED, FAILED, EXPIRED.
+     *
+     * @throws com.legacyvault.common.exception.BusinessException VALIDATION_FAILED, PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE (lỗi truy cập dữ liệu)
+     */
     @Transactional(readOnly = true, isolation = Isolation.SERIALIZABLE)
     public PageEnvelope<Transaction> lookupTransactions(
             String query, UUID accountId, String status, Instant from, Instant to, int page, int size) {
@@ -518,12 +618,22 @@ public class AdminSubscriptionService {
         }
     }
 
+    /**
+     * Chi tiết một giao dịch ({@code GET /transactions/{paymentId}}).
+     *
+     * @throws com.legacyvault.common.exception.BusinessException RESOURCE_NOT_FOUND, PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE
+     */
     @Transactional(readOnly = true)
     public Transaction transactionDetail(UUID paymentId) {
         try {return payments.adminDetail(paymentId,Instant.now()).orElseThrow(()->new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));}
         catch(DataAccessException unavailable) {throw new BusinessException(ErrorCode.PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE);}
     }
 
+    /**
+     * Chuẩn hóa mã gói (trim, chữ hoa) và kiểm tra thuộc BASIC / STANDARD / EXTENDED.
+     *
+     * @throws com.legacyvault.common.exception.BusinessException PLAN_VERSION_NOT_FOUND nếu rỗng hoặc không hợp lệ
+     */
     private String validateAndNormalizePlanCode(String planCode) {
         if (planCode == null || planCode.isBlank()) {
             throw new BusinessException(ErrorCode.PLAN_VERSION_NOT_FOUND);
@@ -535,6 +645,9 @@ public class AdminSubscriptionService {
         return normalized;
     }
 
+    /**
+     * Chuyển entity version sang DTO (giá tháng legacy chỉ trả với billing MONTHLY).
+     */
     private SubscriptionPlanVersionDto toVersionDto(SubscriptionPlanVersion entity) {
         return new SubscriptionPlanVersionDto(
             entity.getId(),
@@ -559,6 +672,11 @@ public class AdminSubscriptionService {
             "MONTHLY".equals(entity.getBillingModel()) ? entity.getLegacyMonthlyPriceVnd() : null
         );
     }
+    /**
+     * Tuần tự hóa các trường quan trọng của version thành JSON để lưu làm trạng thái trước / sau trong audit.
+     *
+     * @throws IllegalStateException nếu không serialize được
+     */
     private String state(SubscriptionPlanVersion v) {
         Map<String,Object> fields = new LinkedHashMap<>();
         fields.put("planCode", v.getPlanCode()); fields.put("version", v.getVersion());

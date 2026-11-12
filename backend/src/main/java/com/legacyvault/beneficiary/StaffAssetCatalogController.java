@@ -17,7 +17,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.legacyvault.common.web.PageResponse;
 
-/** PS-118: read-only Staff metadata catalog for an assigned pre-unlock case. */
+/**
+ * PS-118: read-only Staff metadata catalog for an assigned pre-unlock case.
+ *
+ * <p>Đường dẫn gốc {@code /api/v1/staff/verification-cases/{caseId}/assets}; yêu cầu {@code ROLE_STAFF_EXECUTOR}. Ủy quyền cho
+ * {@code StaffAssetCatalogService}. Frontend dùng qua {@code pages/staff/staffLegalDocumentsService.js}.
+ */
 @RestController
 @Validated
 @RequestMapping("/api/v1/staff/verification-cases/{caseId}/assets")
@@ -25,8 +30,17 @@ import com.legacyvault.common.web.PageResponse;
 public class StaffAssetCatalogController {
 	private final StaffAssetCatalogService service;
 
+	/**
+	 * Hàm khởi tạo, nhận {@code StaffAssetCatalogService}.
+	 */
 	public StaffAssetCatalogController(StaffAssetCatalogService service) { this.service = service; }
 
+	/**
+	 * {@code GET /api/v1/staff/verification-cases/{caseId}/assets?page=&size=}: danh mục tài sản (chỉ metadata) của Vault thuộc case.
+	 * @param page số trang từ 0 (mặc định 0)
+	 * @param size kích thước trang 1-100 (mặc định 20)
+	 * @return {@code PageResponse} của {@code StaffAssetCatalogDtos.Item}, {@code no-store}
+	 */
 	@GetMapping
 	public ResponseEntity<PageResponse<StaffAssetCatalogDtos.Item>> list(@PathVariable UUID caseId,
 			@RequestParam(defaultValue = "0") @Min(0) int page,

@@ -13,9 +13,18 @@
  * - note: optional, max 500 chars.
  */
 
+/**
+ * Biểu thức kiểm tra email. Được beneficiaryValidation.js dùng lại.
+ */
 export const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+/**
+ * Biểu thức kiểm tra số điện thoại (định dạng quốc tế hoặc số di động Việt Nam).
+ */
 export const PHONE_REGEX = /^(?:\+?\d{1,4}[ -]?)?\(?\d{2,4}\)?[ -]?\d{3,4}[ -]?\d{3,4}$|^(?:0|\+84)(?:3|5|7|8|9)[0-9]{8}$/;
 
+/**
+ * Thông điệp lỗi song ngữ của form người thi hành bên ngoài. Dùng bởi pages/trusteeBeneficiary/GuardianPanel.jsx, RelatedPersonEditDialog.jsx và TrusteeBeneficiaryPage.jsx.
+ */
 export const trusteeValidationMessages = {
   vi: {
     fullNameRequired: 'Vui lòng nhập họ và tên Người thi hành bên ngoài.',
@@ -48,6 +57,8 @@ export const trusteeValidationMessages = {
  * @param {string} [values.note] - Optional, max 500
  * @param {'vi'|'en'} lang
  * @returns {Record<string, string>} Map of validation error messages
+ *
+ * Kiểm tra form trustee theo quy tắc ở đầu file (họ tên bắt buộc <=150, cần ít nhất điện thoại hoặc email, quan hệ <=100). Trả map {trường: thông điệp lỗi}; rỗng nghĩa là hợp lệ.
  */
 export function validateTrustee(values = {}, lang = 'vi') {
   const msgs = trusteeValidationMessages[lang] || trusteeValidationMessages.vi;

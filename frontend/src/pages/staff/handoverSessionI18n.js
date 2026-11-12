@@ -5,7 +5,14 @@
  * không đưa mã ticket nội bộ vào nhãn người dùng.
  */
 
+/**
+ * Từ điển song ngữ cho trang bàn giao tại quầy (CounterHandoverPage.jsx): mở phiên, danh sách tài sản, trạng thái phiên.
+ * Cấu trúc: { vi: {...}, en: {...} }. Truy cập qua getCounterHandoverTranslations(lang).
+ */
 export const COUNTER_HANDOVER_TRANSLATIONS = {
+  /**
+   * Bản dịch tiếng Việt (ngôn ngữ mặc định).
+   */
   vi: {
     portalTitle: 'Cổng bàn giao di sản tại quầy',
     roleBadge: 'Nhân viên tiếp nhận & bàn giao',
@@ -215,6 +222,9 @@ export const COUNTER_HANDOVER_TRANSLATIONS = {
     },
   },
 
+  /**
+   * Bản dịch tiếng Anh.
+   */
   en: {
     portalTitle: 'Counter Handover Portal',
     roleBadge: 'Handover Officer',
@@ -425,6 +435,11 @@ export const COUNTER_HANDOVER_TRANSLATIONS = {
   },
 };
 
+/**
+ * Lấy bộ bản dịch theo ngôn ngữ.
+ * @param {string} [lang='vi'] 'vi' hoặc 'en'.
+ * @returns {Object} Bộ bản dịch tương ứng; ngôn ngữ không hỗ trợ thì dùng tiếng Việt.
+ */
 export function getCounterHandoverTranslations(lang = 'vi') {
   return COUNTER_HANDOVER_TRANSLATIONS[lang] || COUNTER_HANDOVER_TRANSLATIONS.vi;
 }

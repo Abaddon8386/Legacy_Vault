@@ -1,3 +1,8 @@
+/**
+ * Bảng nhãn hiển thị cho mã hành động nhật ký kiểm toán (khớp enum `AuditAction` ở backend):
+ * mã -> [nhãn tiếng Việt, nhãn tiếng Anh]. Chỉ là nhãn trình bày; mã gửi/nhận từ API và giá trị bộ lọc giữ nguyên.
+ * Khi thêm `AuditAction` mới ở backend cần thêm nhãn ở đây và đưa mã vào `AUDIT_ACTIONS` trong `utils/adminService.js`.
+ */
 // Presentation labels only; API event codes and filter values stay unchanged.
 const actions = {
   BENEFICIARY_INVITATION_ISSUED: ['Cấp mã mời người thụ hưởng', 'Beneficiary invitation issued'],
@@ -104,8 +109,23 @@ const actions = {
   LEGACY_EVENT: ['Sự kiện cũ', 'Legacy event'],
 };
 
+/**
+ * Trả về nhãn dễ đọc của một mã hành động audit theo ngôn ngữ; nếu chưa có nhãn thì trả lại chính mã.
+ * Dùng ở `AdminLogsPage` (bảng, bộ lọc và modal chi tiết).
+ *
+ * @param {string} code Mã hành động (ví dụ `AUTH_LOGIN_SUCCEEDED`).
+ * @param {'vi'|'en'} lang Ngôn ngữ.
+ * @returns {string} Nhãn hiển thị.
+ */
 export const adminActionLabel = (code, lang) => actions[code]?.[lang === 'en' ? 1 : 0] || code;
 
+/**
+ * Định dạng mốc thời gian ISO theo múi giờ UTC kèm hậu tố " UTC" (locale vi-VN hoặc en-GB).
+ *
+ * @param {string|null} timestamp Chuỗi thời gian ISO từ API.
+ * @param {'vi'|'en'} lang Ngôn ngữ.
+ * @returns {string|null} Chuỗi đã định dạng; null nếu rỗng; trả nguyên chuỗi nếu không phải ngày hợp lệ.
+ */
 export function formatAdminTimestamp(timestamp, lang) {
   if (!timestamp) return null;
   const date = new Date(timestamp);
@@ -115,6 +135,13 @@ export function formatAdminTimestamp(timestamp, lang) {
   })} UTC`;
 }
 
+/**
+ * Nhãn hiển thị cho trạng thái/loại gói đăng ký (ACTIVE, DEFAULT_BASIC_FREE, LIFETIME, MONTHLY) trên màn hình quản lý người dùng.
+ *
+ * @param {string} code Mã từ API.
+ * @param {'vi'|'en'} lang Ngôn ngữ.
+ * @returns {string} Nhãn, hoặc chính mã nếu chưa biết.
+ */
 export function adminSubscriptionLabel(code, lang) {
   const labels = {
     ACTIVE: ['Đang hiệu lực', 'Active'],

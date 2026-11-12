@@ -3,7 +3,14 @@
  * Follows Henedo style principles: concise, formal, and transparent.
  */
 
+/**
+ * Từ điển song ngữ (vi/en) cho trang đóng phiên bàn giao và lưu trữ hồ sơ (CloseAndArchivePage.jsx).
+ * Truy cập trực tiếp theo khóa ngôn ngữ: closeAndArchiveI18n[lang].
+ */
 export const closeAndArchiveI18n = {
+  /**
+   * Bản dịch tiếng Việt (ngôn ngữ mặc định).
+   */
   vi: {
     demo: 'Dữ liệu minh họa', loading: 'Đang tải…', retry: 'Thử lại',
     loadFailed: 'Chưa tải được thông tin phiên. Vui lòng thử lại.', contextRequired: 'Vui lòng chọn hồ sơ và phiên bàn giao.',
@@ -95,6 +102,9 @@ export const closeAndArchiveI18n = {
     step2Desc: 'Kết thúc xử lý sau khi đủ ký nhận và biên nhận Staff; giữ hồ sơ để tra cứu.',
     step2Btn: 'Lưu trữ kho di sản và đóng hồ sơ',
   },
+  /**
+   * Bản dịch tiếng Anh.
+   */
   en: {
     demo: 'Illustrative data', loading: 'Loading…', retry: 'Retry',
     loadFailed: 'Session information could not be loaded. Please retry.', contextRequired: 'Select a case and handover session.',

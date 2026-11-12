@@ -6,9 +6,40 @@ import ReceivedAssets from './ReceivedAssets.jsx';
 import BeneficiaryHandoverStatus from './BeneficiaryHandoverStatus.jsx';
 import './SharedWithMePage.css';
 
+/**
+ * Màn hình "Tài sản thụ hưởng" theo quy trình liên kết hồ sơ mới của người thụ hưởng (chọn bởi SharedWithMePage khi có caseLinkActions). Vỏ bọc dùng key theo (userId, accessToken, roles)
+ * để reset trạng thái khi đổi tài khoản/quyền.
+ *
+ * @param {object} props Truyền xuống SharedContent (user, session, lang, isDevPreview, previewScenario, onUnauthorized, refreshKey, caseLinkActions, receivedAssetActions, onRefreshAccount).
+ * @returns {JSX.Element}
+ */
 export default function CaseLinkWorkspace(props) {
   return <SharedContent key={`${props.session?.user?.id || props.user?.id || ''}:${props.session?.accessToken || ''}:${(props.session?.user?.roles || props.user?.roles || []).join(',')}`} {...props} />;
 }
+/**
+ * Nội dung chính: gửi yêu cầu liên kết hồ sơ bằng mã hồ sơ (ví dụ HS-2026-000123), theo dõi/hủy yêu cầu, và xem tài sản đã được bàn giao.
+ * Các thao tác qua caseLinkActions (liveCaseLinkActions trong utils/caseLinkService.js):
+ * - listOwn: GET /api/v1/beneficiary-link-requests (danh sách yêu cầu của chính mình);
+ * - submit: POST /api/v1/beneficiary-link-requests {caseCode};
+ * - cancel: POST /api/v1/beneficiary-link-requests/{requestId}/cancel;
+ * - loadHandoverStatus: GET /api/v1/beneficiary-handover-status (truyền cho BeneficiaryHandoverStatus).
+ * Khi có yêu cầu PENDING, component tự thăm dò (poll) mỗi 4 giây và khi cửa sổ lấy lại focus để người dùng thấy quyết định của Staff. Mọi đọc/ghi dùng AbortController; mutation chạy độc quyền (mutation ref),
+ * lỗi ghi khiến trạng thái "không chắc chắn" (uncertain) buộc người dùng tải lại trước khi thao tác tiếp. Yêu cầu APPROVED mà tài khoản chưa có vai trò BENEFICIARY thì hiện nút "Cập nhật quyền tài khoản" (onRefreshAccount).
+ * Tài sản đã giao hiển thị qua ReceivedAssets (chỉ khi có vai trò BENEFICIARY hoặc preview).
+ *
+ * @param {object} props
+ * @param {object} [props.user] Người dùng hiện tại.
+ * @param {object} [props.session] Phiên đăng nhập {accessToken, user}.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {boolean} [props.isDevPreview=false] Chế độ xem trước DEV (không token).
+ * @param {string} [props.previewScenario='unlinked'] Kịch bản xem trước.
+ * @param {() => void} [props.onUnauthorized] Gọi khi API trả 401.
+ * @param {number} [props.refreshKey=0] Đổi giá trị để ép tải lại.
+ * @param {object} [props.caseLinkActions] Bộ action liên kết hồ sơ.
+ * @param {object} [props.receivedAssetActions] Bộ action tài sản đã nhận.
+ * @param {Function} [props.onRefreshAccount] Làm mới thông tin tài khoản (lấy lại vai trò).
+ * @returns {JSX.Element}
+ */
 function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previewScenario = 'unlinked',
   onUnauthorized, refreshKey = 0, caseLinkActions, receivedAssetActions, onRefreshAccount }) {
   const en = lang === 'en';
@@ -26,6 +57,7 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
   const [revision, setRevision] = useState(0);
   const [readRevision, setReadRevision] = useState(0);
   const [receivedStage, setReceivedStage] = useState(() => (['partial', 'received'].includes(previewScenario) ? previewScenario.toUpperCase() : null));
+  /** Ghi nhận giai đoạn nhận tài sản (PARTIAL/RECEIVED...) do ReceivedAssets báo lên, dùng để sắp xếp thứ tự các thẻ. */
   const recordStage = useCallback(stage => setReceivedStage(stage), []);
   const mutation = useRef(null);
   const read = useRef(null);
@@ -41,6 +73,10 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
     read.current?.abort();
   }, []);
 
+  /**
+   * Thăm dò nền danh sách yêu cầu liên kết (caseLinkActions.listOwn): không hủy lần đọc đang chạy, không bật trạng thái loading;
+   * bỏ qua nếu đang có mutation, trạng thái không chắc chắn hoặc tab đang ẩn. Còn PENDING thì hẹn lần thăm dò sau 4 giây; 401 -> onUnauthorized.
+   */
   // Perform a background poll without aborting an already in-flight read or flashing loading state
   const runPoll = useCallback(() => {
     if (pollTimerRef.current) {
@@ -154,6 +190,14 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
     };
   }, [ready, hasPendingRequests, loading, pending, uncertain, runPoll]);
 
+  /**
+   * Gửi hoặc hủy một yêu cầu liên kết.
+   * Với kind 'submit' gọi caseLinkActions.submit({caseNumber}) (mã viết hoa), với 'cancel' gọi caseLinkActions.cancel({requestId}); kiểm tra phản hồi qua readLinkRequest (đúng trạng thái PENDING/CANCELLED, khớp id và mã hồ sơ)
+   * rồi cập nhật danh sách. Lỗi đặt cờ uncertain để buộc tải lại trạng thái; 401 -> onUnauthorized.
+   *
+   * @param {'submit'|'cancel'} kind Loại thao tác.
+   * @param {object} [item] Yêu cầu cần hủy (khi kind là 'cancel').
+   */
   async function mutate(kind, item) {
     if (mutation.current || !ready || loading || uncertain) return;
     if (pollTimerRef.current) {
@@ -180,6 +224,7 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
       if (mutation.current === c) { mutation.current = null; if (!c.signal.aborted) setPending(false); }
     }
   }
+  /** Làm mới thông tin tài khoản qua onRefreshAccount (để lấy vai trò BENEFICIARY sau khi yêu cầu được duyệt), thành công thì tăng readRevision để tải lại tài sản đã nhận. */
   async function refreshAccount() {
     if (!onRefreshAccount || mutation.current) return;
     if (pollTimerRef.current) {
@@ -194,6 +239,7 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
   }
   const hasDeliveredAssets = ['PARTIAL', 'RECEIVED'].includes(receivedStage);
 
+  /** Thẻ "Tài sản được giao" rỗng, hiển thị khi tài khoản chưa có quyền đọc (chưa là BENEFICIARY). */
   const emptyAssets = !canRead ? (
     <section className="lv-shared-card lv-owner-card lv-shared-empty" aria-labelledby="delivered-empty-title">
       <span className="lv-shared-card__icon-wrap" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8v13H3V8" /><path d="M1 3h22v5H1z" /><path d="M10 12h4" /></svg></span>
@@ -204,12 +250,14 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
     </section>
   ) : null;
 
+  /** Khối tài sản: tình hình bàn giao (BeneficiaryHandoverStatus) và danh sách tài sản đã nhận (ReceivedAssets) khi có quyền đọc; ngược lại hiển thị thẻ rỗng. */
   const assetsSection = canRead ? (
     <><BeneficiaryHandoverStatus userId={session?.user?.id || user?.id || 'preview'} accessToken={session?.accessToken} lang={lang} loadStatus={caseLinkActions?.loadHandoverStatus} preview={preview} />
     <ReceivedAssets actions={receivedAssetActions} userId={session?.user?.id || user?.id} accessToken={session?.accessToken} lang={lang}
       isDevPreview={preview} scenario={previewScenario} onUnauthorized={onUnauthorized} refreshKey={`${refreshKey}:${readRevision}`} onStageChange={recordStage} /></>
   ) : emptyAssets;
 
+  /** Thẻ nhập mã hồ sơ và nút "Gửi yêu cầu" (gọi mutate('submit')); hiển thị cảnh báo khi tài khoản không đủ điều kiện hoặc tính năng chưa sẵn sàng, cùng thông báo thành công/lỗi. */
   const linkCard = (
     <section className="lv-shared-card lv-owner-card" aria-labelledby="link-section-title">
       <h2 id="link-section-title">{hasDeliveredAssets ? (en ? 'Link another case' : 'Liên kết hồ sơ khác') : (en ? 'Link a case' : 'Liên kết hồ sơ')}</h2>
@@ -228,6 +276,7 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
     </section>
   );
 
+  /** Danh sách yêu cầu của tôi (bỏ các yêu cầu APPROVED khi đã đọc được tài sản): hiển thị trạng thái, lý do từ chối, nút "Hủy yêu cầu" cho PENDING và "Cập nhật quyền tài khoản" cho APPROVED chưa có quyền. */
   // A linked request needs nothing more once the account can read: the delivered assets above are the outcome.
   const visibleRequests = requests.filter(item => !(item.status === 'APPROVED' && canRead));
   const requestsCard = ready && (visibleRequests.length > 0 || error) && (

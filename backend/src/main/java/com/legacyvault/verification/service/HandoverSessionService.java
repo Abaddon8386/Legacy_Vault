@@ -25,6 +25,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Quản lý vòng đời phiên bàn giao (handover session) của Staff: mở, liệt kê, xem chi tiết và hủy (ST-23,
+ * LV-HANDOVER-001).
+ *
+ * <p>Được {@code HandoverSessionController} gọi, base path
+ * {@code /api/v1/staff/verification-cases/{caseId}/handover-sessions}, yêu cầu vai trò STAFF_EXECUTOR và chỉ Staff
+ * được giao case mới thao tác được. Dùng bảng {@code handover_sessions}, {@code verification_cases}, {@code vaults};
+ * ghi audit {@code HANDOVER_SESSION_OPENED} và {@code HANDOVER_SESSION_CANCELLED} qua {@link AuditService}; kiểm tra
+ * luồng pháp lý qua {@link LegalWorkflowGuard}.
+ */
 @Service
 public class HandoverSessionService {
     private final HandoverSessionCaseAccess access;
@@ -34,6 +44,14 @@ public class HandoverSessionService {
     private final AuditService audit;
     private final LegalWorkflowGuard workflow;
 
+    /**
+     * @param access khóa Vault và case cho thao tác ghi
+     * @param cases repository hồ sơ xác minh (đọc)
+     * @param sessions repository phiên bàn giao
+     * @param vaults repository Vault (đọc)
+     * @param audit dịch vụ ghi nhật ký kiểm toán
+     * @param workflow guard kiểm tra chuyển trạng thái được bảo vệ của quy trình pháp lý
+     */
     public HandoverSessionService(HandoverSessionCaseAccess access, VerificationCaseRepository cases,
             HandoverSessionRepository sessions, VaultRepository vaults, AuditService audit,
             LegalWorkflowGuard workflow) {
@@ -45,6 +63,20 @@ public class HandoverSessionService {
         this.workflow = workflow;
     }
 
+    /**
+     * Mở một phiên bàn giao mới cho case. API: {@code POST /api/v1/staff/verification-cases/{caseId}/handover-sessions}
+     * (vai trò STAFF_EXECUTOR), trả {@link HandoverSessionResponse}.
+     *
+     * <p>Các bước: khóa Vault rồi case của Staff; yêu cầu case đang mở và Vault ở trạng thái UNLOCKED hoặc
+     * HANDOVER_IN_PROGRESS; kiểm tra {@code requireProtectedTransition(HANDOVER)}; từ chối nếu đã có phiên OPEN; lưu
+     * phiên mới (ràng buộc duy nhất ở DB cũng được bắt lại thành lỗi đã mở); ghi audit {@code HANDOVER_SESSION_OPENED}.
+     *
+     * @param casePublicId public id của hồ sơ xác minh
+     * @param principal Staff đang đăng nhập
+     * @return thông tin phiên vừa mở
+     * @throws BusinessException {@code HANDOVER_SESSION_INVALID_STATE} khi case đóng hoặc Vault sai trạng thái;
+     *         {@code HANDOVER_SESSION_ALREADY_OPEN} khi đã có phiên OPEN; {@code RESOURCE_NOT_FOUND} khi không thuộc Staff
+     */
     @Transactional
     public HandoverSessionResponse open(UUID casePublicId, CustomUserPrincipal principal) {
         Long staffId = CustomUserPrincipal.requireUserId(principal);
@@ -76,6 +108,16 @@ public class HandoverSessionService {
         return toResponse(session, verificationCase, vault, principal);
     }
 
+    /**
+     * Liệt kê các phiên bàn giao của Staff trên case, mới mở nhất trước, có thể lọc theo trạng thái. API:
+     * {@code GET /api/v1/staff/verification-cases/{caseId}/handover-sessions?status=...}. Giao dịch chỉ đọc.
+     *
+     * @param casePublicId public id của hồ sơ xác minh
+     * @param status trạng thái cần lọc, {@code null} để lấy tất cả
+     * @param principal Staff đang đăng nhập
+     * @return danh sách phiên bàn giao
+     * @throws BusinessException {@code RESOURCE_NOT_FOUND} nếu case không được giao cho Staff hoặc không có Vault
+     */
     @Transactional(readOnly = true)
     public List<HandoverSessionResponse> list(UUID casePublicId, HandoverSessionStatus status,
             CustomUserPrincipal principal) {
@@ -91,6 +133,16 @@ public class HandoverSessionService {
         return found.stream().map(session -> toResponse(session, verificationCase, vault, principal)).toList();
     }
 
+    /**
+     * Xem chi tiết một phiên bàn giao. API: {@code GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}}.
+     * Giao dịch chỉ đọc.
+     *
+     * @param casePublicId public id của hồ sơ xác minh
+     * @param sessionPublicId public id của phiên bàn giao
+     * @param principal Staff đang đăng nhập
+     * @return thông tin phiên
+     * @throws BusinessException {@code RESOURCE_NOT_FOUND} nếu case hoặc phiên không thuộc Staff
+     */
     @Transactional(readOnly = true)
     public HandoverSessionResponse get(UUID casePublicId, UUID sessionPublicId,
             CustomUserPrincipal principal) {
@@ -104,6 +156,23 @@ public class HandoverSessionService {
         return toResponse(session, verificationCase, vault, principal);
     }
 
+    /**
+     * Hủy một phiên bàn giao đang mở. API:
+     * {@code PATCH /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/status}; body
+     * {@link HandoverSessionStatusRequest}. Hiện tại thao tác luôn chuyển phiên sang CANCELLED bất kể giá trị status
+     * trong body (body chỉ bắt buộc phải có status).
+     *
+     * <p>Các bước: kiểm tra quyền sở hữu trước khi khóa, khóa Vault và case, khóa dòng phiên (FOR UPDATE), yêu cầu phiên
+     * đang OPEN, đóng phiên với thời điểm UTC hiện tại, lưu và ghi audit {@code HANDOVER_SESSION_CANCELLED}.
+     *
+     * @param casePublicId public id của hồ sơ xác minh
+     * @param sessionPublicId public id của phiên
+     * @param request body yêu cầu chứa status
+     * @param principal Staff đang đăng nhập
+     * @return phiên sau khi bị hủy
+     * @throws BusinessException {@code VALIDATION_FAILED} khi thiếu body/status; {@code RESOURCE_NOT_FOUND};
+     *         {@code HANDOVER_SESSION_INVALID_STATE} khi phiên không còn OPEN
+     */
     @Transactional
     public HandoverSessionResponse updateStatus(UUID casePublicId, UUID sessionPublicId,
             HandoverSessionStatusRequest request, CustomUserPrincipal principal) {
@@ -137,6 +206,9 @@ public class HandoverSessionService {
         return toResponse(session, verificationCase, locked.vault(), principal);
     }
 
+    /**
+     * Chuyển entity phiên cùng case, Vault và Staff thành {@link HandoverSessionResponse} (chỉ dùng public id).
+     */
     private static HandoverSessionResponse toResponse(HandoverSession session,
             com.legacyvault.verification.entity.VerificationCase verificationCase, Vault vault,
             CustomUserPrincipal principal) {
@@ -145,6 +217,9 @@ public class HandoverSessionService {
                 session.getOpenedAt(), session.getClosedAt());
     }
 
+    /**
+     * Tạo lỗi {@code RESOURCE_NOT_FOUND} dùng chung.
+     */
     private static BusinessException notFound() {
         return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
     }

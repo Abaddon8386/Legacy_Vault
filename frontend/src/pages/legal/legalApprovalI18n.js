@@ -4,6 +4,7 @@
  * Tiêu chuẩn giao diện: trang trọng, chính xác, không dùng mã ticket nội bộ trong nhãn người dùng.
  */
 
+/** Bảng chuỗi giao diện song ngữ (vi/en) cho trang Phê duyệt hồ sơ pháp lý (LegalApprovalReviewPage): tiêu đề, nhãn, thông báo trạng thái, lỗi và các từ khóa tương ứng. */
 export const LEGAL_APPROVAL_TRANSLATIONS = {
   vi: {
     portalTitle: 'Cổng thẩm định pháp lý — Phê duyệt hồ sơ',
@@ -328,6 +329,12 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
   },
 };
 
+/**
+ * Lấy bộ chuỗi giao diện theo ngôn ngữ; ngôn ngữ không hỗ trợ dùng tiếng Việt.
+ *
+ * @param {'vi'|'en'} [lang='vi'] Ngôn ngữ.
+ * @returns {object} Bộ chuỗi tương ứng.
+ */
 export function getLegalApprovalTranslations(lang = 'vi') {
   return LEGAL_APPROVAL_TRANSLATIONS[lang] || LEGAL_APPROVAL_TRANSLATIONS.vi;
 }

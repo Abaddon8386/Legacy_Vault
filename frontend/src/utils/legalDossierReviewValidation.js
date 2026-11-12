@@ -8,8 +8,14 @@
  * - State preserves language-neutral error keys for instant dynamic VI <-> EN rendering.
  */
 
+/**
+ * Dùng bởi App.jsx và pages/legal/LegalDossierReviewPage.jsx.
+ */
 import { legalDossierReviewI18n } from '../pages/legal/legalDossierReviewI18n.js';
 
+/**
+ * Các quyết định thẩm định hồ sơ: APPROVE, REJECT, HOLD, RE_REVIEW.
+ */
 export const LEGAL_REVIEW_DECISIONS = Object.freeze([
   'APPROVE',
   'REJECT',
@@ -17,6 +23,9 @@ export const LEGAL_REVIEW_DECISIONS = Object.freeze([
   'RE_REVIEW',
 ]);
 
+/**
+ * Các khóa lỗi (i18n) của form thẩm định hồ sơ pháp lý.
+ */
 export const LEGAL_DOSSIER_REVIEW_ERROR_KEYS = Object.freeze({
   DECISION_REQUIRED: 'decisionRequired',
   DECISION_INVALID: 'decisionInvalid',
@@ -28,6 +37,8 @@ export const LEGAL_DOSSIER_REVIEW_ERROR_KEYS = Object.freeze({
  *
  * @param {Object|null|undefined} session
  * @returns {boolean}
+ *
+ * Chỉ session còn hạn có vai trò LEGAL_VERIFIER (không ngầm cấp cho ADMIN) mới được vào màn hình thẩm định hồ sơ. Backend vẫn là nơi kiểm tra quyền thật.
  */
 export function canAccessLegalDossierReview(session) {
   if (!session || !session.accessToken || typeof session.expiresAt !== 'number') {
@@ -56,6 +67,8 @@ export function canAccessLegalDossierReview(session) {
  * @param {string} [formValues.decision]
  * @param {string} [formValues.note]
  * @returns {{ isValid: boolean, errors: Object.<string, string> }}
+ *
+ * Kiểm tra form: decision bắt buộc và phải thuộc LEGAL_REVIEW_DECISIONS. Ghi chú hiện là tùy chọn.
  */
 export function validateLegalDossierReviewForm(formValues = {}) {
   const errors = {};
@@ -82,6 +95,8 @@ export function validateLegalDossierReviewForm(formValues = {}) {
  *
  * @param {*} value
  * @returns {boolean}
+ *
+ * Phiên bản hồ sơ hợp lệ là số nguyên dương an toàn (cho phép chuỗi số nguyên dương như "2").
  */
 export function isValidDossierVersion(value) {
   if (typeof value === 'number') {
@@ -107,6 +122,8 @@ export function isValidDossierVersion(value) {
  * @param {*} rawVersion
  * @param {string} [lang='vi']
  * @returns {string}
+ *
+ * Hiển thị phiên bản dạng "v2"; thiếu hoặc sai thì trả "Chưa có thông tin"/"Not available" (không tự suy ra v1).
  */
 export function formatDossierVersion(rawVersion, lang = 'vi') {
   if (isValidDossierVersion(rawVersion)) {
@@ -127,6 +144,8 @@ export function formatDossierVersion(rawVersion, lang = 'vi') {
  * @param {Object|null|undefined} currentDossier
  * @param {Object|null|undefined} lastReviewedRecord
  * @returns {'STALE'|'FRESH'|'MISMATCH'|'INDETERMINATE'}
+ *
+ * So sánh bản thẩm định trước với hồ sơ hiện tại: MISMATCH (khác hồ sơ), INDETERMINATE (thiếu id/phiên bản/sha256), STALE (cùng hồ sơ nhưng khác phiên bản hoặc băm), FRESH (trùng cả hai).
  */
 export function checkDossierReviewStatus(currentDossier, lastReviewedRecord) {
   if (!currentDossier || !lastReviewedRecord) {
@@ -189,6 +208,8 @@ export function checkDossierReviewStatus(currentDossier, lastReviewedRecord) {
  * @param {Object|null|undefined} currentDossier
  * @param {Object|null|undefined} lastReviewedRecord
  * @returns {boolean}
+ *
+ * Trả true chỉ khi bản thẩm định chắc chắn đã cũ (STALE); false không có nghĩa là còn mới.
  */
 export function isDossierReviewStale(currentDossier, lastReviewedRecord) {
   return checkDossierReviewStatus(currentDossier, lastReviewedRecord) === 'STALE';
@@ -200,6 +221,8 @@ export function isDossierReviewStale(currentDossier, lastReviewedRecord) {
  * @param {string} errorKey
  * @param {string} [lang='vi']
  * @returns {string}
+ *
+ * Đổi khóa lỗi thành thông điệp theo ngôn ngữ (legalDossierReviewI18n).
  */
 export function getLegalDossierReviewErrorMessage(errorKey, lang = 'vi') {
   const dictionary = legalDossierReviewI18n[lang] || legalDossierReviewI18n.vi;
@@ -212,6 +235,8 @@ export function getLegalDossierReviewErrorMessage(errorKey, lang = 'vi') {
  * @param {Object.<string, string>} errors
  * @param {string} [lang='vi']
  * @returns {Object.<string, string>}
+ *
+ * Đổi cả map khóa lỗi thành map thông điệp đã dịch.
  */
 export function formatLegalDossierReviewErrors(errors = {}, lang = 'vi') {
   const formatted = {};

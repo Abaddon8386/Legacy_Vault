@@ -14,9 +14,17 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Quản lý Vault và các trạng thái xử lý nghiệp vụ.
+ * Entity JPA ánh xạ bảng {@code vaults}: két chứa tài sản số và di chúc của một chủ sở hữu (unique theo
+ * {@code owner_user_id}, mỗi chủ một két).
  *
- * Package: com.legacyvault.vault.entity
+ * <p>Quản lý Vault và các trạng thái xử lý nghiệp vụ. Vòng đời trạng thái:
+ * {@code ACTIVE} -> {@code AWAITING_VERIFICATION} (DMS hết gia hạn) -> {@code DOCUMENT_VERIFICATION} ->
+ * {@code WILL_VERIFICATION} -> {@code AWAITING_LEGAL_BASIS} / {@code ON_HOLD} -> {@code LEGAL_BASIS_VERIFICATION} ->
+ * {@code UNLOCKED} -> {@code HANDOVER_IN_PROGRESS} -> {@code ARCHIVED}. Chủ két hủy cảnh báo thì quay về
+ * {@code ACTIVE} ({@link #restoreActive()}). Chỉ trạng thái {@code ACTIVE} cho phép chủ sửa nội dung. Các phương
+ * thức {@code mark*} kiểm tra trạng thái nguồn và ném {@link IllegalStateException} nếu chuyển không hợp lệ.
+ *
+ * <p>Package: com.legacyvault.vault.entity
  */
 @Entity
 @Table(
@@ -29,32 +37,42 @@ public class Vault {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "vault_id")
+    /** Khóa chính nội bộ (cột {@code vault_id}); không lộ ra API. */
     private Long vaultId;
 
     @Column(name = "public_id", nullable = false, unique = true, updatable = false)
+    /** UUID công khai dùng trong URL/API, tự sinh khi lưu lần đầu. */
     private UUID publicId;
 
     @Column(name = "owner_user_id", nullable = false, updatable = false)
+    /** Id chủ sở hữu (bảng {@code users}); không đổi sau khi tạo. */
     private Long ownerUserId;
 
     @Column(name = "vault_name", nullable = false, length = 150)
+    /** Tên két (cột {@code vault_name}, tối đa 150 ký tự). */
     private String name;
 
     @Column(name = "description", columnDefinition = "nvarchar(max)")
+    /** Mô tả két, có thể null. */
     private String description;
 
     @Column(name = "status", nullable = false, length = 40)
+    /** Trạng thái hiện tại, một trong các hằng {@code STATUS_*}. */
     private String status;
 
     @Column(name = "created_at", nullable = false, updatable = false)
+    /** Thời điểm tạo (UTC), không cập nhật. */
     private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
+    /** Thời điểm cập nhật cuối (UTC), được làm mới khi đổi trạng thái. */
     private Instant updatedAt;
 
+    /** Constructor công khai không tham số cho JPA và cho {@code VaultService} tạo két mới. */
     public Vault() {
     }
 
+    /** Hook JPA trước khi chèn: tự sinh {@code publicId}, trạng thái {@code ACTIVE} và các mốc thời gian nếu còn trống. */
     @PrePersist
     protected void onCreate() {
         Instant now = Instant.now();
@@ -64,22 +82,38 @@ public class Vault {
         if (updatedAt == null) updatedAt = now;
     }
 
+    /** Két hoạt động bình thường, chủ được sửa nội dung. */
     public static final String STATUS_ACTIVE = "ACTIVE";
+    /** Két đã lưu trữ sau khi bàn giao xong; không được ghi thêm. */
     public static final String STATUS_ARCHIVED = "ARCHIVED";
 
+    /** Lưu trữ két sau khi bàn giao hoàn tất: {@code HANDOVER_IN_PROGRESS} -> {@code ARCHIVED}. */
     public void archiveAfterHandover() {
         moveTo(STATUS_HANDOVER_IN_PROGRESS, STATUS_ARCHIVED);
     }
+    /** DMS đã hết gia hạn, vụ xác minh đã được mở, chờ nhân viên. */
     public static final String STATUS_AWAITING_VERIFICATION = "AWAITING_VERIFICATION";
+    /** Đang xác minh giấy tờ chứng tử. */
     public static final String STATUS_DOCUMENT_VERIFICATION = "DOCUMENT_VERIFICATION";
+    /** Đang đối chiếu di chúc. */
     public static final String STATUS_WILL_VERIFICATION = "WILL_VERIFICATION";
+    /** Chờ văn bản căn cứ phân chia di sản hợp lệ. */
     public static final String STATUS_AWAITING_LEGAL_BASIS = "AWAITING_LEGAL_BASIS";
+    /** Tạm dừng quy trình pháp lý (tranh chấp, thiếu chứng cứ...). */
     public static final String STATUS_ON_HOLD = "ON_HOLD";
+    /** Bộ phận pháp lý đang thẩm định căn cứ phân chia. */
     public static final String STATUS_LEGAL_BASIS_VERIFICATION = "LEGAL_BASIS_VERIFICATION";
+    /** Két đã được pháp lý duyệt mở khóa, sẵn sàng bàn giao. */
     public static final String STATUS_UNLOCKED = "UNLOCKED";
+    /** Đang bàn giao tài sản cho người thụ hưởng. */
     public static final String STATUS_HANDOVER_IN_PROGRESS = "HANDOVER_IN_PROGRESS";
 
-    /** PS-59: only a protected Legal workflow may move a Vault to UNLOCKED. */
+    /**
+     * PS-59: only a protected Legal workflow may move a Vault to UNLOCKED.
+     * {@code LEGAL_BASIS_VERIFICATION} -> {@code UNLOCKED}.
+     *
+     * @throws IllegalStateException nếu két chưa ở trạng thái thẩm định căn cứ pháp lý
+     */
     public void unlockAfterLegalApproval() {
         if (!STATUS_LEGAL_BASIS_VERIFICATION.equals(status)) {
             throw new IllegalStateException("Vault is not in legal-basis verification");
@@ -88,7 +122,11 @@ public class Vault {
         updatedAt = Instant.now();
     }
 
-    /** PS-65 / ST-25: the first delivery at the counter moves UNLOCKED -> HANDOVER_IN_PROGRESS; later deliveries keep it. */
+    /**
+     * PS-65 / ST-25: the first delivery at the counter moves UNLOCKED -> HANDOVER_IN_PROGRESS; later deliveries keep it.
+     *
+     * @throws IllegalStateException nếu két chưa {@code UNLOCKED} (và chưa đang bàn giao)
+     */
     public void markHandoverInProgress() {
         if (STATUS_HANDOVER_IN_PROGRESS.equals(status)) {
             return;
@@ -100,11 +138,17 @@ public class Vault {
         updatedAt = Instant.now();
     }
 
+    /** Khôi phục két về {@code ACTIVE} (chủ hủy cảnh báo, {@code VaultService.cancelAlert}). */
     public void restoreActive() {
         this.status = STATUS_ACTIVE;
         this.updatedAt = Instant.now();
     }
 
+    /**
+     * Chuyển {@code AWAITING_VERIFICATION} -> {@code DOCUMENT_VERIFICATION} khi nhân viên nhận vụ xác minh giấy tờ.
+     *
+     * @throws IllegalStateException nếu két không ở {@code AWAITING_VERIFICATION}
+     */
     public void markDocumentVerification() {
         if (!STATUS_AWAITING_VERIFICATION.equals(this.status)) {
             throw new IllegalStateException(
@@ -122,6 +166,9 @@ public class Vault {
 
     /**
      * ST-16: WILL_VERIFICATION -> AWAITING_LEGAL_BASIS hoặc ON_HOLD.
+     *
+     * @param onHold {@code true} thì chuyển sang {@code ON_HOLD}, ngược lại sang {@code AWAITING_LEGAL_BASIS}
+     * @throws IllegalStateException nếu chưa qua bước xác minh giấy tờ/di chúc
      */
     public void markLegalBasisRouted(boolean onHold) {
         if (!STATUS_DOCUMENT_VERIFICATION.equals(status) && !STATUS_WILL_VERIFICATION.equals(status))
@@ -135,7 +182,12 @@ public class Vault {
         moveTo(STATUS_ON_HOLD, STATUS_AWAITING_LEGAL_BASIS);
     }
 
-    /** Legal reopens review on new dispute/missing evidence; this never unlocks the Vault. */
+    /**
+     * Legal reopens review on new dispute/missing evidence; this never unlocks the Vault.
+     * Chuyển {@code AWAITING_LEGAL_BASIS} hoặc {@code LEGAL_BASIS_VERIFICATION} sang {@code ON_HOLD}.
+     *
+     * @throws IllegalStateException nếu két không nằm trong quy trình căn cứ pháp lý
+     */
     public void holdLegalBasisReview() {
         if (!STATUS_AWAITING_LEGAL_BASIS.equals(status) && !STATUS_LEGAL_BASIS_VERIFICATION.equals(status))
             throw new IllegalStateException("Vault is not in the legal-basis workflow");
@@ -143,7 +195,11 @@ public class Vault {
         updatedAt = Instant.now();
     }
 
-    /** ST-19/20: Staff chuyển văn bản đúng nhánh cho Legal. AWAITING_LEGAL_BASIS -> LEGAL_BASIS_VERIFICATION. */
+    /**
+     * ST-19/20: Staff chuyển văn bản đúng nhánh cho Legal. AWAITING_LEGAL_BASIS -> LEGAL_BASIS_VERIFICATION.
+     *
+     * @throws IllegalStateException nếu két chưa ở trạng thái tiếp nhận ({@link #isLegalBasisIntakeState()})
+     */
     public void markLegalBasisVerification() {
         if (!isLegalBasisIntakeState()) {
             throw new IllegalStateException(
@@ -157,6 +213,8 @@ public class Vault {
     /**
      * States in which Staff may receive and forward the distribution document. All of them come after Legal decided
      * the death document, so the death verification cannot be skipped; AWAITING_VERIFICATION is not included.
+     *
+     * @return {@code true} nếu két ở {@code DOCUMENT_VERIFICATION}, {@code WILL_VERIFICATION} hoặc {@code AWAITING_LEGAL_BASIS}
      */
     public boolean isLegalBasisIntakeState() {
         return STATUS_DOCUMENT_VERIFICATION.equals(status) || STATUS_WILL_VERIFICATION.equals(status)
@@ -175,6 +233,13 @@ public class Vault {
                 STATUS_AWAITING_LEGAL_BASIS);
     }
 
+    /**
+     * Chuyển trạng thái có kiểm tra điều kiện và cập nhật {@code updatedAt}.
+     *
+     * @param expectedFrom trạng thái nguồn bắt buộc
+     * @param to           trạng thái đích
+     * @throws IllegalStateException nếu trạng thái hiện tại khác {@code expectedFrom}
+     */
     private void moveTo(String expectedFrom, String to) {
         if (!expectedFrom.equals(this.status)) {
             throw new IllegalStateException(
@@ -185,10 +250,16 @@ public class Vault {
         this.updatedAt = Instant.now();
     }
 
+    /** @return {@code true} nếu két {@code ACTIVE} nên có thể chuyển sang chờ xác minh */
     public boolean canEnterVerification() {
         return STATUS_ACTIVE.equals(status);
     }
 
+    /**
+     * Chuyển két sang {@code AWAITING_VERIFICATION} khi DMS hết gia hạn ({@code DmsTriggerProcessor}).
+     *
+     * @throws IllegalStateException nếu két không {@code ACTIVE}
+     */
     public void markAwaitingVerification() {
         if (!canEnterVerification()) {
             throw new IllegalStateException(
@@ -199,6 +270,7 @@ public class Vault {
         this.updatedAt = Instant.now();
     }
 
+    /** Các getter/setter bên dưới truy cập trực tiếp các cột tương ứng; trạng thái chỉ đổi qua các phương thức nghiệp vụ ở trên. */
     public Long getVaultId() {
         return vaultId;
     }

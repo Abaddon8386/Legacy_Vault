@@ -4,7 +4,14 @@
  * Does not expose raw internal enums or tickets to end-users.
  */
 
+/**
+ * Từ điển song ngữ (vi/en) cho trang bàn giao tài sản theo phạm vi phân bổ (ScopedAssetHandoverPage.jsx).
+ * Truy cập trực tiếp theo khóa ngôn ngữ: scopedAssetHandoverI18n[lang].
+ */
 export const scopedAssetHandoverI18n = {
+  /**
+   * Bản dịch tiếng Việt (ngôn ngữ mặc định).
+   */
   vi: {
     pageTitle: 'Bàn giao tài sản theo phạm vi',
     pageSubtitle: 'Thực hiện bàn giao các tài sản di sản cho người thụ hưởng theo đúng phạm vi phân bổ đã được pháp lý phê duyệt.',
@@ -69,6 +76,9 @@ export const scopedAssetHandoverI18n = {
     invalidDeliveryStatus: 'Trạng thái bàn giao không hợp lệ.',
     caseRequired: 'Vui lòng chọn hoặc nhập mã hồ sơ hợp lệ.',
   },
+  /**
+   * Bản dịch tiếng Anh.
+   */
   en: {
     pageTitle: 'Scoped Asset Handover',
     pageSubtitle: 'Execute handover of heritage assets to designated beneficiaries in accordance with approved allocation scope.',

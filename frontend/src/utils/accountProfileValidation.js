@@ -3,8 +3,17 @@
  * Based on active session and GET /auth/me contract.
  */
 
+/**
+ * Logic kiểm tra và ánh xạ vai trò cho trang hồ sơ tài khoản (EX-01), dựa trên session đang hoạt động và hợp đồng GET /api/v1/auth/me.
+ * Được dùng bởi App.jsx, components/layout/AppShell.jsx và pages/account/AccountProfilePage.jsx.
+ *
+ * Danh sách vai trò hợp lệ của ứng dụng (dạng không có tiền tố ROLE_).
+ */
 export const APP_ROLES = ['VAULT_OWNER', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'ADMIN', 'BENEFICIARY'];
 
+/**
+ * Nhãn hiển thị song ngữ (vi/en) của từng vai trò.
+ */
 export const ROLE_LABELS = {
   VAULT_OWNER: {
     vi: 'Chủ sở hữu kho',
@@ -34,6 +43,8 @@ export const ROLE_LABELS = {
  * @param {Object|null|undefined} session
  * @param {number} [now=Date.now()]
  * @returns {boolean}
+ *
+ * Dùng bởi App.jsx: chỉ cho vào trang hồ sơ khi session có accessToken, chưa hết hạn và có vai trò hợp lệ.
  */
 export function canAccessAccountProfile(session, now = Date.now()) {
   if (!session || typeof session.accessToken !== 'string' || !session.accessToken.trim()) {
@@ -58,6 +69,8 @@ export function canAccessAccountProfile(session, now = Date.now()) {
  * @param {string} role
  * @param {string} [lang='vi']
  * @returns {string}
+ *
+ * Dùng bởi AppShell/AccountProfilePage để hiển thị vai trò dễ đọc theo ngôn ngữ.
  */
 export function formatRoleName(role, lang = 'vi') {
   if (!role || typeof role !== 'string') {
@@ -78,6 +91,8 @@ export function formatRoleName(role, lang = 'vi') {
  *
  * @param {any} user
  * @returns {boolean}
+ *
+ * Kiểm tra dữ liệu người dùng từ GET /api/v1/auth/me: có fullName, email chứa @ và ít nhất một vai trò.
  */
 export function isValidUserProfile(user) {
   if (!user || typeof user !== 'object') {
@@ -98,6 +113,8 @@ export function isValidUserProfile(user) {
  * @param {{ userId: string, token: string, user: Object }|null} refreshedData
  * @param {Object|null|undefined} session
  * @returns {Object|null}
+ *
+ * Chọn người dùng để hiển thị: dùng dữ liệu vừa làm mới nếu khớp đúng token và userId của session hiện tại, ngược lại dùng session.user.
  */
 export function resolveActiveProfileUser(refreshedData, session) {
   const activeToken = session?.accessToken || null;
@@ -128,6 +145,8 @@ export function resolveActiveProfileUser(refreshedData, session) {
  * @param {string} requestedToken
  * @param {string} requestedUserId
  * @returns {boolean}
+ *
+ * Chặn áp dụng kết quả GET /api/v1/auth/me trễ (đăng xuất, đổi phiên hoặc sai danh tính) vào phiên hiện tại.
  */
 export function canApplyProfileRefresh(validatedUser, activeSession, requestedToken, requestedUserId) {
   if (!validatedUser || typeof validatedUser !== 'object') {
@@ -170,6 +189,8 @@ export function canApplyProfileRefresh(validatedUser, activeSession, requestedTo
  * @param {Function|null|undefined} [params.onLogout]
  * @param {number} [now=Date.now()]
  * @returns {boolean}
+ *
+ * Dùng bởi AppShell để biết người xem đã đăng nhập chưa theo thứ tự ưu tiên: prop isAuthenticated, session còn hạn, người dùng thật (không phải preview/anonymous), rồi có onLogout.
  */
 export function resolveAppShellAuthState({
   isAuthenticated,
@@ -224,6 +245,8 @@ export function resolveAppShellAuthState({
  * @param {string} [fallbackRole='OWNER']
  * @param {string} [lang='vi']
  * @returns {string}
+ *
+ * Dùng bởi AppShell: lấy nhãn vai trò chính (ưu tiên vai trò hợp lệ đầu tiên của session.user, nếu không có thì theo fallbackRole) theo ngôn ngữ vi/en.
  */
 export function resolveUserRoleLabel(user, session, fallbackRole = 'OWNER', lang = 'vi') {
   const candidateUser = session?.user || user || null;
@@ -258,6 +281,8 @@ export function resolveUserRoleLabel(user, session, fallbackRole = 'OWNER', lang
  * @param {string} [fallbackRoleLabel='']
  * @param {string} [lang='vi']
  * @returns {string}
+ *
+ * Dùng bởi widget tài khoản của AppShell: trả họ tên; nếu thiếu thì nhãn vai trò, không bao giờ dùng email/token/id.
  */
 export function resolveAccountDisplayName(user, session, hasSession, fallbackRoleLabel = '', lang = 'vi') {
   if (!hasSession) {
@@ -285,6 +310,8 @@ export function resolveAccountDisplayName(user, session, hasSession, fallbackRol
  *
  * @param {string} name
  * @returns {string}
+ *
+ * Dùng cho avatar: lấy chữ cái đầu của họ tên (một từ thì lấy 2 ký tự đầu; nhiều từ thì chữ đầu của từ đầu và từ cuối).
  */
 export function resolveAccountInitials(name) {
   if (!name || typeof name !== 'string') {

@@ -5,6 +5,21 @@ import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import TrusteeBeneficiaryPage from './TrusteeBeneficiaryPage.jsx';
 
+/**
+ * Route màn hình Người thi hành bên ngoài và Người thụ hưởng của chủ kho (App.jsx render tại /beneficiaries).
+ * Tải kho của chủ sở hữu bằng fetchVault (GET /api/v1/vault) rồi quyết định: đang tải -> LoadingState; lỗi -> ErrorState (401 -> onUnauthorized); chưa có kho -> VaultRequiredState;
+ * có kho -> TrusteeBeneficiaryPage. Chế độ xem trước DEV chỉ bật khi không có accessToken. Có AbortController và cờ active để hủy khi props đổi hoặc unmount.
+ *
+ * @param {object} props
+ * @param {string} props.accessToken JWT.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {() => void} props.onUnauthorized Gọi khi 401.
+ * @param {() => void} props.onNavigateToVault Chuyển tới màn hình kho.
+ * @param {*} props.onRefreshTrigger Giá trị đổi để ép tải lại.
+ * @param {boolean} [props.isDevPreview=false] Cho phép dữ liệu mẫu trong DEV khi chưa đăng nhập.
+ * @param {Function} [props.onLoadInvitation] Hàm tải mã mời của người thụ hưởng (invitationActions.loadForBeneficiary).
+ * @returns {JSX.Element}
+ */
 export default function TrusteeBeneficiaryRoute({
   accessToken,
   lang,

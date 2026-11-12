@@ -5,10 +5,22 @@ import OwnerCancelAlert from './OwnerCancelAlert.jsx';
 import FeedbackNotice from '../common/FeedbackNotice.jsx';
 import { Button } from '../common/Button.jsx';
 
+/**
+ * Cổng vào của chức năng "hủy cảnh báo" (cancel alert) của chủ hầm khi DMS ở trạng thái {@code GRACE_PERIOD_EXCEEDED}. Chỉ render khi có token, là chủ hầm và trạng thái đúng; ngược lại trả null.
+ * Dùng trong {@code pages/dms/DMSOverviewPage.jsx}.
+ */
 export default function OwnerLiveCancelAlert(props) {
   if (!props.accessToken || !props.isOwner || props.dmsStatus !== 'GRACE_PERIOD_EXCEEDED') return null;
   return <LiveAlert key={`${props.ownerId}:${props.accessToken}`} {...props} />;
 }
+/**
+ * Tải hầm hiện tại ({@code fetchVault} trong {@code utils/vaultService.js}, gọi {@code GET /vaults?page=0&size=20&sort=createdAt,desc}) để biết hầm có đang {@code AWAITING_VERIFICATION} không, rồi hiển thị {@code OwnerCancelAlert}.
+ * Hành động hủy {@code cancel} gọi {@code POST /vaults/{vaultId}/cancel-alert} (200); kết quả phải có đúng id hầm và trạng thái {@code ACTIVE}, nếu không ném {@code INVALID_RESPONSE};
+ * không cho hủy khi hầm không ở AWAITING_VERIFICATION (ném {@code ALERT_NOT_CANCELLABLE} 409). Lỗi tải hiển thị thông báo kèm nút thử lại.
+ *
+ * Props: {@code accessToken}, {@code ownerId}, {@code dmsStatus}, {@code lang}, {@code onUnauthorized}, {@code onRefreshRequired} (cha tải lại DMS sau khi hủy).
+ * State: {@code vault}, {@code error}, {@code revision} (đếm số lần thử lại), {@code completed}.
+ */
 function LiveAlert({ accessToken, ownerId, dmsStatus, lang = 'vi', onUnauthorized, onRefreshRequired }) {
   const [vault, setVault] = useState(null);
   const [error, setError] = useState(false);

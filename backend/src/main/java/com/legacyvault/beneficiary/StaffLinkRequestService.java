@@ -29,6 +29,10 @@ import jakarta.persistence.EntityManager;
  * invitation revocation and audit run in one transaction, so any failure leaves nothing half-applied.
  * Two requests racing for one recipient: the second approval sees the recipient already linked
  * (BENEFICIARY_ACCOUNT_ALREADY_LINKED) and its request stays PENDING for Staff to reject.
+ *
+ * <p>Gọi từ {@code StaffLinkRequestController}. Bảng: {@code beneficiary_link_requests}, {@code beneficiaries}, {@code users}.
+ * Audit {@code BENEFICIARY_LINK_REQUEST_APPROVED}, {@code BENEFICIARY_LINK_REQUEST_REJECTED} và {@code BENEFICIARY_ACCOUNT_LINKED}
+ * (qua {@code BeneficiaryAccountService.attach}).
  */
 @Service
 public class StaffLinkRequestService {
@@ -43,6 +47,9 @@ public class StaffLinkRequestService {
 	private final AuditService audit;
 	private final EntityManager entities;
 
+	/**
+	 * Hàm khởi tạo, Spring tiêm các phụ thuộc.
+	 */
 	public StaffLinkRequestService(BeneficiaryLinkRequestRepository requests, BeneficiaryRepository beneficiaries,
 			StaffCaseLockRepository caseLookup, StaffVaultCaseGuard caseGuard, StaffContextService staff,
 			UserRepository users, BeneficiaryAccountService accountLinker, AuditService audit, EntityManager entities) {
@@ -57,6 +64,10 @@ public class StaffLinkRequestService {
 		this.entities = entities;
 	}
 
+	/**
+	 * Liệt kê yêu cầu còn chờ và chưa hết hạn của case, kèm tên và email của tài khoản yêu cầu. Endpoint {@code GET .../link-requests}.
+	 * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND}
+	 */
 	@Transactional(readOnly = true)
 	public List<BeneficiaryLinkRequestDtos.StaffRequest> listPending(UUID caseId) {
 		User actor = staff.requireStaff();
@@ -72,6 +83,12 @@ public class StaffLinkRequestService {
 				}).toList();
 	}
 
+	/**
+	 * Duyệt yêu cầu. Các bước: xác định case đang mở của Staff, khóa tài khoản theo người yêu cầu đã lưu (không lấy từ client), khóa Vault/Case,
+	 * khóa dòng yêu cầu và kiểm tra còn chờ, kiểm tra người thụ hưởng đã xác minh, chưa liên kết và tài khoản đủ điều kiện, gọi {@code attach},
+	 * đánh dấu APPROVED và audit. Tất cả trong một giao dịch. Endpoint {@code POST .../link-requests/{requestId}/approve}.
+	 * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND}, {@code BENEFICIARY_ACCOUNT_INELIGIBLE}, {@code BENEFICIARY_LINK_REQUEST_NOT_PENDING}, {@code BENEFICIARY_IDENTITY_NOT_VERIFIED}, {@code BENEFICIARY_ACCOUNT_ALREADY_LINKED}
+	 */
 	@Transactional
 	public BeneficiaryLinkRequestDtos.Decision approve(UUID caseId, UUID requestId, UUID beneficiaryId) {
 		User actor = staff.requireStaff();
@@ -107,6 +124,10 @@ public class StaffLinkRequestService {
 				beneficiary.getPublicId(), account.getPublicId());
 	}
 
+	/**
+	 * Từ chối yêu cầu đang chờ, audit. Endpoint {@code POST .../link-requests/{requestId}/reject}.
+	 * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND}, {@code BENEFICIARY_LINK_REQUEST_NOT_PENDING}
+	 */
 	@Transactional
 	public BeneficiaryLinkRequestDtos.Decision reject(UUID caseId, UUID requestId) {
 		User actor = staff.requireStaff();
@@ -136,6 +157,9 @@ public class StaffLinkRequestService {
 		return request;
 	}
 
+	/**
+	 * Tìm case đang mở thuộc Staff; ngược lại ném {@code RESOURCE_NOT_FOUND}.
+	 */
 	private VerificationCase ownedOpenCase(UUID caseId, User actor) {
 		VerificationCase found = caseLookup.findOwnedByStaff(caseId, actor.getUserId())
 				.orElseThrow(StaffLinkRequestService::notFound);
@@ -143,7 +167,13 @@ public class StaffLinkRequestService {
 		return found;
 	}
 
+	/**
+	 * Tạo lỗi {@code RESOURCE_NOT_FOUND}.
+	 */
 	private static BusinessException notFound() { return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND); }
 
+	/**
+	 * Giờ UTC hiện tại.
+	 */
 	private static LocalDateTime now() { return LocalDateTime.now(ZoneOffset.UTC); }
 }

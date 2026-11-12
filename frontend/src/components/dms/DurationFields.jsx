@@ -1,6 +1,14 @@
 import './DurationFields.css';
 
-/** Days, hours and minutes as three labelled number boxes, shared by the check cycle and the grace period. */
+/**
+ * Ba ô số có nhãn (ngày, giờ, phút) dùng chung cho chu kỳ kiểm tra và thời gian ân hạn. Thuần hiển thị.
+ *
+ * @param {object} props
+ * @param {string} props.legend Tiêu đề nhóm.
+ * @param {Array<{id:string,label:string,invalid?:boolean}>} props.fields Danh sách ô (các thuộc tính còn lại được truyền thẳng vào input).
+ * @param {boolean} props.disabled Khóa các ô.
+ * @param {string} props.describedBy Id phần mô tả/lỗi cho aria-describedby.
+ */
 export default function DurationFields({ legend, fields, disabled, describedBy }) {
   return <fieldset className="lv-duration-fields">
     <legend>{legend}</legend>

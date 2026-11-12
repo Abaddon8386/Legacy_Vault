@@ -11,31 +11,46 @@ import org.springframework.data.repository.query.Param;
 import com.legacyvault.will.entity.AssetVersion;
 
 /**
- * Phiên bản file di chúc. Chỉ có thêm mới và đọc metadata: không có hàm sửa/xóa vì phiên bản cũ phải được giữ
+ * Phiên bản file di chúc (bảng {@code asset_versions}), dùng bởi {@code WillService}. Chỉ có thêm mới và đọc metadata: không có hàm sửa/xóa vì phiên bản cũ phải được giữ
  * nguyên làm chứng cứ (LV-WILL-001). Các truy vấn đọc trả {@link WillVersionView} để không nạp nội dung file.
  */
 public interface AssetVersionRepository extends Repository<AssetVersion, Long> {
 
+	/**
+	 * Lưu phiên bản mới (không có cập nhật phiên bản cũ).
+	 */
 	AssetVersion save(AssetVersion version);
 
-	/** Nạp cả nội dung mã hóa; chỉ dùng cho luồng Owner mở file sau khi xác nhận lại mật khẩu. */
+	/**
+	 * Nạp cả nội dung mã hóa; chỉ dùng cho luồng Owner mở file sau khi xác nhận lại mật khẩu ({@code WillService.openVersion}).
+	 */
 	Optional<AssetVersion> findByAssetIdAndVersionNo(Long assetId, int versionNo);
 
-	/** Khóa + hash của một phiên bản để tham chiếu (vd đối chiếu di chúc gốc, PS-40); không nạp nội dung file. */
+	/**
+	 * Khóa + hash của một phiên bản để tham chiếu (vd đối chiếu di chúc gốc, PS-40); không nạp nội dung file.
+	 */
 	@Query("select new com.legacyvault.will.repository.WillVersionRef(v.assetVersionId, v.versionNo, v.sha256Hash) "
 			+ "from AssetVersion v where v.assetId = :assetId and v.versionNo = :versionNo")
 	Optional<WillVersionRef> findRef(@Param("assetId") Long assetId, @Param("versionNo") int versionNo);
 
+	/**
+	 * Số phiên bản lớn nhất của một di chúc (0 nếu chưa có), để cấp {@code version_no} kế tiếp trong {@code WillService.addVersion}.
+	 */
 	@Query("select coalesce(max(v.versionNo), 0) from AssetVersion v where v.assetId = :assetId")
 	int findMaxVersionNo(@Param("assetId") Long assetId);
 
+	/**
+	 * Toàn bộ metadata phiên bản của một di chúc, mới nhất trước ({@code GET .../versions}).
+	 */
 	@Query("""
 			select new com.legacyvault.will.repository.WillVersionView(v.assetId, v.versionNo, v.originalFileName,
 				v.contentType, v.fileSizeBytes, v.sha256Hash, v.uploadStatus, v.uploadedAt)
 			from AssetVersion v where v.assetId = :assetId order by v.versionNo desc""")
 	List<WillVersionView> findVersions(@Param("assetId") Long assetId);
 
-	/** Phiên bản mới nhất của từng Asset trong danh sách (một truy vấn cho cả trang). */
+	/**
+	 * Phiên bản mới nhất của từng Asset trong danh sách (một truy vấn cho cả trang), dùng bởi {@code WillService.listWills}.
+	 */
 	@Query("""
 			select new com.legacyvault.will.repository.WillVersionView(v.assetId, v.versionNo, v.originalFileName,
 				v.contentType, v.fileSizeBytes, v.sha256Hash, v.uploadStatus, v.uploadedAt)

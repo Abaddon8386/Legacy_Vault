@@ -5,6 +5,15 @@ import { sessionExpiryState } from '../../utils/sessionExpiry.js';
 import './SessionExpiryNotice.css';
 
 // Presentational: shows nothing unless a warning is due.
+/**
+ * Thanh cảnh báo phiên sắp hết hạn (thuần hiển thị): không hiện gì nếu {@code state} rỗng; trong phút cuối dùng {@code role="alert"}.
+ *
+ * @param {object} props
+ * @param {({minutes:number,lastMinute:boolean}|null)} props.state Kết quả của {@code sessionExpiryState}.
+ * @param {string} [props.lang='vi']
+ * @param {()=>void} props.onSignIn Đăng nhập lại.
+ * @param {()=>void} props.onDismiss Để sau (ẩn cho đến phút cuối).
+ */
 export function SessionExpiryBanner({ state, lang = 'vi', onSignIn, onDismiss }) {
   if (!state) return null;
   const en = lang === 'en';
@@ -26,6 +35,10 @@ export function SessionExpiryBanner({ state, lang = 'vi', onSignIn, onDismiss })
 }
 
 // Reads the stored session, so it works for every role and page without touching the app's own session handling.
+/**
+ * Đọc phiên đã lưu ({@code readStoredSession}) mỗi 15 giây để tính thời gian còn lại ({@code sessionExpiryState}) và hiển thị {@code SessionExpiryBanner}. Hoạt động cho mọi vai trò mà không đụng đến xử lý phiên của ứng dụng.
+ * "Đăng nhập lại" xóa phiên ({@code storeSession(null)}) rồi chuyển tới {@code /login}. Ngôn ngữ lấy từ query {@code ?lang=}. Được gắn trong {@code main.jsx}.
+ */
 export default function SessionExpiryNotice() {
   const [state, setState] = useState(null);
   const [dismissed, setDismissed] = useState(false);

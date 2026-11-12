@@ -3,11 +3,36 @@ import CourtAllocationEditor from '../../components/staff/CourtAllocationEditor.
 import { buildCourtAllocations, courtAllocationError } from '../../utils/courtAllocationModel.js';
 import { canUseDistributionAction, documentMatchesWorkflow } from '../../workflows/distributionWorkflowService.js';
 
+/**
+ * Biểu mẫu Staff lập phân bổ tài sản dựa trên các giấy tờ căn cứ đã được Ban Pháp lý duyệt.
+ * Chỉ cho sửa/gửi khi workflow cho phép hành động `submitAllocations` của vai trò STAFF
+ * (pha `AWAITING_ALLOCATIONS`) và giấy tờ hiện tại khớp workflow (`documentMatchesWorkflow`).
+ * Hiển thị phân bổ đã gửi (`workflow.data.allocation`), cho nạp lại để sửa (`onRestore`), và dùng
+ * `CourtAllocationEditor` để nhập dòng phân bổ. Khi submit: kiểm tra bằng `buildCourtAllocations`
+ * rồi `workflow.run('submitAllocations', {allocations})`, tương ứng
+ * `POST /api/v1/staff/verification-cases/{caseId}/distribution-workflow/submit-allocations`.
+ * Cho phép người nhận mới theo Tòa án khi `dossier.route === 'COURT'`. Được dùng trong `StaffLegalDocumentsPage.jsx`.
+ *
+ * @param {object} props
+ * @param {object} props.workflow đối tượng điều khiển workflow phân phối (`data`, `pending`, `run`).
+ * @param {object} props.dossier hồ sơ giấy tờ hiện tại.
+ * @param {Array<object>} props.assets danh mục tài sản của hồ sơ.
+ * @param {Array<object>} props.recipients danh mục người nhận của hồ sơ.
+ * @param {Array<object>} props.rows các dòng phân bổ đang soạn.
+ * @param {Function} props.onAdd thêm dòng.
+ * @param {Function} props.onChange cập nhật dòng.
+ * @param {Function} props.onRemove xóa dòng.
+ * @param {Function} [props.onRestore] nạp lại phân bổ đã gửi vào bộ soạn.
+ * @param {Function} [props.onSubmitted] gọi sau khi gửi Ban Pháp lý thành công.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @returns {JSX.Element}
+ */
 export default function StaffDistributionAllocations({ workflow, dossier, assets, recipients, rows, onAdd, onChange, onRemove, onRestore, onSubmitted, lang = 'vi' }) {
   const en = lang === 'en';
   const [error, setError] = useState(null);
   const ready = canUseDistributionAction(workflow.data, 'submitAllocations', 'STAFF') && documentMatchesWorkflow(workflow.data, dossier);
   const existing = workflow.data?.allocation;
+  /** Kiểm tra các dòng phân bổ rồi gửi sang Ban Pháp lý; hiển thị lỗi kiểm tra (nếu có) trong state `error`. */
   async function submit(event) {
     event.preventDefault(); if (!ready || workflow.pending) return;
     const checked = buildCourtAllocations(rows, { assets, recipients, requireCatalog: true });

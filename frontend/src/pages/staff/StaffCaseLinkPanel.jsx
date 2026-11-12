@@ -7,9 +7,42 @@ import { fetchStaffCaseBeneficiaries, recordCounterAttestation } from './liveHan
 import './StaffCaseLinkPanel.css';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 
+/**
+ * Bảng "Đối chiếu tại quầy": Staff khớp tài khoản người dùng đã gửi yêu cầu liên kết với đúng người nhận trong hồ sơ.
+ * Bọc `CounterContent` với `key` theo (caseId, accessToken, trạng thái hồ sơ) để đặt lại state khi đổi hồ sơ.
+ * Được dùng trong `LiveHandoverPage.jsx` (chế độ `accounts` và bước đối chiếu của bàn giao).
+ *
+ * @param {object} props xem `CounterContent`.
+ */
 export default function StaffCaseLinkPanel(props) {
   return <CounterContent key={`${props.caseId}:${props.accessToken || ''}:${props.caseItem?.status || ''}`} {...props} />;
 }
+/**
+ * Nội dung bảng đối chiếu tại quầy. Các bước:
+ * 1. Khi hồ sơ OPEN, tải song song danh sách người nhận (`actions.listRecipients` hoặc
+ *    `fetchStaffCaseBeneficiaries` = `GET /api/v1/staff/verification-cases/{caseId}/beneficiaries`)
+ *    và các yêu cầu liên kết đang chờ (`actions.listPending` = `GET .../link-requests`), kiểm tra tính hợp lệ.
+ * 2. Staff chọn tài khoản gửi yêu cầu, chọn người nhận, (tùy chế độ) nhập mã chứng từ đối chiếu và tick xác nhận.
+ * 3. `perform('approve')` gọi `actions.approve`: ghi nhận đối chiếu tại quầy
+ *    (`POST .../beneficiaries/{beneficiaryId}/identity-attestations`) rồi
+ *    `POST /api/v1/staff/verification-cases/{caseId}/link-requests/{requestId}/approve` với `{beneficiaryId}`.
+ *    `perform('reject')` gọi `POST .../link-requests/{requestId}/reject`; `perform('create')` gọi
+ *    `POST /api/v1/staff/verification-cases/{caseId}/accounts` (tạo tài khoản chưa liên kết);
+ *    `perform('attest')` chỉ ghi nhận đối chiếu trực tiếp khi chưa hỗ trợ liên kết.
+ * Khi `requiredRecipientIds` được truyền, chỉ cho liên kết người nhận nằm trong phạm vi phân chia đã duyệt.
+ * Sau mỗi thao tác tải lại dữ liệu; mọi lỗi được báo qua `onError` và khóa thao tác đến khi tải lại.
+ *
+ * @param {object} props
+ * @param {string} props.caseId id hồ sơ xác minh.
+ * @param {object} props.caseItem hồ sơ (cần `status` và `caseNumber`).
+ * @param {Array<string>} [props.requiredRecipientIds] id người nhận thuộc phạm vi đã phê duyệt.
+ * @param {string} props.accessToken JWT của staff.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {object} props.actions bộ hành động (`listPending`, `approve`, `reject`, `createAccount`, `listRecipients`, `counterEvidenceMode`), thường là `liveCounterLinkActions` trong `utils/caseLinkService.js`.
+ * @param {Function} [props.onError] nhận lỗi để thông báo.
+ * @param {Function} [props.onReload] gọi khi người dùng bấm Tải lại.
+ * @returns {JSX.Element}
+ */
 function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, lang = 'vi', actions, onError, onReload }) {
   const en = lang === 'en';
   const [snapshot, setSnapshot] = useState(null);
@@ -20,6 +53,7 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, l
   const [notice, setNotice] = useState('');
   const [copyStatus, setCopyStatus] = useState('');
   const caseNumber = /^HS-\d{4}-\d+$/.test(caseItem?.caseNumber || '') ? caseItem.caseNumber : null;
+  /** Sao chép mã hồ sơ (dạng HS-yyyy-nnnnnn) vào clipboard để gửi cho người nhận; báo trạng thái trong `copyStatus`. */
   async function copyCaseNumber() {
     try {
       await navigator.clipboard.writeText(caseNumber);
@@ -43,6 +77,7 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, l
   const errorCallback = useRef(onError);
   useEffect(() => { errorCallback.current = onError; }, [onError]);
   useEffect(() => () => { mutation.current?.abort(); read.current?.abort(); }, []);
+  /** Thông báo thành công (vi/en) theo loại thao tác: tạo tài khoản, ghi nhận đối chiếu, xác nhận liên kết, từ chối yêu cầu. */
   const messages = {
     create: en ? 'Account created. Ask the recipient to sign in and enter the case number in Shared with me' : 'Đã tạo tài khoản. Người nhận đăng nhập, vào Tài sản thụ hưởng và nhập mã hồ sơ',
     attest: en ? 'Check recorded, account not linked yet' : 'Đã ghi nhận đối chiếu, chưa liên kết tài khoản',
@@ -92,6 +127,14 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, l
                   : recipient.accountLinked ? (en ? 'This recipient is already linked.' : 'Người nhận này đã liên kết.')
                     : evidenceRequired && !evidence.trim() ? (en ? 'Enter the counter record reference.' : 'Nhập mã biên bản đối chiếu.')
                       : !checked ? (en ? 'Confirm the account and recipient match.' : 'Xác nhận đã đối chiếu đúng người nhận và tài khoản.') : '';
+  /**
+   * Thực hiện một thao tác đối chiếu (`attest`, `create`, `approve`, `reject`) có khóa chống chạy trùng (`mutation`).
+   * Hủy lần đọc đang chạy, gọi hành động tương ứng, kiểm tra kết quả khớp yêu cầu đã chọn, đặt thông báo,
+   * xóa lựa chọn và tăng `revision` để tải lại. Khi lỗi: lưu `error`, đặt `uncertain` để buộc tải lại, gọi `onError`.
+   *
+   * @param {'attest'|'create'|'approve'|'reject'} kind loại thao tác.
+   * @param {object} [payload] dữ liệu bổ sung (ví dụ `recipientId`, `evidenceReference`, thông tin tài khoản mới).
+   */
   async function perform(kind, payload) {
     if (mutation.current || locked) return;
     const c = new AbortController(); mutation.current = c; read.current?.abort();
@@ -123,6 +166,7 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, l
       if (mutation.current === c) { mutation.current = null; if (!c.signal.aborted) setPending(false); }
     }
   }
+  /** Xóa lựa chọn người nhận, mã chứng từ, ô xác nhận và khung từ chối khi đổi tài khoản gửi yêu cầu. */
   function clearMatch() { setRecipientId(''); setEvidence(''); setChecked(false); setRejectOpen(false); }
   return <section className="lv-counter-link lv-staff-glow" aria-labelledby="counter-link-title" aria-busy={loading && open}>
     <div className="lv-counter-link__heading"><h2 id="counter-link-title">{en ? 'Match account at the counter' : 'Đối chiếu tại quầy'}</h2>

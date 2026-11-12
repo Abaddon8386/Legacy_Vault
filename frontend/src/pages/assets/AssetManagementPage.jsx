@@ -27,6 +27,30 @@ import { getAssetTranslations } from './assetI18n.js'
  * AssetManagementPage — PS-5: Add asset + view asset list (Contract Aligned).
  * Loads assets on mount, shows loading/error/empty states.
  * Allows adding a new asset via a validated form modal with write-only payload.
+ *
+ * Màn quản lý tài sản của một kho (PS-5/PS-6): danh sách có phân trang, tìm kiếm/lọc theo loại, thêm, xem chi tiết và sửa tài sản.
+ * Được `AssetsRoute` render cho chủ kho.
+ *
+ * API sử dụng (qua `services/assetService.js` và các service ảnh/tài liệu):
+ * `GET /api/v1/vaults/{vaultId}/assets` (danh sách), `GET .../assets/{assetId}` (chi tiết), `POST .../assets` (tạo, 201),
+ * `PATCH .../assets/{assetId}` (sửa, cần mật khẩu hiện tại), ảnh qua `assetImageService`, tài liệu qua `assetDocumentService`,
+ * và `GET /api/v1/subscriptions/me` (`fetchSubscription`) để kiểm tra hạn mức số tài sản/dung lượng khi `enforceQuota`.
+ *
+ * Cách hoạt động: nạp danh sách trong effect có AbortController (query page/size/sort); 401 gọi `onNavigateToLogin`, 403/404 xóa danh sách và hiện lỗi.
+ * Thêm tài sản kiểm tra lại hạn mức trước khi tạo (backend vẫn kiểm tra nguyên tử), tạo tài sản rồi tải tài liệu; nếu bước tải tài liệu lỗi thì
+ * lần thử lại không tạo trùng (`createdAssetRef`). Sửa tài sản thực hiện từng bước (trường -> ảnh -> tài liệu) và nhớ bước đã xong (`editProgressRef`)
+ * để thử lại chỉ làm phần còn lỗi. Ở chế độ `readOnly` ẩn các thao tác ghi.
+ *
+ * @param {object} props
+ * @param {object} [props.t] Từ điển ngoài (nếu có).
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {string} props.vaultId UUID kho.
+ * @param {string} props.accessToken JWT chủ kho.
+ * @param {Function} [props.onNavigateToLogin] Callback khi 401.
+ * @param {number} [props.onRefreshTrigger=0] Bộ đếm làm mới từ App (đổi giá trị để tải lại).
+ * @param {boolean} [props.enforceQuota=false] Có kiểm tra hạn mức gói trước khi cho thêm.
+ * @param {boolean} [props.readOnly=false] Chỉ xem (kho không còn ACTIVE).
+ * @param {Function} [props.onNavigateToSubscription] Đi tới trang nâng cấp gói.
  */
 export function AssetManagementPage({
   t: externalT,
@@ -46,6 +70,9 @@ export function AssetManagementPage({
   const [quota, setQuota] = useState(null)
   const [quotaError, setQuotaError] = useState(null)
   const [quotaLoading, setQuotaLoading] = useState(enforceQuota)
+  /**
+   * Effect tải hạn mức gói (`GET /api/v1/subscriptions/me`) khi bật `enforceQuota`; 401 gọi `onNavigateToLogin`.
+   */
   useEffect(() => {
     if (!enforceQuota) return
     const controller = new AbortController()
@@ -65,10 +92,19 @@ export function AssetManagementPage({
     })
     return () => { active = false; controller.abort() }
   }, [enforceQuota, accessToken, lang, retry, onRefreshTrigger, onNavigateToLogin])
+  /**
+   * Hạn mức đã đầy: số tài sản đã dùng đạt tối đa hoặc dung lượng đã dùng đạt tối đa.
+   */
   const quotaFull = quota && (quota.assetsUsed >= quota.maxAssets || quota.storageUsedBytes >= quota.maxStorageBytes)
+  /**
+   * Không cho thêm tài sản khi: chỉ đọc, hoặc đang bật quota mà đang tải/lỗi/chưa có dữ liệu/đã đầy.
+   */
   const addUnavailable = readOnly || (enforceQuota && (quotaLoading || quotaError || !quota || quotaFull))
   const submittingRef = useRef(false)
   const createdAssetRef = useRef(null)
+  /**
+   * Tiến độ sửa đã lưu cho một tài sản (khóa trường đã lưu và tập tệp đã tải) để lần thử lại chỉ lặp lại bước bị lỗi.
+   */
   // Edit steps already saved for one asset, so a retry only repeats what failed. files holds the File objects uploaded.
   const editProgressRef = useRef(null)
   const [assetSaved,setAssetSaved] = useState(false)
@@ -96,6 +132,9 @@ export function AssetManagementPage({
   const [toastMessage, setToastMessage] = useState(null)
 
 
+  /**
+   * Hiện thông báo nổi (toast) theo khóa i18n và loại (success/error), tự ẩn sau 3,5 giây.
+   */
   const showToast = useCallback((key, type = 'success') => {
     clearTimeout(toastTimer.current)
     setToastMessage({ key, type })
@@ -103,6 +142,10 @@ export function AssetManagementPage({
   }, [])
   useEffect(() => () => clearTimeout(toastTimer.current), [])
 
+  /**
+   * Effect tải danh sách tài sản (`GET /api/v1/vaults/{vaultId}/assets` với page/size/sort). Nếu trang >0 mà rỗng thì quay về trang 0.
+   * Chạy lại khi đổi kho, token, query, nút thử lại hoặc `onRefreshTrigger`.
+   */
   useEffect(() => {
     const controller = new AbortController()
     let active = true
@@ -138,7 +181,13 @@ export function AssetManagementPage({
     return () => { active = false; controller.abort() }
   }, [vaultId, accessToken, query, retry, onRefreshTrigger, onNavigateToLogin])
 
+  /**
+   * Tải lại danh sách bằng cách tăng bộ đếm `retry`.
+   */
   const loadAssets = () => setRetry(value => value + 1)
+  /**
+   * Mở modal thêm tài sản nếu không đang tải, không lỗi và được phép thêm.
+   */
   function openAddModal() {
     if (isLoading || error || addUnavailable) return
     setAddErrorKey(null)
@@ -146,6 +195,13 @@ export function AssetManagementPage({
   }
 
 
+  /**
+   * Thêm tài sản mới từ form: (nếu bật quota) kiểm tra lại hạn mức, `POST /api/v1/vaults/{vaultId}/assets`,
+   * rồi tải các tài liệu đính kèm (`assetDocumentService.upload`). Sau thành công đóng modal, đặt lại bộ lọc, về trang 0 và tải lại.
+   * Lỗi ASSET_QUOTA_EXCEEDED/STORAGE_QUOTA_EXCEEDED làm mới hạn mức; 401 chuyển về đăng nhập.
+   *
+   * @param {object} formData Dữ liệu form (tên, loại, mô tả, payload nhạy cảm, tài liệu...).
+   */
   async function handleAddAsset(formData) {
     if (readOnly || submittingRef.current) return
     submittingRef.current = true
@@ -192,9 +248,19 @@ export function AssetManagementPage({
     }
   }
 
+  /**
+   * Đóng modal xem/sửa, hủy request đang chạy và xóa tiến độ sửa.
+   */
   function closeSelection() {
     selectionRef.current?.abort(); setSelection(null); setEditErrorKey(null); editProgressRef.current = null
   }
+  /**
+   * Mở tài sản để xem hoặc sửa: gọi `GET /api/v1/vaults/{vaultId}/assets/{assetId}` lấy bản mới nhất rồi mở modal tương ứng.
+   * Chế độ sửa bị chặn khi `readOnly`. Lỗi 403/404 xóa danh sách và hiện lỗi.
+   *
+   * @param {object} asset Dòng tài sản (dùng `id`).
+   * @param {'view'|'edit'} mode Chế độ mở.
+   */
   async function openAsset(asset, mode) {
     if ((readOnly && mode === 'edit') || submittingRef.current) return
     selectionRef.current?.abort()
@@ -211,6 +277,15 @@ export function AssetManagementPage({
       showToast(error.code || 'loadError','error')
     }
   }
+  /**
+   * Lưu thay đổi tài sản theo từng bước: (1) `PATCH /api/v1/vaults/{vaultId}/assets/{assetId}` cho các trường và mật khẩu hiện tại,
+   * (2) thêm ảnh (`assetImageService.add`), (3) tải tài liệu (`assetDocumentService.upload`). Nếu trường lưu lỗi (ví dụ sai mật khẩu) thì dừng, các bước còn lại
+   * không chạy. Lỗi một phần được gắn vào `error.partial` để modal biết phần nào đã lưu. Các lỗi REAUTH_FAILED, TOO_MANY_ATTEMPTS, PASSWORD_SETUP_CANCELLED được ném lại cho modal xử lý.
+   *
+   * @param {string} assetId UUID tài sản.
+   * @param {object} patch Gồm các trường sửa, `password`, `images`, `documents`.
+   * @param {{signal?: AbortSignal}} [opts] Tín hiệu hủy từ modal.
+   */
   async function handleUpdateAsset(assetId, patch, { signal } = {}) {
     if (readOnly || submittingRef.current) return
     submittingRef.current = true
@@ -262,6 +337,9 @@ export function AssetManagementPage({
       if (mutationRef.current === controller) { mutationRef.current=null; submittingRef.current=false; if (aliveRef.current) setIsUpdating(false) }
     }
   }
+  /**
+   * Lọc phía client trên trang hiện tại theo loại tài sản và từ khóa (tên/mô tả).
+   */
   // Client-side filtering by assetType and searching by name/description
   const filteredAssets = useMemo(() => {
     return assets.filter((asset) => {

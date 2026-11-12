@@ -6,6 +6,9 @@ import AuthBrand from './AuthBrand.jsx';
 import InvitationEntry from '../../components/invitations/InvitationEntry.jsx';
 import './LoginPage.css';
 
+/**
+ * Chuỗi giao diện song ngữ (vi/en) của trang đăng nhập.
+ */
 const i18nContent = {
   vi: {
     title: 'Đăng nhập tài khoản',
@@ -44,11 +47,31 @@ const i18nContent = {
 };
 
 
+/**
+ * Giá trị khởi tạo của form đăng nhập (email, mật khẩu).
+ */
 const initialForm = {
   email: '',
   password: '',
 };
 
+/**
+ * Trang đăng nhập (đường dẫn `/login`), được `App.jsx` render khi chưa có phiên hợp lệ.
+ *
+ * Cách hoạt động: validate form bằng `validateLogin`, gọi `authenticateUser` -> `POST /api/v1/auth/login` (email + mật khẩu)
+ * hoặc `authenticateWithGoogle` -> `POST /api/v1/auth/google` (credential Google Identity Services). Thành công thì gọi
+ * `onAuthenticated(response, {signal, lang})` để `App.jsx` thiết lập phiên. Lỗi được dịch qua `getAuthMessage(code, lang)`.
+ * Ngôn ngữ lấy từ query `?lang=`; có thể chuyển vi/en ngay trên trang và các lỗi đang hiện sẽ được dịch lại.
+ * `invitationMode` ẩn đăng nhập Google và hiển thị luồng nhập mã mời người thụ hưởng (`InvitationEntry`).
+ *
+ * @param {object} props
+ * @param {Function} [props.onNavigateToForgotPassword] Chuyển tới màn quên mật khẩu.
+ * @param {Function} [props.onNavigateToRegister] Chuyển tới màn đăng ký.
+ * @param {Function} [props.onAuthenticated] Nhận kết quả đăng nhập thành công.
+ * @param {Function} [props.onNavigateToInvitations] Mở luồng lời mời.
+ * @param {boolean} [props.invitationMode=false] Đang đăng nhập để chấp nhận lời mời.
+ * @param {Function} [props.onCancelInvitation] Hủy luồng lời mời.
+ */
 export default function LoginPage({ onNavigateToForgotPassword, onNavigateToRegister, onAuthenticated, onNavigateToInvitations, invitationMode = false, onCancelInvitation }) {
   const [lang, setLang] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi');
   const [values, setValues] = useState(initialForm);
@@ -62,6 +85,11 @@ export default function LoginPage({ onNavigateToForgotPassword, onNavigateToRegi
   const controllerRef = useRef(null);
   useEffect(() => () => controllerRef.current?.abort(), []);
 
+  /**
+   * Đổi ngôn ngữ trang: dịch lại các lỗi validate và thông báo kết quả đang hiển thị mà không xóa dữ liệu đã nhập.
+   *
+   * @param {'vi'|'en'} newLang Ngôn ngữ mới.
+   */
   const handleLanguageChange = (newLang) => {
     if (newLang === lang) return;
     setLang(newLang);
@@ -84,6 +112,9 @@ export default function LoginPage({ onNavigateToForgotPassword, onNavigateToRegi
     }
   };
 
+  /**
+   * Cập nhật một trường form và xóa lỗi của trường đó.
+   */
   const handleInputChange = (field, value) => {
     setValues((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -95,6 +126,10 @@ export default function LoginPage({ onNavigateToForgotPassword, onNavigateToRegi
     }
   };
 
+  /**
+   * Submit đăng nhập bằng email/mật khẩu: validate, gọi `authenticateUser` (`POST /api/v1/auth/login`), rồi `onAuthenticated`.
+   * Chặn gửi trùng bằng `pendingRef`, hủy request khi gỡ component; lỗi hiển thị theo mã lỗi (`getAuthMessage`).
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (pendingRef.current) return;
@@ -142,6 +177,11 @@ export default function LoginPage({ onNavigateToForgotPassword, onNavigateToRegi
     }
   };
 
+  /**
+   * Đăng nhập bằng Google: gọi `authenticateWithGoogle` (`POST /api/v1/auth/google`) với credential, rồi `onAuthenticated`. Bỏ qua khi đang gửi hoặc ở `invitationMode`.
+   *
+   * @param {{credential: string}} credentialResponse Phản hồi từ Google Identity Services.
+   */
   const handleGoogleCredential = async (credentialResponse) => {
     if (pendingRef.current || invitationMode) return;
     pendingRef.current = true;
@@ -176,6 +216,9 @@ export default function LoginPage({ onNavigateToForgotPassword, onNavigateToRegi
     }
   };
 
+  /**
+   * Hiển thị lỗi từ nút Google (trừ lỗi tải script đã được nút tự hiển thị).
+   */
   const handleGoogleError = (err) => {
     if (status === 'submitting') return;
     // The Google button already displays connection errors beside its fallback.
@@ -186,6 +229,9 @@ export default function LoginPage({ onNavigateToForgotPassword, onNavigateToRegi
     setStatusMessage(err.message || getAuthMessage(errCode, lang));
   };
 
+  /**
+   * Chuyển sang trang đăng ký qua `onNavigateToRegister`, hoặc `history.pushState('/register')` nếu không có callback.
+   */
   const handleRegisterClick = (e) => {
     e.preventDefault();
     if (typeof onNavigateToRegister === 'function') {

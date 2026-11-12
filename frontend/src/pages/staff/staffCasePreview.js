@@ -1,3 +1,7 @@
+/**
+ * Danh sách hồ sơ xác minh tổng hợp (8 hồ sơ, trạng thái AWAITING_VERIFICATION, IN_PROGRESS, VERIFIED) chỉ dùng cho dev preview và unit test.
+ * Được staffCaseService.fetchStaffCases() lọc/phân trang khi chế độ mô phỏng được phép; cũng được staffIdentityService và staffLegalDocumentsService re-export.
+ */
 export const SYNTHETIC_STAFF_CASES = [
   {
     id: 'case-001',
@@ -75,6 +79,12 @@ export const SYNTHETIC_STAFF_CASES = [
 
 /**
  * Kiểm tra xem môi trường hiện tại có cho phép chạy dữ liệu tổng hợp (synthetic fixture) hay không.
+ *
+ * Quy tắc: có accessToken thật thì không bao giờ mô phỏng; bản build production (Vite PROD hoặc options.testEnv.PROD) khóa hoàn toàn;
+ * còn lại chỉ cho phép khi options.isDevPreview hoặc options.isTest được bật.
+ * Được các service staff* dùng để chọn giữa dữ liệu giả và API thật.
+ * @param {Object} [options] { accessToken, testEnv, isDevPreview, isTest }
+ * @returns {boolean} true nếu được dùng dữ liệu mô phỏng.
  */
 export function isStaffSimulationPermitted(options = {}) {
   // 1. Nếu có token đăng nhập thật -> Tuyệt đối không dùng mô phỏng

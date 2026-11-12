@@ -15,6 +15,15 @@ import {
 import { legalI18n } from './legalI18n.js';
 import './LegalDeathVerificationPage.css';
 
+/**
+ * Trang tĩnh "Xác minh tử vong" cho Legal (App.jsx render). Form gồm mã tham chiếu hồ sơ, quyết định, lý do và ghi chú; kiểm tra cục bộ bằng validateDeathVerificationForm
+ * (utils/legalDeathVerificationValidation.js). Nút gửi bị vô hiệu hóa và không gọi API; việc ghi quyết định khai tử thật nằm ở LegalLiveWorkflow (POST /api/v1/legal-verifications/death-documents/{id}/decision).
+ *
+ * @param {object} props
+ * @param {object} props.session Phiên đăng nhập (hiển thị người thẩm định).
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ (chuỗi từ legalI18n).
+ * @returns {JSX.Element}
+ */
 export default function LegalDeathVerificationPage({
   session,
   lang = 'vi',
@@ -39,6 +48,7 @@ export default function LegalDeathVerificationPage({
     ? `${session.user.fullName} (${session.user.email})`
     : session?.user?.email || (lang === 'en' ? 'Legal Verifier' : 'Chuyên viên Pháp lý');
 
+  /** Chọn quyết định; nếu đã kiểm tra một lần thì kiểm tra lại ngay. */
   const handleDecisionChange = (selected) => {
     setDecision(selected);
     if (validatedOnce) {
@@ -53,6 +63,7 @@ export default function LegalDeathVerificationPage({
     }
   };
 
+  /** Cập nhật lý do; nếu đã kiểm tra một lần thì kiểm tra lại ngay. */
   const handleReasonChange = (e) => {
     const val = e.target.value;
     setReason(val);
@@ -68,6 +79,7 @@ export default function LegalDeathVerificationPage({
     }
   };
 
+  /** Kiểm tra form cục bộ bằng validateDeathVerificationForm, lưu lỗi từng trường và trạng thái 'success' / 'error'. */
   const handleValidateLocal = () => {
     setValidatedOnce(true);
     const res = validateDeathVerificationForm({

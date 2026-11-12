@@ -7,11 +7,29 @@ import org.springframework.stereotype.Repository;
 import java.time.ZoneOffset;
 import java.util.*;
 
-/** Same global Legal scope as LegalCaseLookupRepository, restricted to verification cases with a Vault. */
+/**
+ * Same global Legal scope as LegalCaseLookupRepository, restricted to verification cases with a Vault.
+ *
+ * Hàng đợi ca của Legal, truy vấn bằng {@link JdbcTemplate} các bảng {@code vaults}, {@code verification_cases},
+ * {@code legal_basis_dossiers}. Được {@code LegalReadService.queue} gọi cho {@code GET /api/v1/legal-verifications/verification-cases}.
+ */
 @Repository
 public class LegalQueueRepository {
     private final JdbcTemplate jdbc;
+    /**
+     * Constructor inject {@link JdbcTemplate}.
+     */
     public LegalQueueRepository(JdbcTemplate jdbc) { this.jdbc=jdbc; }
+    /**
+     * Một trang hàng đợi, mới mở trước.
+     * Lọc tùy chọn theo trạng thái ca ({@code status}) và nhánh phân loại ({@code route}); số hồ sơ có dạng
+     * {@code HS-<năm>-<id 6 chữ số>}. Dùng {@code OPTION (FORCE ORDER)} để giữ thứ tự khóa Vault, Case, Dossier như các
+     * tác vụ ghi, tránh deadlock.
+     *
+     * @param page chỉ số trang từ 0
+     * @param size kích thước trang
+     * @return trang {@code QueueItem}
+     */
     public PageResponse<QueueItem> page(String status,String route,int page,int size) {
         // Match workflow writers' Vault -> Case -> Dossier order. Do not let the optimizer
         // hold a Case read lock while waiting for a Vault that its writer already owns.

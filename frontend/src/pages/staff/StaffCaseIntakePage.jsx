@@ -34,11 +34,36 @@ import './StaffCaseIntakePage.css';
  * 3. Tách rõ Ngày cấp giấy tờ với Thời điểm Staff tiếp nhận hồ sơ.
  * 4. Người tiếp nhận xác định tự động từ phiên Staff; FE không gửi actor ID tùy ý.
  */
+/**
+ * Trang tiếp nhận giấy tờ bản cứng của người nộp hồ sơ tử vong. Bọc `IntakeForm` với `key` theo
+ * (hồ sơ, token, dev preview) để đổi hồ sơ thì biểu mẫu được tạo lại. Được mở từ `StaffCaseDashboard.jsx`.
+ * Lưu ý: việc gửi biên bản (`submitPhysicalIntakeRecord`) hiện chỉ có chế độ mô phỏng, chế độ thật ném `BACKEND_NOT_READY`.
+ * Màn tiếp nhận giấy tờ thật của hồ sơ nằm ở `StaffLiveCase.jsx`.
+ *
+ * @param {object} props xem `IntakeForm`.
+ */
 export default function StaffCaseIntakePage(props) {
   const scope = JSON.stringify([props.caseItem?.id || props.caseItem?.caseNumber, props.accessToken, Boolean(props.isDevPreview)]);
   return <IntakeForm key={scope} {...props} />;
 }
 
+/**
+ * Biểu mẫu ghi nhận người nộp (họ tên, điện thoại, email, quan hệ) và giấy tờ bản cứng (loại, cơ quan cấp, số,
+ * ngày cấp, thời điểm tiếp nhận, ghi chú). Kiểm tra bằng `validateIntakeForm`, gửi bằng `onSubmitRecord`
+ * (mặc định `submitPhysicalIntakeRecord`) và kiểm tra biên nhận trả về bằng `validateIntakeReceipt`.
+ * Chặn gửi lặp, bỏ qua phản hồi cũ khi hồ sơ đã đổi (`activeCaseRef`), hủy request khi unmount; lỗi 401 xử lý qua
+ * `useStaffSessionExpiry`. Chỉ ghi metadata, không xác nhận tử vong, không phê duyệt pháp lý.
+ *
+ * @param {object} props
+ * @param {object} props.caseItem hồ sơ đang tiếp nhận (null thì hiện trạng thái thiếu hồ sơ).
+ * @param {Function} props.onBack quay lại danh sách.
+ * @param {string|null} [props.accessToken] JWT của staff.
+ * @param {boolean} [props.isDevPreview=false] chế độ dev preview.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {Function} [props.onUnauthorized] gọi khi API trả 401.
+ * @param {object} [props.initialData] giá trị khởi tạo cho biểu mẫu.
+ * @param {Function} [props.onSubmitRecord] hàm gửi biên bản (có thể thay khi test).
+ */
 function IntakeForm({
   caseItem,
   onBack,
@@ -88,6 +113,7 @@ function IntakeForm({
   }, [caseItem?.id, caseItem?.caseNumber]);
 
   // Format Helper
+  /** Định dạng ISO-8601 thành ngày giờ theo ngôn ngữ; rỗng trả "—", lỗi phân tích trả nguyên chuỗi. */
   const formatDate = (isoString) => {
     if (!isoString) return '—';
     try {
@@ -104,6 +130,7 @@ function IntakeForm({
     }
   };
 
+  /** Cập nhật một trường biểu mẫu và xóa lỗi của trường đó. */
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Xóa lỗi của trường khi người dùng nhập lại
@@ -116,6 +143,7 @@ function IntakeForm({
     }
   };
 
+  /** Kiểm tra biểu mẫu, cuộn tới trường lỗi đầu tiên nếu có, rồi gửi biên bản tiếp nhận và lưu biên nhận thành công vào state. */
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
 

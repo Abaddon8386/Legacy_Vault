@@ -3,6 +3,9 @@
 export const SESSION_WARNING_MS = 5 * 60 * 1000;
 
 // Returns null when no warning is due, otherwise the minutes left (rounded up, at least 1) and whether it is the last minute.
+/**
+ * Tính trạng thái cảnh báo hết phiên: trả {minutes, lastMinute} khi còn trong khoảng cảnh báo (mặc định 5 phút), ngược lại null. Dùng bởi components/common/SessionExpiryNotice.jsx.
+ */
 export function sessionExpiryState(expiresAt, now = Date.now(), warningMs = SESSION_WARNING_MS) {
   if (!Number.isSafeInteger(expiresAt)) return null;
   const remaining = expiresAt - now;

@@ -12,17 +12,32 @@
  * - Does not read or extract plaintext content.
  */
 
+/**
+ * Dung lượng tối đa của tệp di chúc: 10 MiB (backend vẫn kiểm tra thực tế).
+ */
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // PS-74 D-API-14 agreed limit; BE validates actual file content and size.
+/**
+ * Độ dài tối đa của ghi chú: 500 ký tự.
+ */
 export const MAX_NOTE_LENGTH = 500;
 
+/**
+ * Các MIME type được chấp nhận: PDF, JPEG, PNG.
+ */
 export const ACCEPTED_MIME_TYPES = [
   'application/pdf',
   'image/jpeg',
   'image/png',
 ];
 
+/**
+ * Các đuôi tệp được chấp nhận.
+ */
 export const ACCEPTED_FILE_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
 
+/**
+ * Thông điệp lỗi song ngữ (vi/en) của form tải di chúc.
+ */
 export const willValidationMessages = {
   vi: {
     fileRequired: 'Vui lòng chọn tệp bản di chúc cần lưu trữ.',
@@ -47,6 +62,8 @@ export const willValidationMessages = {
  * @param {string} [params.note]
  * @param {string} [lang='vi']
  * @returns {Object} map of field errors, empty object if valid
+ *
+ * Kiểm tra tệp và ghi chú, trả map {trường: khóa lỗi} (fileRequired, fileEmpty, fileSizeExceeded, fileTypeInvalid, noteTooLong); rỗng nghĩa là hợp lệ. Được willService.js dùng trước khi gửi.
  */
 export function getWillUploadErrors({ file, note = '' }) {
   const errors = {};
@@ -58,6 +75,9 @@ export function getWillUploadErrors({ file, note = '' }) {
   return errors;
 }
 
+/**
+ * Xác định MIME type chấp nhận được của tệp: theo file.type nếu có, nếu không thì theo đuôi tên tệp; trả null nếu không được hỗ trợ.
+ */
 export function getWillContentType(file) {
   const type = (file?.type || '').toLowerCase();
   if (type) return ACCEPTED_MIME_TYPES.includes(type) ? type : null;
@@ -65,6 +85,9 @@ export function getWillContentType(file) {
   return { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' }[extension] || null;
 }
 
+/**
+ * Giống getWillUploadErrors nhưng trả thông điệp đã dịch theo ngôn ngữ. Dùng bởi pages/wills/WillUploadPage.jsx.
+ */
 export function validateWillUpload(params, lang = 'vi') {
   const messages = willValidationMessages[lang] || willValidationMessages.vi;
   return Object.fromEntries(Object.entries(getWillUploadErrors(params)).map(([field, key]) => [field, messages[key]]));

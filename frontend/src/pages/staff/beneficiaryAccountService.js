@@ -1,6 +1,22 @@
+/**
+ * beneficiaryAccountService.js - Dịch vụ phía frontend cho bước "xác minh và liên kết/tạo tài khoản người thụ hưởng" tại quầy của Staff.
+ *
+ * Được dùng bởi BeneficiaryAccountPage.jsx và LegacyCounterBeneficiariesSection.jsx.
+ * Có hai chế độ: mô phỏng (dev preview/test, dữ liệu tổng hợp, không gọi mạng) và thật (gọi API backend qua request() của api/http.js).
+ * Backend liên quan: POST /api/v1/staff/beneficiaries/{beneficiaryId}/account-link và POST /api/v1/staff/beneficiaries/{beneficiaryId}/account (vai trò STAFF_EXECUTOR).
+ */
 import { validateLinkExistingAccountForm, validateCreateBeneficiaryAccountForm } from '../../utils/beneficiaryAccountValidation.js';
 import { request, ApiError } from '../../api/http.js';
 import { isUuid } from '../../api/contracts.js';
+/**
+ * Kiểm tra hồ sơ bàn giao tại quầy (dữ liệu mô phỏng) còn cho phép ghi hay không; nếu không thì ném Error có {code}.
+ *
+ * Thứ tự kiểm tra: vai trò STAFF_EXECUTOR (nếu truyền options.roles) -> có dữ liệu hồ sơ -> hồ sơ chưa đóng/lưu trữ (SESSION_ALREADY_ARCHIVED) -> kho đã mở khóa UNLOCKED (VAULT_NOT_UNLOCKED) -> phê duyệt pháp lý còn hiệu lực (STALE_APPROVAL) -> phiên bàn giao đang ACTIVE (SESSION_NOT_ACTIVE, bỏ qua khi requireSession = false).
+ * @param {Object} data Dữ liệu hồ sơ bàn giao (xem SYNTHETIC_HANDOVER_CASES).
+ * @param {Object} [options] { lang: 'vi' | 'en', roles: string[] } dùng để chọn ngôn ngữ thông báo và kiểm tra quyền.
+ * @param {boolean} [requireSession=true] Có bắt buộc phải có phiên bàn giao ACTIVE hay không.
+ * @throws {Error} Error với thuộc tính code: FORBIDDEN, CASE_REQUIRED, SESSION_ALREADY_ARCHIVED, VAULT_NOT_UNLOCKED, STALE_APPROVAL hoặc SESSION_NOT_ACTIVE.
+ */
 export function assertHandoverWritable(data, options = {}, requireSession = true) {
   const fail = (code, vi, en) => { const error = new Error(options.lang === 'en' ? en : vi); error.code = code; throw error; };
   if (options.roles && !options.roles.includes('STAFF_EXECUTOR')) fail('FORBIDDEN', 'Bạn không có quyền bàn giao.', 'You cannot perform handover actions.');
@@ -10,6 +26,13 @@ export function assertHandoverWritable(data, options = {}, requireSession = true
   if (!data.legalApproval?.isFresh) fail('STALE_APPROVAL', 'Cần phê duyệt pháp lý còn hiệu lực.', 'A current legal approval is required.');
   if (requireSession && data.session?.status !== 'ACTIVE') fail('SESSION_NOT_ACTIVE', 'Cần mở phiên bàn giao.', 'An active handover session is required.');
 }
+/**
+ * Bộ hồ sơ bàn giao tổng hợp (không phải dữ liệu thật) cho chế độ dev preview và unit test.
+ *
+ * Mỗi khóa là một kịch bản: 'case-standard' (đã mở khóa, phiên ACTIVE), 'case-locked-vault' (kho chưa mở khóa, chưa có phê duyệt pháp lý),
+ * 'case-out-of-scope' (có tài sản ngoài phạm vi phân bổ), 'case-partial-progress' (tài sản đã giao nhưng người thụ hưởng chưa xác nhận)
+ * và 'case-archived' (đã đóng, chỉ đọc, có receiptSummary). Dùng bởi fetchHandoverCase().
+ */
 export const SYNTHETIC_HANDOVER_CASES = {
   'case-standard': {
     caseId: '6f1a4c2d-0000-4000-8000-000000000001',
@@ -374,6 +397,14 @@ export const SYNTHETIC_HANDOVER_CASES = {
   },
 };
 
+/**
+ * Cho biết môi trường hiện tại có được phép chạy chế độ mô phỏng bàn giao tại quầy hay không.
+ *
+ * Trả về false nếu có accessToken thật hoặc đang ở bản build production (Vite PROD hoặc options.testEnv.PROD);
+ * ngược lại chỉ trả về true khi options.isDevPreview hoặc options.isTest được bật.
+ * @param {Object} [options] { accessToken, testEnv, isDevPreview, isTest }
+ * @returns {boolean} true nếu được dùng dữ liệu mô phỏng.
+ */
 export function isCounterHandoverSimulationPermitted(options = {}) {
   if (options.accessToken) return false;
   const isViteProd = typeof import.meta !== 'undefined' && Boolean(import.meta.env?.PROD);
@@ -381,6 +412,16 @@ export function isCounterHandoverSimulationPermitted(options = {}) {
   if (isViteProd || isTestProd) return false;
   return Boolean(options.isDevPreview) || Boolean(options.isTest);
 }
+/**
+ * Tải hồ sơ bàn giao tại quầy.
+ *
+ * Chỉ hỗ trợ chế độ mô phỏng: trả về bản sao sâu của kịch bản trong SYNTHETIC_HANDOVER_CASES (kịch bản 'error' giả lập lỗi mạng MOCK_NETWORK_ERROR;
+ * hồ sơ ARCHIVED được gắn caseStatus = CLOSED và archiveReceipt). Ngoài chế độ mô phỏng luôn ném lỗi BACKEND_NOT_READY (status 503) vì chưa có endpoint thật.
+ * @param {string} [scenarioKey='case-standard'] Khóa kịch bản mô phỏng.
+ * @param {Object} [options] { signal (AbortSignal), isDevPreview, isTest, accessToken }
+ * @returns {Promise<{caseData: Object, isSimulation: boolean}>}
+ * @throws {Error} AbortError khi bị hủy; BACKEND_NOT_READY (503); MOCK_NETWORK_ERROR (500).
+ */
 export async function fetchHandoverCase(scenarioKey = 'case-standard', options = {}) {
   const { signal } = options;
 
@@ -428,6 +469,16 @@ export async function fetchHandoverCase(scenarioKey = 'case-standard', options =
   notReadyError.status = 503;
   throw notReadyError;
 }
+/**
+ * Kiểm tra biên nhận backend trả về sau khi liên kết/tạo tài khoản người thụ hưởng có đúng hợp đồng API hay không.
+ *
+ * Yêu cầu: result là object; beneficiaryId là UUID và trùng expectedBeneficiaryId; accountId là UUID;
+ * accountStatus = 'ACCOUNT_CREATED'; identityVerificationStatus = 'VERIFIED_AT_COUNTER'.
+ * @param {Object} result Phản hồi của backend.
+ * @param {string} expectedBeneficiaryId Mã người thụ hưởng đã gửi yêu cầu.
+ * @returns {boolean} true nếu hợp lệ.
+ * @throws {ApiError} ApiError('INVALID_RECEIPT', 500) khi phản hồi sai định dạng.
+ */
 export function validateBeneficiaryAccountReceipt(result, expectedBeneficiaryId) {
   if (!result || typeof result !== 'object') {
     const err = new ApiError('INVALID_RECEIPT', 500);
@@ -452,6 +503,19 @@ export function validateBeneficiaryAccountReceipt(result, expectedBeneficiaryId)
   return true;
 }
 
+/**
+ * Liên kết người thụ hưởng với một tài khoản LegacyVault đã tồn tại theo email.
+ *
+ * Các bước: (1) ở chế độ mô phỏng thì kiểm tra assertHandoverWritable; (2) validateLinkExistingAccountForm(email) - sai thì ném VALIDATION_FAILED kèm fieldErrors.email;
+ * (3) mô phỏng thì trả kết quả giả; (4) không có accessToken thì ném BACKEND_NOT_READY; (5) gọi
+ * POST /api/v1/staff/beneficiaries/{beneficiaryId}/account-link với body { accountEmail } (kỳ vọng HTTP 200), rồi validateBeneficiaryAccountReceipt().
+ * Lỗi mạng hoặc 503 được chuyển thành BACKEND_NOT_READY; AbortError và các lỗi ApiError khác được ném lại nguyên vẹn.
+ * Được dùng bởi BeneficiaryAccountPage.jsx và LegacyCounterBeneficiariesSection.jsx.
+ * @param {string} beneficiaryId UUID người thụ hưởng.
+ * @param {string} email Email tài khoản cần liên kết.
+ * @param {Object} [options] { accessToken, lang, signal, fetchFn, caseData, roles, isDevPreview, isTest }
+ * @returns {Promise<{beneficiaryId: string, linkedUserId: string, linkedEmail: string, status: 'LINKED', accountStatus: string, identityVerificationStatus: string}>}
+ */
 export async function linkExistingBeneficiaryAccount(beneficiaryId, email, options = {}) {
   const isSimulation = isCounterHandoverSimulationPermitted(options);
   if (isSimulation) assertHandoverWritable(options.caseData, options);
@@ -512,6 +576,18 @@ export async function linkExistingBeneficiaryAccount(beneficiaryId, email, optio
   }
 }
 
+/**
+ * Tạo tài khoản mới cho người thụ hưởng ngay tại quầy rồi liên kết với hồ sơ.
+ *
+ * Các bước: kiểm tra ghi được (chỉ mô phỏng) -> validateCreateBeneficiaryAccountForm(formData) (sai thì ném VALIDATION_FAILED kèm fieldErrors) ->
+ * mô phỏng thì trả kết quả giả -> thiếu accessToken thì ném BACKEND_NOT_READY -> gọi POST /api/v1/staff/beneficiaries/{beneficiaryId}/account
+ * với body { email, password, phone? } (kỳ vọng HTTP 201) -> validateBeneficiaryAccountReceipt(). Lỗi mạng hoặc 503 được chuyển thành BACKEND_NOT_READY.
+ * Được dùng bởi BeneficiaryAccountPage.jsx và LegacyCounterBeneficiariesSection.jsx.
+ * @param {string} beneficiaryId UUID người thụ hưởng.
+ * @param {{email: string, password: string, phone?: string}} formData Dữ liệu biểu mẫu tạo tài khoản.
+ * @param {Object} [options] { accessToken, lang, signal, fetchFn, caseData, roles, isDevPreview, isTest }
+ * @returns {Promise<{beneficiaryId: string, linkedUserId: string, linkedEmail: string, status: 'LINKED', activatedAtCounter: boolean, accountStatus: string, identityVerificationStatus: string}>}
+ */
 export async function createAndLinkBeneficiaryAccount(beneficiaryId, formData = {}, options = {}) {
   const isSimulation = isCounterHandoverSimulationPermitted(options);
   if (isSimulation) assertHandoverWritable(options.caseData, options);

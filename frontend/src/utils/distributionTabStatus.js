@@ -1,3 +1,6 @@
+/**
+ * Nhãn (vi, en) của từng sắc thái trạng thái tab.
+ */
 const labels = {
   waiting: ['Chờ xử lý', 'Waiting'],
   active: ['Đang xử lý', 'In progress'],
@@ -5,8 +8,14 @@ const labels = {
   rejected: ['Bị từ chối', 'Rejected'],
   none: ['Chưa đến bước này', 'Not started'],
 };
+/**
+ * Các giai đoạn quy trình phân bổ đã kết thúc.
+ */
 const finished = ['APPROVED', 'UNLOCKED', 'CLOSED'];
 
+/**
+ * Suy ra sắc thái trạng thái (waiting, active, done, rejected, none) của các tab overview, intake, allocations, history từ giai đoạn (phase) của quy trình phân phối.
+ */
 function status(phase, hasVersions, hasAllocation) {
   const rejected = phase === 'REJECTED';
   return {

@@ -1,7 +1,22 @@
+/**
+ * Mô hình dựng dữ liệu phân bổ tài sản theo văn bản của tòa án; dùng bởi pages/staff/StaffDistributionAllocations.jsx.
+ */
 import { isUuid } from '../api/contracts.js';
 
+/**
+ * Trim chuỗi; giá trị không phải chuỗi trả chuỗi rỗng.
+ */
 const clean = value => typeof value === 'string' ? value.trim() : '';
+/**
+ * Độ dài tối đa các trường người nhận theo tòa: họ tên 150, quan hệ 100, điện thoại 20, email 254.
+ */
 const limits = { fullName: 150, relationship: 100, phone: 20, email: 254 };
+/**
+ * Chuyển các dòng của form phân bổ thành payload gửi backend và gom lỗi theo dòng.
+ * Mỗi dòng: assetId (UUID, và phải thuộc danh mục nếu requireCatalog), mô tả tối đa 2000 ký tự, và người nhận là người có sẵn (beneficiaryId) hoặc người nhận theo văn bản (courtRecipient: họ tên, email, ngày sinh không ở tương lai...). Phát hiện cặp tài sản và người nhận bị lặp.
+ * Danh tính xác thực, id tài khoản và vai trò không bao giờ lấy từ form này.
+ * @returns {{allocations:object[],errors:{row:number,key:string}[]}} errors rỗng nghĩa là hợp lệ.
+ */
 export function buildCourtAllocations(rows, { assets = [], recipients = [], requireCatalog = false } = {}) {
   const errors = [];
   const seen = new Set();
@@ -35,6 +50,9 @@ export function buildCourtAllocations(rows, { assets = [], recipients = [], requ
   return { allocations, errors };
 }
 
+/**
+ * Đổi lỗi {row,key} của buildCourtAllocations thành thông điệp vi/en, có tiền tố số dòng.
+ */
 export function courtAllocationError(error, lang = 'vi') {
   const en = lang === 'en';
   const messages = {

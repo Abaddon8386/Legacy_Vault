@@ -33,6 +33,12 @@ import './ScopedAssetHandoverPage.css';
 import { isUuid } from '../../api/contracts.js';
 import { readDeliveryReceiptBatch } from '../../utils/deliveryReceiptValidation.js';
 
+/**
+ * Trang "Bàn giao tài sản theo phạm vi đã duyệt" (Staff, đường dẫn `/staff/asset-handover`). Bọc
+ * `ScopedAssetHandoverPageContext` với `key` theo (người dùng, token, caseId, sessionId) để đổi ngữ cảnh thì state được tạo lại.
+ *
+ * @param {object} props xem `ScopedAssetHandoverPageContext`; thêm `session`, `caseReference`.
+ */
 export default function ScopedAssetHandoverPage(props) {
   const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
   const key = JSON.stringify([
@@ -44,6 +50,33 @@ export default function ScopedAssetHandoverPage(props) {
   return <ScopedAssetHandoverPageContext key={key} {...props} />;
 }
 
+/**
+ * Nội dung trang bàn giao tài sản cho người nhận trong phạm vi phân chia Legal đã phê duyệt. Luồng chính:
+ * 1. Tải song song tài sản đủ điều kiện (`fetchEligibleAssets`, `GET .../handover-sessions/{sessionId}/eligible-assets`),
+ *    người nhận (`fetchStaffCaseBeneficiaries`), danh mục tài sản (`fetchStaffAssetCatalog`) và xác nhận của người nhận
+ *    (`fetchBeneficiaryConfirmations`); ghép thành danh sách ứng viên cùng sự sẵn sàng bàn giao (`deliveryReadiness`).
+ * 2. Kiểm tra phạm vi bằng `validateApprovedAllocationScope` và lọc bằng `filterScopedHandoverItems`.
+ * 3. Staff chọn người nhận, xem lại trong modal kiểm tra (chưa gọi API), rồi `executeDelivery` gọi `deliverAssets`
+ *    (`POST /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/deliveries` với `{recipientId, assetIds}`).
+ * 4. Phản hồi được đối chiếu chặt chẽ bằng `readDeliveryReceiptBatch`; chỉ các tài sản server xác nhận mới chuyển thành DELIVERED,
+ *    thiếu thì tải lại. Lỗi 409 hoặc `HANDOVER_RECIPIENT_ACCOUNT_REQUIRED` (cần liên kết tài khoản người nhận) cũng tải lại dữ liệu.
+ * Hủy request cũ khi đổi phạm vi/unmount; chọn hồ sơ khác qua `StaffCaseSelectorModal`.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {object|null} [props.initialScope] phạm vi mẫu (dev/test).
+ * @param {Array<object>|null} [props.initialCandidates] ứng viên mẫu (dev/test).
+ * @param {string|null} [props.accessToken] JWT của staff.
+ * @param {object|null} [props.session] phiên đăng nhập (dự phòng lấy token).
+ * @param {boolean} [props.preview=false] chế độ xem trước.
+ * @param {boolean} [props.isDevPreview=false] chế độ dev preview.
+ * @param {string} [props.caseId] id hồ sơ.
+ * @param {string} [props.sessionId] id phiên bàn giao.
+ * @param {object|null} [props.caseItem] hồ sơ đã biết.
+ * @param {Function|null} [props.onCaseChange] báo khi đổi hồ sơ.
+ * @param {Function|null} [props.onUnauthorized] gọi khi API trả 401.
+ * @param {Function|null} [props.onNavigateCases] chuyển tới danh sách hồ sơ.
+ */
 function ScopedAssetHandoverPageContext({
   lang = 'vi',
   initialScope = null,
@@ -136,6 +169,7 @@ function ScopedAssetHandoverPageContext({
 
     let active = true;
 
+    /** Tải và chuẩn hóa dữ liệu bàn giao (tài sản đủ điều kiện, người nhận, danh mục, xác nhận), dựng phạm vi đã duyệt và ghi vào state. */
     async function load() {
       setIsLoading(true);
       setLoadError(null);
@@ -287,6 +321,7 @@ function ScopedAssetHandoverPageContext({
   const uniqueRecipients = Array.from(recipientMap.values());
 
   // Khi đổi người nhận: xóa selection tài sản, đóng modal review nếu đang mở
+  /** Chọn người nhận: xóa lựa chọn tài sản và đóng modal kiểm tra. */
   const handleSelectRecipient = (recipientId) => {
     setSelectedRecipientId(recipientId);
     setSelectedAssetIds(new Set());
@@ -306,6 +341,7 @@ function ScopedAssetHandoverPageContext({
   );
 
   // Mở modal kiểm tra bàn giao cho toàn bộ tài sản còn lại của người nhận (ZERO POST)
+  /** Mở modal kiểm tra cho toàn bộ tài sản chưa giao của người nhận đang chọn (chưa gọi API ghi). */
   const handleOpenReviewModal = () => {
     if (undeliveredAssets.length === 0 || !selectedRecipientId || isDelivering) return;
     setSelectedAssetIds(new Set(undeliveredAssets.map((c) => c.assetId)));
@@ -314,11 +350,20 @@ function ScopedAssetHandoverPageContext({
   };
 
   // Đóng modal kiểm tra bàn giao
+  /** Đóng modal kiểm tra bàn giao. */
   const handleCloseReviewModal = () => {
     setShowReviewModal(false);
   };
 
   // Thực thi mutation ghi nhận bàn giao danh sách tài sản cho 1 người nhận
+  /**
+   * Ghi nhận bàn giao danh sách tài sản cho một người nhận bằng `deliverAssets` (`POST .../deliveries`).
+   * Kiểm tra từng tài sản còn đủ điều kiện, dùng id thao tác để bỏ qua phản hồi cũ, đối chiếu phản hồi bằng
+   * `readDeliveryReceiptBatch`, cập nhật trạng thái các tài sản được xác nhận và tải lại khi thiếu hoặc xung đột.
+   *
+   * @param {string} targetRecipientId id người nhận.
+   * @param {Array<string>} assetIdsToDeliver các tài sản cần giao.
+   */
   const executeDelivery = async (targetRecipientId, assetIdsToDeliver) => {
     if (isDelivering || !targetRecipientId || !assetIdsToDeliver || assetIdsToDeliver.length === 0) return;
     if (!hasCurrentScope || isLoading || (deliveryControllerRef.current && !deliveryControllerRef.current.signal.aborted)) return;
@@ -438,12 +483,14 @@ function ScopedAssetHandoverPageContext({
   };
 
   // Xác nhận ghi nhận bàn giao đợt tài sản đã chọn cho người nhận từ modal review
+  /** Xác nhận từ modal kiểm tra và bàn giao các tài sản đã chọn cho người nhận. */
   const handleConfirmDeliverBatch = () => {
     if (!selectedRecipientId || selectedAssetIds.size === 0) return;
     executeDelivery(selectedRecipientId, Array.from(selectedAssetIds));
   };
 
   // Mở modal kiểm tra bàn giao cho 1 tài sản trên dòng (ZERO POST)
+  /** Mở modal kiểm tra cho một tài sản trên dòng (nếu còn giao được). */
   const handleOpenReviewForSingleItem = (item) => {
     if (isDelivering || !item.deliverable || item.handoverStatus === HANDOVER_STATUS.DELIVERED) return;
     const targetRecipientId = item.beneficiaryId || selectedRecipientId;

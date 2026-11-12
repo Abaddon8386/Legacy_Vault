@@ -1,4 +1,11 @@
+/**
+ * Từ điển song ngữ (vi/en) cho trang giấy tờ và phân bổ của Staff (StaffLegalDocumentsPage.jsx), gồm nhãn biểu mẫu, cảnh báo quy tắc nghiệp vụ và thông báo lỗi.
+ * Truy cập trực tiếp theo khóa ngôn ngữ: staffLegalDocumentsI18n[lang]; utils/staffLegalDocumentsValidation.js cũng dùng từ điển này cho thông báo kiểm tra.
+ */
 export const staffLegalDocumentsI18n = {
+  /**
+   * Bản dịch tiếng Việt (ngôn ngữ mặc định).
+   */
   vi: {
     pageTitle: 'Giấy tờ và phân bổ',
     formSubtitle: 'Nhận giấy tờ Ban Pháp lý yêu cầu, chuyển thẩm định, rồi lập phân bổ sau khi căn cứ được duyệt.',
@@ -155,6 +162,9 @@ export const staffLegalDocumentsI18n = {
     metadataBlockedTooltip: 'Chờ danh mục tài sản của hồ sơ',
   },
 
+  /**
+   * Bản dịch tiếng Anh.
+   */
   en: {
     pageTitle: 'Documents & allocations',
     formSubtitle: 'Manage legal basis document metadata and prepare dossiers for Legal Department verification.',

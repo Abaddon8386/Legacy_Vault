@@ -7,12 +7,26 @@ import GoogleSignInButton from './GoogleSignInButton.jsx';
 import './PasswordSetupProvider.css';
 import { PasswordSetupContext } from './passwordSetupContext.js';
 
+/**
+ * Provider bao toàn bộ ứng dụng đã đăng nhập (xem {@code App.jsx}) để hỗ trợ tài khoản Google chưa có mật khẩu đặt mật khẩu lần đầu khi một thao tác cần mật khẩu.
+ * Cung cấp {@code PasswordSetupContext} ({@code needed} khi {@code passwordLoginEnabled === false}) và gắn {@code PasswordSetupScope} (có {@code key} theo token/user để reset khi đổi phiên).
+ *
+ * @param {object} props
+ * @param {object} props.session Phiên đăng nhập ({@code accessToken}, {@code user}, {@code expiresAt}).
+ * @param {(token:string)=>void} props.onConfigured Gọi sau khi đặt mật khẩu thành công để cha cập nhật {@code passwordLoginEnabled}.
+ * @param {*} props.children Nội dung ứng dụng.
+ */
 export default function PasswordSetupProvider({ session, onConfigured, children }) {
   return <PasswordSetupContext.Provider value={{ needed: session?.user?.passwordLoginEnabled === false, accessToken: session?.accessToken }}>
     <PasswordSetupScope key={`${session?.accessToken || ''}:${session?.user?.id || ''}`} session={session} onConfigured={onConfigured} />{children}
   </PasswordSetupContext.Provider>;
 }
 
+/**
+ * Đăng ký (qua {@code registerPasswordSetup}) hàm mở hộp thoại thiết lập mật khẩu; các yêu cầu đang chờ được lưu trong {@code waiting}.
+ * Khi hộp thoại xong, {@code finish(password)} resolve tất cả waiter (hoặc reject nếu người dùng hủy). Hủy tất cả khi phiên đổi/hết hạn.
+ * Render {@code PasswordSetupDialog} khi có {@code prompt}.
+ */
 function PasswordSetupScope({ session, onConfigured }) {
   const [prompt, setPrompt] = useState(null);
   const waiting = useRef(new Set());
@@ -35,6 +49,9 @@ function PasswordSetupScope({ session, onConfigured }) {
       waiters.clear();
     };
   }, [token, userId, expiresAt]);
+  /**
+   * Kết thúc luồng: nếu có mật khẩu thì gọi {@code onConfigured(token)} và resolve mọi waiter; nếu không (hủy) thì reject bằng lỗi PASSWORD_SETUP_CANCELLED; rồi đóng hộp thoại.
+   */
   function finish(password) {
     if (password) onConfigured?.(token);
     for (const waiter of waiting.current) {
@@ -46,6 +63,17 @@ function PasswordSetupScope({ session, onConfigured }) {
   return prompt && <PasswordSetupDialog session={session} lang={prompt.lang} onDone={finish} />;
 }
 
+/**
+ * Hộp thoại đặt mật khẩu lần đầu. Các bước: (1) kiểm tra tài khoản bằng {@code GET /auth/me} (chưa có mật khẩu mới cho đặt; đã có thì báo PASSWORD_ALREADY_SET);
+ * (2) nhập mật khẩu mới (8-72 ký tự, tối đa 72 byte) và xác nhận lại, xác thực với tài khoản Google đã liên kết bằng {@code GoogleSignInButton} lấy {@code credential};
+ * (3) {@code submit} gọi {@code POST /auth/password/setup} với {@code {password, credential}} (timeout 20 giây). Thành công thì {@code onDone(password)}.
+ * Status: checking | ready | saving | blocked. Bắt phím Tab/Escape ở pha capture để không xung đột với modal bên dưới.
+ *
+ * @param {object} props
+ * @param {object} props.session Phiên hiện tại.
+ * @param {string} props.lang Ngôn ngữ.
+ * @param {(password:(string|null))=>void} props.onDone Trả mật khẩu hoặc null khi hủy.
+ */
 function PasswordSetupDialog({ session, lang, onDone }) {
   const en = lang === 'en', id = useId();
   const [password, setPassword] = useState(''), [confirm, setConfirm] = useState(''), [credential, setCredential] = useState('');
@@ -87,6 +115,10 @@ function PasswordSetupDialog({ session, lang, onDone }) {
     PASSWORD_POLICY: en ? 'This password does not meet the password requirements.' : 'Mật khẩu này chưa đáp ứng yêu cầu. Vui lòng chọn mật khẩu khác.',
     UNAUTHENTICATED: en ? 'Your session expired. Close this dialog and sign in again.' : 'Phiên làm việc đã hết hạn. Đóng hộp thoại và đăng nhập lại.',
   };
+  /**
+   * Gửi yêu cầu đặt mật khẩu: {@code POST /auth/password/setup} với {@code {password, credential}}; kiểm tra {@code passwordLoginEnabled === true}; xóa credential khi lỗi để buộc xác thực Google lại.
+   * Lỗi UNAUTHENTICATED / PASSWORD_ALREADY_SET khóa hộp thoại; lỗi khác cho phép thử lại; quá 20 giây báo SETUP_UNCONFIRMED.
+   */
   async function submit(event) {
     event.preventDefault();
     if (busy.current || status !== 'ready' || !credential || Object.keys(errors).length) return;

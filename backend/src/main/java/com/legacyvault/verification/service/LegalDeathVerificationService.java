@@ -33,13 +33,38 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Legal Verifier thẩm định giấy tờ chứng tử mà Staff đã tiếp nhận (ST-12, LV-DEATH-002).
+ *
+ * <p>Được {@code LegalDeathVerificationController} gọi, base path {@code /api/v1/legal-verifications/death-documents}
+ * (vai trò LEGAL_VERIFIER): {@code POST /{deathDocumentPublicId}/decision} (body {@link LegalDeathDecisionRequest},
+ * trả {@link LegalDeathDecisionResponse}) và {@code GET /{deathDocumentPublicId}} (trả
+ * {@link LegalDeathDocumentDetailResponse}). Bảng: {@code death_document_records}, {@code legal_verifications},
+ * {@code verification_cases}, {@code vaults}, {@code users}. Ghi audit {@code LEGAL_DEATH_DOCUMENT_DECIDED} và gửi thông
+ * báo workflow cho Staff.
+ */
 @Service
 public class LegalDeathVerificationService {
+    /**
+     * Dịch vụ ghi thông báo workflow gửi Staff khi Legal ra quyết định.
+     */
     private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
+    /**
+     * Loại thực thể ghi trong audit.
+     */
     private static final String ENTITY_TYPE = "LEGAL_VERIFICATION";
+    /**
+     * Mã bước quy trình ghi vào audit.
+     */
     private static final String STEP_ID = "ST-12";
+    /**
+     * Mã quy tắc nghiệp vụ ghi vào audit.
+     */
     private static final String RULE_ID = "LV-DEATH-002";
+    /**
+     * Độ dài tối đa của lý do quyết định (ký tự).
+     */
     private static final int MAX_REASON_LENGTH = 1000;
 
     private final DeathDocumentRecordRepository deathDocumentRecordRepository;
@@ -48,8 +73,20 @@ public class LegalDeathVerificationService {
     private final VaultRepository vaultRepository;
     private final AuditService auditService;
     private final UserRepository userRepository;
+    /**
+     * Đồng hồ UTC dùng để lấy thời điểm quyết định.
+     */
     private final Clock clock;
 
+    /**
+     * @param deathDocumentRecordRepository repository bản ghi giấy chứng tử
+     * @param legalVerificationRepository repository các lần thẩm định của Legal
+     * @param verificationCaseRepository repository hồ sơ xác minh
+     * @param vaultRepository repository Vault
+     * @param auditService dịch vụ ghi nhật ký kiểm toán
+     * @param userRepository repository người dùng (đổi id nội bộ sang public id)
+     * @param notifications dịch vụ thông báo workflow
+     */
     public LegalDeathVerificationService(
             DeathDocumentRecordRepository deathDocumentRecordRepository,
             LegalVerificationRepository legalVerificationRepository,
@@ -70,15 +107,21 @@ public class LegalDeathVerificationService {
 
     /**
      * Ghi quyết định thẩm định giấy tờ chứng tử theo LV-DEATH-002.
+     * API: {@code POST /api/v1/legal-verifications/death-documents/{deathDocumentPublicId}/decision}.
      *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalDeathVerificationService
-     * Vị trí: phương thức công khai decide().
+     * <p>Các bước: kiểm tra request (decision và lý do không rỗng, tối đa 1000 ký tự); khóa theo thứ tự Vault -> case ->
+     * bản ghi chứng tử; kiểm tra lại quan hệ sau khi khóa; yêu cầu case mở và Vault ở AWAITING_VERIFICATION; từ chối nếu bản
+     * ghi đã có quyết định; ánh xạ APPROVE/REJECT/REQUEST_MORE sang kết quả lưu DB; lưu {@code LegalVerification}; nếu APPROVE
+     * thì chuyển Vault sang bước thẩm định giấy tờ; ghi audit {@code LEGAL_DEATH_DOCUMENT_DECIDED} (không chứa nguyên văn lý
+     * do); gửi thông báo cho Staff.
      *
      * @param deathDocumentPublicId UUID công khai của giấy tờ chứng tử
      * @param request quyết định và lý do của Legal Verifier
      * @param principal người dùng hiện tại do Spring Security cung cấp
      * @return quyết định đã lưu cùng trạng thái case và Vault
+     * @throws BusinessException {@code VALIDATION_FAILED}, {@code RESOURCE_NOT_FOUND},
+     *         {@code LEGAL_VERIFICATION_INVALID_STATE} khi case đóng, Vault sai trạng thái hoặc dữ liệu lệch,
+     *         {@code LEGAL_VERIFICATION_ALREADY_DECIDED} khi đã có quyết định
      */
     @Transactional
     public LegalDeathDecisionResponse decide(
@@ -207,13 +250,11 @@ public class LegalDeathVerificationService {
 
     /**
      * Đọc chi tiết hồ sơ chứng tử và lịch sử thẩm định.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalDeathVerificationService
-     * Vị trí: phương thức công khai getDetail(), sau decide().
+     * API: {@code GET /api/v1/legal-verifications/death-documents/{deathDocumentPublicId}}. Giao dịch chỉ đọc.
      *
      * @param deathDocumentPublicId UUID công khai của giấy tờ chứng tử
-     * @return metadata, trạng thái và lịch sử quyết định
+     * @return metadata, trạng thái và lịch sử quyết định (mới nhất trước)
+     * @throws BusinessException {@code RESOURCE_NOT_FOUND}
      */
     @Transactional(readOnly = true)
     public LegalDeathDocumentDetailResponse getDetail(
@@ -285,9 +326,9 @@ public class LegalDeathVerificationService {
     /**
      * Lấy public UUID của user từ khóa nội bộ.
      *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalDeathVerificationService
-     * Vị trí: phương thức private ngay dưới getDetail().
+     * @param userId id nội bộ của người dùng
+     * @return public id
+     * @throws BusinessException {@code RESOURCE_NOT_FOUND} nếu không có người dùng
      */
     private UUID findUserPublicId(Long userId) {
         User user = userRepository.findById(userId)
@@ -298,11 +339,7 @@ public class LegalDeathVerificationService {
     }
 
     /**
-     * Chuyển LocalDateTime được lưu theo quy ước UTC thành Instant.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalDeathVerificationService
-     * Vị trí: phương thức private ngay dưới findUserPublicId().
+     * Chuyển LocalDateTime được lưu theo quy ước UTC thành Instant; trả {@code null} nếu đầu vào null.
      */
     private Instant toUtcInstant(LocalDateTime value) {
         return value == null
@@ -311,11 +348,10 @@ public class LegalDeathVerificationService {
     }
 
     /**
-     * Kiểm tra dữ liệu đầu vào ở tầng service.
+     * Kiểm tra dữ liệu đầu vào ở tầng service: request, decision và reason không null, reason sau trim không rỗng và
+     * không quá 1000 ký tự.
      *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalDeathVerificationService
-     * Vị trí: phương thức private ngay dưới toUtcInstant().
+     * @throws BusinessException {@code VALIDATION_FAILED}
      */
     private void validateRequest(LegalDeathDecisionRequest request) {
         if (request == null
@@ -332,11 +368,8 @@ public class LegalDeathVerificationService {
     }
 
     /**
-     * Chuyển enum API sang result lưu trong database.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalDeathVerificationService
-     * Vị trí: phương thức private cuối class.
+     * Chuyển enum API sang kết quả lưu trong database: APPROVE thành APPROVED, REJECT thành REJECTED, REQUEST_MORE thành
+     * NEEDS_CORRECTION.
      */
     private String mapDecision(
             LegalDeathDecisionRequest.Decision decision

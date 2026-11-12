@@ -5,6 +5,8 @@
 
 /**
  * Strict calendar date validation checking year, month, and actual days in month (including leap years)
+ *
+ * Kiểm tra ngày lịch hợp lệ: năm 1000-9999, tháng 1-12, ngày không vượt quá số ngày thực của tháng (kể cả năm nhuận). Dùng bởi components/common/DatePicker.jsx.
  */
 export function isValidCalendarDate(year, month, day) {
   if (typeof year !== 'number' || typeof month !== 'number' || typeof day !== 'number') return false;
@@ -18,6 +20,8 @@ export function isValidCalendarDate(year, month, day) {
 
 /**
  * Format ISO (YYYY-MM-DD) to locale display string
+ *
+ * Đổi ISO YYYY-MM-DD sang chuỗi hiển thị: tiếng Anh YYYY-MM-DD, tiếng Việt dd/mm/yyyy; đầu vào sai trả chuỗi rỗng.
  */
 export function formatIsoToDisplay(iso, isEn) {
   if (!iso || typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
@@ -32,6 +36,8 @@ export function formatIsoToDisplay(iso, isEn) {
 /**
  * Parse display string to ISO YYYY-MM-DD with strict calendar validation
  * Returns null for invalid dates (e.g. 31/02/2026), empty string for empty input
+ *
+ * Đọc chuỗi nhập (theo định dạng của ngôn ngữ, chấp nhận cả định dạng còn lại) và trả ISO YYYY-MM-DD; chuỗi rỗng trả chuỗi rỗng, ngày không hợp lệ (ví dụ 31/02/2026) trả null.
  */
 export function parseDisplayToIso(str, isEn) {
   if (!str || typeof str !== 'string' || !str.trim()) return '';

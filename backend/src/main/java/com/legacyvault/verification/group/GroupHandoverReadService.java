@@ -28,22 +28,44 @@ import java.util.regex.Pattern;
  * PS-122 (D-GROUP-HANDOVER, 30/10/2026): read-only discovery for Legal and the private status of a recipient.
  * Both reads use the case-wide event source of PS-119/120 ({@code handover_group_events}); neither changes a gate,
  * a right or a decision, and neither opens a second source of truth.
+ *
+ * Được {@link GroupHandoverReadController} gọi. Truy vấn trực tiếp bằng {@link JdbcTemplate} các bảng
+ * {@code handover_group_events}, {@code verification_cases}, {@code handover_sessions}, {@code vaults},
+ * {@code beneficiaries}, {@code legal_basis_*}, {@code handover_items}; không ghi và không ghi audit.
  */
 @Service
 public class GroupHandoverReadService {
 
+    /**
+     * Định dạng số hồ sơ {@code HS-<năm>-<id>}; dùng để lọc theo {@code caseNumber}.
+     */
     private static final Pattern CASE_NUMBER = Pattern.compile("^HS-(\\d{4})-(\\d{1,9})$", Pattern.CASE_INSENSITIVE);
+    /**
+     * Kích thước trang tối đa cho phép.
+     */
     static final int MAX_PAGE_SIZE = 100;
 
-    /** One pending Staff request Legal may decide now. Public ids only; no internal ids or hashes. */
+    /**
+     * One pending Staff request Legal may decide now. Public ids only; no internal ids or hashes.
+     *
+     * Các trường: mã yêu cầu, ca, số hồ sơ, phiên, tên vault, thời điểm và người yêu cầu, lý do, revision, tiến độ
+     * (đã có mặt, tổng tài sản, đã giao) và {@code decidable}.
+     */
     public record PendingRequest(UUID requestId, UUID caseId, String caseNumber, UUID sessionId, String vaultName,
             Instant requestedAt, GroupHandoverService.Person requestedBy, String reason, long revision,
             boolean allPresent, int requiredRecipients, int presentRecipients, int totalAssets, int deliveredAssets,
             boolean decidable) { }
 
-    /** What a recipient may see of one of their own cases. Nothing about other people or Staff/Legal internals. */
+    /**
+     * What a recipient may see of one of their own cases. Nothing about other people or Staff/Legal internals.
+     *
+     * Một ca của người thụ hưởng: trạng thái cổng nhóm, tổng số tài sản được duyệt và số đã giao.
+     */
     public record BeneficiaryCase(UUID caseId, String caseNumber, String status, int totalAssets, int deliveredAssets) { }
 
+    /**
+     * Kết quả cho một tài khoản: {@code subjectId} (UUID công khai) và các ca liên quan.
+     */
     public record BeneficiaryStatus(UUID subjectId, List<BeneficiaryCase> cases) { }
 
     private final JdbcTemplate jdbc;
@@ -56,6 +78,9 @@ public class GroupHandoverReadService {
     private final LegalBasisReviewHistoryRepository history;
     private final HandoverSessionRepository sessions;
 
+    /**
+     * Constructor inject các thành phần truy vấn và {@link GroupHandoverService}.
+     */
     public GroupHandoverReadService(JdbcTemplate jdbc, ObjectMapper json, GroupHandoverService group,
             VerificationCaseRepository cases, LegalBasisDossierRepository dossiers,
             LegalBasisDossierVersionRepository versions, LegalBasisVersionAllocationRepository allocations,
@@ -71,6 +96,9 @@ public class GroupHandoverReadService {
         this.sessions = sessions;
     }
 
+    /**
+     * Ứng viên yêu cầu mở lại lấy từ SQL, chờ kiểm tra thêm bằng {@code group.view}.
+     */
     private record Candidate(UUID caseId, UUID sessionId, UUID requestId, String vaultName) { }
 
     /**
@@ -79,6 +107,12 @@ public class GroupHandoverReadService {
      * itself enforces still holds. That last part reuses the decision path's own checks, one short transaction per
      * case, so a list can never promise what the decision would then refuse and never holds many case locks at once.
      * Pending requests are naturally few (at most one per open case), so the page is cut after the checks.
+     *
+     * Các bước: (1) kiểm tra phân trang; (2) SQL lấy yêu cầu REQUEST là sự kiện mới nhất của ca với trạng thái
+     * AWAITING_LEGAL, ca và phiên đang OPEN; (3) lọc theo {@code caseId}/{@code caseNumber}; (4) với từng ứng viên gọi
+     * {@code group.view(..., true)} và chỉ giữ nếu {@code canDecide}; (5) cắt trang trong bộ nhớ.
+     *
+     * @throws BusinessException {@code VALIDATION_FAILED} nếu trang/kích thước hoặc {@code caseNumber} không hợp lệ
      */
     public PageResponse<PendingRequest> pendingForLegal(CustomUserPrincipal legal, UUID caseId, String caseNumber,
             int page, int size) {
@@ -142,6 +176,10 @@ public class GroupHandoverReadService {
                 (int) ((eligible.size() + size - 1L) / size));
     }
 
+    /**
+     * SQL lấy các ca mà tài khoản là người thụ hưởng đã liên kết: tổng tài sản APPROVED ở phiên bản mới nhất, số đã có
+     * {@code handover_items} và trạng thái cổng nhóm mới nhất.
+     */
     private static final String BENEFICIARY_SQL = """
             SELECT c.verification_case_id, c.public_id AS case_public, c.status AS case_status,
                    (SELECT COUNT(*) FROM dbo.legal_basis_version_allocations al
@@ -165,12 +203,21 @@ public class GroupHandoverReadService {
             ORDER BY c.created_at DESC, c.verification_case_id DESC
             """;
 
+    /**
+     * Một dòng kết quả của {@code BENEFICIARY_SQL}.
+     */
     private record Row(long caseDbId, UUID casePublicId, String caseStatus, int total, int delivered, String stateJson) { }
 
     /**
      * Cases where the authenticated account is a currently linked recipient, with the account's own approved total and
      * delivered counts. A case with no delivery yet is still listed; absence never shrinks the total; a revoked link
      * disappears at once because it is read from the live link. READY never means delivered.
+     *
+     * Bỏ qua ca không có phạm vi được duyệt cho tài khoản; nếu trạng thái READY nhưng điểm danh không còn khớp phạm vi
+     * hiện tại thì báo UNCONFIRMED.
+     *
+     * @param principal người thụ hưởng đang đăng nhập
+     * @return trạng thái các ca của tài khoản
      */
     @Transactional(readOnly = true)
     public BeneficiaryStatus beneficiaryStatus(CustomUserPrincipal principal) {
@@ -194,11 +241,19 @@ public class GroupHandoverReadService {
         return new BeneficiaryStatus(principal.publicId(), List.copyOf(result));
     }
 
+    /**
+     * Lấy số hồ sơ của ca.
+     *
+     * @throws BusinessException {@code RESOURCE_NOT_FOUND} nếu ca không tồn tại
+     */
     private String caseNumber(long caseDbId) {
         return cases.findById(caseDbId).map(c -> c.getCaseNumber())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
     }
 
+    /**
+     * Giải mã JSON thành {@link GroupState}; ném {@link IllegalStateException} nếu dữ liệu hỏng.
+     */
     private GroupState decode(String value) {
         try {
             return json.readValue(value, GroupState.class);
@@ -207,7 +262,12 @@ public class GroupHandoverReadService {
         }
     }
 
-    /** Lock-free re-evaluation of the same fingerprint the delivery gate uses. Anything missing means "not current". */
+    /**
+     * Lock-free re-evaluation of the same fingerprint the delivery gate uses. Anything missing means "not current".
+     *
+     * Tính lại vân tay phạm vi hiện tại bằng {@link GroupFingerprint} và so với {@code state}; thiếu bất kỳ dữ liệu nào
+     * (ca, hồ sơ, phiên, phê duyệt) thì trả false.
+     */
     private boolean readyIsCurrent(long caseDbId, GroupState state) {
         var verificationCase = cases.findById(caseDbId).orElse(null);
         if (verificationCase == null || !verificationCase.isOpen() || verificationCase.getAssignedStaffUserId() == null) {

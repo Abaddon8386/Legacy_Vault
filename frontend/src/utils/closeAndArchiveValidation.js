@@ -14,12 +14,18 @@
  * - Client guard strictly verifies active session and STAFF_EXECUTOR role.
  */
 
+/**
+ * Kết quả đánh giá điều kiện đóng và lưu trữ hồ sơ: ELIGIBLE (đủ điều kiện), INELIGIBLE (chưa đủ), INDETERMINATE (thiếu/sai dữ liệu). Dùng bởi pages/staff/CloseAndArchivePage.jsx và App.jsx.
+ */
 export const CLOSE_ARCHIVE_ELIGIBILITY_STATUS = {
   ELIGIBLE: 'ELIGIBLE',
   INELIGIBLE: 'INELIGIBLE',
   INDETERMINATE: 'INDETERMINATE',
 };
 
+/**
+ * Các khóa điều kiện chưa thỏa (dùng để chọn thông điệp hiển thị): giao tài sản chưa xong, xác nhận người thụ hưởng chưa xong, thiếu dữ liệu tài sản/người thụ hưởng.
+ */
 export const CLOSE_ARCHIVE_CONDITIONS = {
   ASSET_DELIVERY_INCOMPLETE: 'assetDeliveryIncomplete',
   BENEFICIARY_CONFIRMATION_INCOMPLETE: 'beneficiaryConfirmationIncomplete',
@@ -32,6 +38,8 @@ export const CLOSE_ARCHIVE_CONDITIONS = {
  *
  * @param {Object|null|undefined} session
  * @returns {boolean}
+ *
+ * Dùng bởi App.jsx: chỉ ROLE_STAFF_EXECUTOR có session còn hạn mới được vào màn hình đóng và lưu trữ hồ sơ.
  */
 export function canAccessCloseArchive(session) {
   if (!session || !session.accessToken || typeof session.expiresAt !== 'number') {
@@ -57,6 +65,8 @@ export function canAccessCloseArchive(session) {
  *
  * @param {any} val
  * @returns {number|null}
+ *
+ * Trả về số nguyên an toàn không âm; mọi kiểu/giá trị khác (chuỗi, boolean, NaN, âm, số thực) trả null mà không ép kiểu.
  */
 export function normalizeSafeIntegerCount(val) {
   if (typeof val !== 'number') {
@@ -74,6 +84,8 @@ export function normalizeSafeIntegerCount(val) {
  * @param {string|null|undefined} vaultStatus
  * @param {string|null|undefined} caseStatus
  * @returns {boolean}
+ *
+ * Hồ sơ ở trạng thái chỉ đọc khi vaultStatus là ARCHIVED hoặc caseStatus là CLOSED (không phân biệt hoa thường).
  */
 export function isCaseArchived(vaultStatus, caseStatus) {
   const normalizedVault = typeof vaultStatus === 'string' ? vaultStatus.trim().toUpperCase() : '';
@@ -95,6 +107,8 @@ export function isCaseArchived(vaultStatus, caseStatus) {
  *   isBeneficiaryValid: boolean,
  *   unmetConditions: Array<string>
  * }}
+ *
+ * Đánh giá điều kiện đóng hồ sơ: 100% tài sản đã giao và 100% người thụ hưởng đã xác nhận, so sánh theo số đếm (tổng phải > 0, đã xong <= tổng). Dữ liệu thiếu/sai cho eligibilityStatus INDETERMINATE; kèm danh sách unmetConditions.
  */
 export function evaluateCloseArchivePreconditions(assetData = {}, beneficiaryData = {}) {
   const unmetConditions = [];

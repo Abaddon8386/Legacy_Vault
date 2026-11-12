@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Bảng {@code verification_cases}. Dùng bởi {@code StaffVerificationCaseService} (hàng đợi, nhận ca) và nhiều dịch vụ khác.
+ */
 public interface VerificationCaseRepository extends JpaRepository<VerificationCase, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -22,8 +25,14 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
         where c.vaultId = :vaultId
         order by c.openedAt desc
         """)
+    /**
+     * Các ca của vault, khóa ghi bi quan, mới mở trước.
+     */
     List<VerificationCase> findByVaultIdForUpdate(@Param("vaultId") Long vaultId);
 
+    /**
+     * True nếu vault có ca ở trạng thái {@code status}.
+     */
     boolean existsByVaultIdAndStatus(Long vaultId, String status);
 
     @Query("""
@@ -34,6 +43,9 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
     )
     and (:status is null or c.status = :status)
     """)
+    /**
+     * Hàng đợi của Staff: ca đã giao cho Staff hoặc ca OPEN chưa ai nhận, lọc tùy chọn theo trạng thái.
+     */
     Page<VerificationCase> findQueueByStaff(
             @Param("staffUserId") Long staffUserId,
             @Param("status") String status,
@@ -64,6 +76,9 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
                    and lower(b.fullName) like :pattern escape '!')
     )
     """)
+    /**
+     * Có phạm vi hiển thị như {@link #findQueueByStaff}, kèm tìm kiếm theo UUID, số hồ sơ + năm, tên vault, tên chủ, tên người thụ hưởng.
+     */
     Page<VerificationCase> searchQueueByStaff(
             @Param("staffUserId") Long staffUserId,
             @Param("status") String status,
@@ -74,6 +89,9 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
             Pageable pageable
     );
 
+    /**
+     * Ca theo UUID công khai đã giao đúng Staff.
+     */
     Optional<VerificationCase> findByPublicIdAndAssignedStaffUserId(
             UUID publicId,
             Long assignedStaffUserId
@@ -87,6 +105,9 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
           or c.assignedStaffUserId = :staffUserId
       )
     """)
+    /**
+     * Ca Staff được xem: ca OPEN chưa giao hoặc đã giao cho chính Staff.
+     */
     Optional<VerificationCase> findViewableCaseByPublicId(
             @Param("publicId") UUID publicId,
             @Param("staffUserId") Long staffUserId
@@ -101,6 +122,11 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
         and c.assignedStaffUserId is null
         and c.status = 'OPEN'
     """)
+    /**
+     * UPDATE nguyên tử gán ca OPEN chưa ai nhận cho Staff.
+     *
+     * @return 1 nếu nhận được, 0 nếu đã bị người khác nhận hoặc không còn OPEN
+     */
     int claimUnassignedCase(
             @Param("caseId") UUID caseId,
             @Param("staffUserId") Long staffUserId
@@ -111,10 +137,16 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
     select c from VerificationCase c
     where c.verificationCaseId = :caseId
     """)
+    /**
+     * Ca theo khóa nội bộ, khóa ghi bi quan.
+     */
     Optional<VerificationCase> findByIdForUpdate(
             @Param("caseId") Long caseId
     );
 
+    /**
+     * Ca theo UUID công khai (không kiểm quyền).
+     */
     Optional<VerificationCase> findByPublicId(UUID publicId);
 
 }

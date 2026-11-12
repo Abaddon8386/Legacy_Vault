@@ -2,9 +2,22 @@ import { useId } from 'react';
 import { Info, CheckCircle2, AlertTriangle, CircleAlert } from 'lucide-react';
 import './FeedbackNotice.css';
 
+/**
+ * Icon theo loại thông báo (info, success, warning, error).
+ */
 const icons = { info: Info, success: CheckCircle2, warning: AlertTriangle, error: CircleAlert };
 
-/** Present feedback supplied by the caller; never infer permissions or API state. */
+/**
+ * Hộp thông báo phản hồi do bên gọi cung cấp (không suy luận quyền hay trạng thái API). Lỗi dùng {@code role="alert"}, các loại khác dùng {@code role="status"}.
+ *
+ * @param {object} props
+ * @param {('info'|'success'|'warning'|'error')} [props.tone='info']
+ * @param {string} [props.title] Tiêu đề.
+ * @param {*} [props.children] Nội dung.
+ * @param {*} [props.action] Phần tử hành động (nút/liên kết).
+ * @param {string} [props.className]
+ * @param {string} [props.id]
+ */
 export default function FeedbackNotice({
   tone = 'info', title, children, action, className = '', id,
 }) {

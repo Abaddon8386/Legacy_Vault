@@ -1,6 +1,14 @@
+/**
+ * staffIdentityService.js - Xác minh danh tính trực tiếp người thụ hưởng và xem lịch sử xác minh (PS-27 / PS-45).
+ * Được dùng bởi StaffCaseVerificationPage.jsx. Hiện chỉ có chế độ mô phỏng (dữ liệu trong bộ nhớ); chế độ thật ném BACKEND_NOT_READY.
+ */
 import { getStaffCaseTranslations } from './staffCaseI18n.js';
 import { isStaffSimulationPermitted } from './staffCasePreview.js';
 export { SYNTHETIC_STAFF_CASES, isStaffSimulationPermitted } from './staffCasePreview.js';
+/**
+ * Người thụ hưởng tổng hợp theo mã hồ sơ mô phỏng (case-001..case-003), dùng cho dev preview và test.
+ * Cấu trúc mỗi phần tử theo schema BeneficiaryResponse: id, vaultId, fullName, relationship, dateOfBirth, phone, email, hasIdentityNumber, hasAccount, status.
+ */
 export const SYNTHETIC_BENEFICIARIES_BY_CASE = {
   'case-001': [
     {
@@ -58,11 +66,18 @@ export const SYNTHETIC_BENEFICIARIES_BY_CASE = {
   ],
 };
 
-// Lịch sử xác minh mô phỏng theo beneficiaryId (in-memory per session)
+/**
+ * Lịch sử xác minh mô phỏng theo beneficiaryId, lưu trong bộ nhớ trong một phiên chạy; submitIdentityVerification() thêm bản ghi mới vào đầu mảng.
+ */
 export const SYNTHETIC_VERIFICATION_HISTORY = {};
 
 /**
- * Lấy danh sách Người thụ hưởng thuộc hồ sơ (PS-27)
+ * Lấy danh sách Người thụ hưởng thuộc hồ sơ (PS-27).
+ * Chế độ mô phỏng trả về { beneficiaries, caseId, isSimulation: true } từ SYNTHETIC_BENEFICIARIES_BY_CASE; chế độ thật chưa nối backend nên ném BACKEND_NOT_READY (503).
+ * @param {string} caseId Mã hồ sơ.
+ * @param {Object} [options] { signal, isDevPreview, isTest, accessToken }
+ * @returns {Promise<{beneficiaries: Object[], caseId: string, isSimulation: boolean}>}
+ * @throws {Error} AbortError; MISSING_CASE_ID; BACKEND_NOT_READY.
  */
 export async function fetchCaseBeneficiaries(caseId, options = {}) {
   const { signal } = options;
@@ -112,7 +127,12 @@ export async function fetchCaseBeneficiaries(caseId, options = {}) {
 }
 
 /**
- * Lấy lịch sử xác minh danh tính của người thụ hưởng (GET /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications)
+ * Lấy lịch sử xác minh danh tính của người thụ hưởng (dự kiến GET /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications).
+ * Chế độ mô phỏng đọc từ SYNTHETIC_VERIFICATION_HISTORY; chế độ thật chưa nối backend (PS-45) nên ném BACKEND_NOT_READY (503).
+ * @param {string} beneficiaryId Mã người thụ hưởng.
+ * @param {Object} [options] { signal, isDevPreview, isTest, accessToken }
+ * @returns {Promise<{history: Object[], beneficiaryId: string, isSimulation: boolean}>}
+ * @throws {Error} AbortError; MISSING_BENEFICIARY_ID; BACKEND_NOT_READY.
  */
 export async function fetchVerificationHistory(beneficiaryId, options = {}) {
   const { signal } = options;
@@ -161,7 +181,13 @@ export async function fetchVerificationHistory(beneficiaryId, options = {}) {
 }
 
 /**
- * Kiểm tra tính hợp lệ biểu mẫu xác minh danh tính trực tiếp (PS-27 / PS-45)
+ * Kiểm tra tính hợp lệ biểu mẫu xác minh danh tính trực tiếp (PS-27 / PS-45).
+ *
+ * Quy tắc: documentType bắt buộc, chỉ nhận CCCD hoặc PASSPORT; result bắt buộc, chỉ nhận MATCH hoặc NOT_MATCH;
+ * documentSuffix (tùy chọn) phải đúng 4 ký tự chữ-số; issuingAuthority (tùy chọn) tối đa 150 ký tự. Thông báo lỗi lấy từ staffCaseI18n.verification.form.
+ * @param {Object} [data] Dữ liệu biểu mẫu.
+ * @param {string} [lang='vi'] Ngôn ngữ thông báo.
+ * @returns {{isValid: boolean, errors: Object}} errors là map tên trường -> thông báo.
  */
 export function validateVerificationForm(data = {}, lang = 'vi') {
   const t = getStaffCaseTranslations(lang).verification.form;
@@ -204,7 +230,14 @@ export function validateVerificationForm(data = {}, lang = 'vi') {
 }
 
 /**
- * Ghi nhận xác minh danh tính trực tiếp (POST /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications)
+ * Ghi nhận xác minh danh tính trực tiếp (dự kiến POST /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications).
+ * Kiểm tra beneficiaryId và validateVerificationForm(); ở chế độ mô phỏng tạo bản ghi { id, beneficiaryId, documentType, result, issuingAuthority, documentSuffix, verifiedAt, isSimulation }
+ * và thêm vào đầu SYNTHETIC_VERIFICATION_HISTORY[beneficiaryId]; chế độ thật chưa nối backend (PS-45) nên ném BACKEND_NOT_READY (503).
+ * @param {string} beneficiaryId Mã người thụ hưởng.
+ * @param {Object} [data] Dữ liệu biểu mẫu xác minh.
+ * @param {Object} [options] { signal, lang, isDevPreview, isTest, accessToken }
+ * @returns {Promise<Object>} Bản ghi xác minh mô phỏng.
+ * @throws {Error} AbortError; MISSING_BENEFICIARY_ID; VALIDATION_FAILED (kèm fieldErrors); BACKEND_NOT_READY.
  */
 export async function submitIdentityVerification(beneficiaryId, data = {}, options = {}) {
   const { signal, lang = 'vi' } = options;
@@ -272,7 +305,14 @@ export async function submitIdentityVerification(beneficiaryId, data = {}, optio
 }
 
 /**
- * Xác thực receipt kết quả xác minh danh tính (PS-27 / PS-45)
+ * Xác thực receipt kết quả xác minh danh tính (PS-27 / PS-45).
+ * Chỉ hợp lệ khi đang ở chế độ mô phỏng, isSimulation = true, beneficiaryId khớp, id không rỗng, documentType là CCCD/PASSPORT, result là MATCH/NOT_MATCH,
+ * khớp expectedDocumentType/expectedResult nếu có, documentSuffix (nếu có) đủ 4 ký tự chữ-số, issuingAuthority (nếu có) tối đa 150 ký tự và verifiedAt là thời gian UTC hợp lệ.
+ * @param {Object} receipt Biên nhận cần kiểm tra.
+ * @param {string} beneficiaryId Mã người thụ hưởng mong đợi.
+ * @param {Object} [options] { expectedDocumentType, expectedResult, ... } cùng các tùy chọn cho isStaffSimulationPermitted().
+ * @returns {Object} Biên nhận đã chuẩn hóa.
+ * @throws {Error} code INVALID_RECEIPT khi không hợp lệ.
  */
 export function validateVerificationReceipt(receipt, beneficiaryId, options = {}) {
   const stamp = receipt?.verifiedAt;

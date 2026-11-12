@@ -20,7 +20,11 @@ import com.legacyvault.verification.service.StaffVaultCaseGuard;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
 
-/** Read-only metadata for assigned Staff during legal intake and unlocked handover. */
+/**
+ * Read-only metadata for assigned Staff during legal intake and unlocked handover.
+ *
+ * <p>Gọi từ {@code StaffAssetCatalogController}. Bảng: {@code verification_cases}, {@code vaults}, {@code assets}.
+ */
 @Service
 public class StaffAssetCatalogService {
 	private final VerificationCaseRepository cases;
@@ -29,6 +33,9 @@ public class StaffAssetCatalogService {
 	private final AssetRepository assets;
 	private final StaffContextService staff;
 
+	/**
+	 * Hàm khởi tạo, Spring tiêm các phụ thuộc.
+	 */
 	public StaffAssetCatalogService(VerificationCaseRepository cases, VaultRepository vaults,
 			StaffVaultCaseGuard guard, AssetRepository assets, StaffContextService staff) {
 		this.cases = cases;
@@ -38,6 +45,11 @@ public class StaffAssetCatalogService {
 		this.staff = staff;
 	}
 
+	/**
+	 * Liệt kê tài sản ACTIVE (trừ loại DOCUMENT) của Vault. Các bước: xác thực Staff, tìm case được giao, kiểm tra case đang mở (đọc),
+	 * tải Vault, chỉ cho phép khi Vault ở trạng thái trước khi mở khóa, đã mở khóa hoặc đang bàn giao, rồi phân trang theo {@code assetId}.
+	 * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND} nếu không có quyền hoặc Vault ở trạng thái khác
+	 */
 	@Transactional(readOnly = true)
 	public PageResponse<StaffAssetCatalogDtos.Item> list(UUID caseId, int page, int size) {
 		User actor = staff.requireStaff();
@@ -56,6 +68,9 @@ public class StaffAssetCatalogService {
 		return PageResponse.from(result, item -> item);
 	}
 
+	/**
+	 * @return {@code true} nếu trạng thái Vault thuộc giai đoạn trước khi mở khóa (chờ xác minh, xác minh tài liệu, di chúc, căn cứ pháp lý).
+	 */
 	static boolean isPreUnlockStatus(String status) {
 		return Vault.STATUS_AWAITING_VERIFICATION.equals(status)
 				|| Vault.STATUS_DOCUMENT_VERIFICATION.equals(status)

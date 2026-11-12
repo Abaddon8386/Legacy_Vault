@@ -19,6 +19,11 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Biên nhận bàn giao (handover receipt) của một phiên.
+ * Phạm vi: {@code /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/receipts}.
+ * Quyền: {@code ROLE_STAFF_EXECUTOR}. Ủy quyền cho {@link HandoverReceiptService}.
+ */
 @RestController
 @RequestMapping("/api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/receipts")
 @PreAuthorize("hasRole('STAFF_EXECUTOR')")
@@ -29,6 +34,10 @@ public class HandoverReceiptController {
         this.service = service;
     }
 
+    /**
+     * {@code POST .../receipts}: tạo biên nhận. Body {@link CreateHandoverReceiptRequest}; trả 201 Created,
+     * header {@code Location} trỏ tới biên nhận mới, body {@link HandoverReceiptResponse}.
+     */
     @PostMapping
     public ResponseEntity<HandoverReceiptResponse> create(@PathVariable UUID caseId,
             @PathVariable UUID sessionId, @Valid @RequestBody CreateHandoverReceiptRequest request,
@@ -39,12 +48,18 @@ public class HandoverReceiptController {
         return ResponseEntity.created(location).body(response);
     }
 
+    /**
+     * {@code GET .../receipts}: liệt kê biên nhận của phiên.
+     */
     @GetMapping
     public List<HandoverReceiptResponse> list(@PathVariable UUID caseId, @PathVariable UUID sessionId,
             @AuthenticationPrincipal CustomUserPrincipal principal) {
         return service.list(caseId, sessionId, principal);
     }
 
+    /**
+     * {@code GET .../receipts/{receiptId}}: đọc một biên nhận; 404 nếu không thuộc phiên/ca của Staff.
+     */
     @GetMapping("/{receiptId}")
     public HandoverReceiptResponse get(@PathVariable UUID caseId, @PathVariable UUID sessionId,
             @PathVariable UUID receiptId, @AuthenticationPrincipal CustomUserPrincipal principal) {

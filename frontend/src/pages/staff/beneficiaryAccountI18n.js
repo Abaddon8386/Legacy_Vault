@@ -5,7 +5,17 @@
  * không đưa mã ticket nội bộ vào nhãn người dùng.
  */
 
+/**
+ * Từ điển song ngữ cho trang liên kết/tạo tài khoản người thụ hưởng tại quầy (BeneficiaryAccountPage.jsx).
+ * Cấu trúc: { vi: {...}, en: {...} }, mỗi ngôn ngữ chứa các nhãn, thông báo lỗi và hàm tạo chuỗi dùng trên giao diện. Truy cập qua getCounterHandoverTranslations(lang).
+ */
+/**
+ * Chuỗi giao diện song ngữ (vi/en) cho màn "Tài khoản người thụ hưởng tại quầy" (`BeneficiaryAccountPage.jsx`).
+ */
 export const COUNTER_HANDOVER_TRANSLATIONS = {
+  /**
+   * Bản dịch tiếng Việt (ngôn ngữ mặc định).
+   */
   vi: {
     validation: {
       fullNameRequired: 'Vui lòng nhập họ và tên người thụ hưởng.',
@@ -233,6 +243,9 @@ export const COUNTER_HANDOVER_TRANSLATIONS = {
     },
   },
 
+  /**
+   * Bản dịch tiếng Anh.
+   */
   en: {
     validation: {
       fullNameRequired: 'Enter the beneficiary full name.',
@@ -461,6 +474,12 @@ export const COUNTER_HANDOVER_TRANSLATIONS = {
   },
 };
 
+/**
+ * Lấy bộ bản dịch theo ngôn ngữ.
+ * @param {string} [lang='vi'] 'vi' hoặc 'en'.
+ * @returns {Object} Bộ bản dịch tương ứng; ngôn ngữ không hỗ trợ thì dùng tiếng Việt.
+ */
+/** Trả bộ chuỗi giao diện theo ngôn ngữ (`vi` mặc định, `en`). */
 export function getCounterHandoverTranslations(lang = 'vi') {
   return COUNTER_HANDOVER_TRANSLATIONS[lang] || COUNTER_HANDOVER_TRANSLATIONS.vi;
 }

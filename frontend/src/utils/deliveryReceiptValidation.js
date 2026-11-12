@@ -1,7 +1,18 @@
 // HandoverItemResponse / HandoverDeliveryRequest: the BE transaction is all-or-nothing.
+/**
+ * Kiểm tra chuỗi là UUID công khai. Dùng bởi pages/staff/ScopedAssetHandoverPage.jsx. Giao dịch bàn giao ở backend là tất cả hoặc không (all-or-nothing).
+ */
 export const isPublicUuid = (value) => typeof value === 'string'
   && /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(value);
 
+/**
+ * Kiểm tra phản hồi bàn giao hàng loạt (các HandoverItemResponse) có khớp đúng yêu cầu đã gửi hay không.
+ * Yêu cầu: mảng cùng độ dài với assetIds, mỗi mục có itemId/sessionId/recipientId/assetId/staffId hợp lệ, sessionId và recipientId khớp, status DELIVERED, assetId thuộc tập đã yêu cầu và không lặp, deliveredAt là thời điểm ISO hợp lệ.
+ * @param {object[]} value Phản hồi từ backend.
+ * @param {{sessionId:string,recipientId:string,assetIds:string[]}} expected Giá trị mong đợi.
+ * @param {{allowSyntheticIds?:boolean}} options Cho phép id mẫu (preview).
+ * @returns {Set<string>|null} Tập assetId đã giao, hoặc null nếu phản hồi không hợp lệ.
+ */
 export function readDeliveryReceiptBatch(value, { sessionId, recipientId, assetIds }, { allowSyntheticIds = false } = {}) {
   if (!Array.isArray(value) || !Array.isArray(assetIds) || assetIds.length === 0
     || value.length !== assetIds.length || new Set(assetIds).size !== assetIds.length) return null;

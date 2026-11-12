@@ -38,6 +38,13 @@ public class HandoverDeliveryController {
         this.service = service;
     }
 
+    /**
+     * {@code GET .../handover-sessions/{sessionId}/eligible-assets?recipientId=}
+     * Danh sách tài sản đủ điều kiện bàn giao, có thể lọc theo người nhận.
+     *
+     * @param recipientId mã người nhận (tùy chọn)
+     * @return danh sách {@link EligibleHandoverAssetResponse}
+     */
     @GetMapping("/eligible-assets")
     public List<EligibleHandoverAssetResponse> eligibleAssets(@PathVariable UUID caseId,
             @PathVariable UUID sessionId, @RequestParam(required = false) UUID recipientId,
@@ -45,6 +52,13 @@ public class HandoverDeliveryController {
         return service.eligibleAssets(caseId, sessionId, recipientId, principal);
     }
 
+    /**
+     * {@code POST .../handover-sessions/{sessionId}/deliveries}
+     * Ghi nhận các lần giao tài sản. Body: {@link HandoverDeliveryRequest}. Trả 201 Created kèm danh sách
+     * {@link HandoverItemResponse} vừa tạo và header {@code Location}.
+     *
+     * @return 201 và các mục bàn giao đã tạo
+     */
     @PostMapping("/deliveries")
     public ResponseEntity<List<HandoverItemResponse>> deliver(@PathVariable UUID caseId,
             @PathVariable UUID sessionId, @Valid @RequestBody HandoverDeliveryRequest request,
@@ -55,6 +69,12 @@ public class HandoverDeliveryController {
         return ResponseEntity.created(location).body(created);
     }
 
+    /**
+     * {@code GET .../handover-sessions/{sessionId}/deliveries}
+     * Liệt kê các mục bàn giao đã ghi nhận trong phiên.
+     *
+     * @return danh sách {@link HandoverItemResponse}
+     */
     @GetMapping("/deliveries")
     public List<HandoverItemResponse> deliveries(@PathVariable UUID caseId, @PathVariable UUID sessionId,
             @AuthenticationPrincipal CustomUserPrincipal principal) {

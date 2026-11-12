@@ -1,12 +1,27 @@
+/**
+ * Dịch vụ bản di chúc số hóa của chủ kho (ROLE_VAULT_OWNER) trên /api/v1/vaults/{vaultId}/wills: tải lên, thêm phiên bản, xem danh sách, tải xuống. Dùng bởi pages/wills/WillUploadPage.jsx. Phản hồi sai hợp đồng được đổi thành lỗi BACKEND_NOT_READY.
+ */
 import { API_BASE, ApiError, request } from '../api/http.js';
 import { passwordFetch } from '../api/passwordRequest.js';
 import { isUtcDate } from '../api/contracts.js';
 import { getWillUploadErrors, getWillContentType } from './willValidation.js';
 
+/**
+ * Biểu thức kiểm tra UUID.
+ */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * Tạo Error có code và status.
+ */
 const fail = (code, status) => Object.assign(new Error(code), { code, status });
+/**
+ * Ném lỗi ABORTED nếu AbortSignal đã bị hủy.
+ */
 const checkAbort = (signal) => { if (signal?.aborted) throw fail('ABORTED'); };
 
+/**
+ * Tính SHA-256 (hex thường) của tệp phía client để đối chiếu với mã băm backend trả về. Hỗ trợ chuỗi, ArrayBufferView, Blob/File (arrayBuffer hoặc FileReader); dùng crypto.subtle, hoặc node:crypto khi chạy test. Ném FILE_REQUIRED_FOR_HASH, CANNOT_READ_FILE_BYTES, CRYPTO_UNAVAILABLE.
+ */
 export async function computeFileSha256(file) {
   if (!file) throw fail('FILE_REQUIRED_FOR_HASH');
   let bytes;
@@ -33,6 +48,9 @@ export async function computeFileSha256(file) {
   throw fail('CRYPTO_UNAVAILABLE');
 }
 
+/**
+ * Thông điệp UI song ngữ (vi/en) của trang tải di chúc và thông tin phiên bản.
+ */
 export const willStatusMessages = {
   vi: {
     UPLOADED: 'Đã tải lên',
@@ -83,21 +101,37 @@ export const willStatusMessages = {
 };
 
 
+/**
+ * Định dạng số byte thành B, KB hoặc MB.
+ */
 export function formatFileSize(bytes = 0) {
   if (bytes === 0) return '0 B';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
+/**
+ * Định dạng thời điểm theo ngôn ngữ (vi-VN hoặc en-US); giá trị sai trả "—".
+ */
 export function formatDateTime(value, lang = 'vi') {
   const date = new Date(value);
   if (!value || !Number.isFinite(date.getTime())) return '—';
   return date.toLocaleString(lang === 'en' ? 'en-US' : 'vi-VN');
 }
+/**
+ * Chuẩn hóa tên tệp: bỏ phần đường dẫn, ký tự điều khiển và khoảng trắng đầu cuối.
+ */
 const cleanName = value => typeof value === 'string' ? value.split(/[\\/]/).pop().split('').filter(char => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127).join('').trim() : '';
+/**
+ * Kiểm tra chuỗi thời điểm UTC hợp lệ (isUtcDate).
+ */
 const validDate = isUtcDate;
 
 // Never turn an unrelated receipt, legal state, or malformed response into upload success.
+/**
+ * Kiểm tra biên nhận sau khi tải di chúc mới: id UUID, vaultId khớp, status UPLOADED, phiên bản đầu tiên (version 1) có fileName, contentType, sizeBytes khớp tệp đã gửi, sha256 64 hex và khớp mã băm tính ở client. Chỉ sao chép các trường cho phép.
+ * @throws {Error} code BACKEND_NOT_READY nếu sai.
+ */
 export function readWillReceipt(data, vaultId, file, clientSha256) {
   const v = data?.currentVersion;
   if (!UUID.test(data?.id) || data?.vaultId !== vaultId || data?.status !== 'UPLOADED' ||
@@ -113,6 +147,9 @@ export function readWillReceipt(data, vaultId, file, clientSha256) {
       sizeBytes: v.sizeBytes, uploadedAt: v.uploadedAt, ...(resolvedSha256 ? { sha256: resolvedSha256 } : {}) } };
 }
 
+/**
+ * Tương tự readWillReceipt nhưng cho biên nhận khi thêm phiên bản mới: id phải đúng willId và version >= minVersion (mặc định 2).
+ */
 export function readWillVersionReceipt(data, vaultId, willId, file, clientSha256, minVersion = 2) {
   const v = data?.currentVersion;
   if (!UUID.test(data?.id) || data?.id !== willId || data?.vaultId !== vaultId || data?.status !== 'UPLOADED' ||
@@ -127,6 +164,9 @@ export function readWillVersionReceipt(data, vaultId, willId, file, clientSha256
       sizeBytes: v.sizeBytes, uploadedAt: v.uploadedAt, ...(resolvedSha256 ? { sha256: resolvedSha256 } : {}) } };
 }
 
+/**
+ * Chuẩn hóa một bản di chúc trong danh sách/chi tiết (id, vaultId, status UPLOADED, createdAt, currentVersion với contentType PDF/JPEG/PNG, sizeBytes > 0, sha256 64 hex).
+ */
 export function readWillItem(data, vaultId) {
   const v = data?.currentVersion;
   if (!UUID.test(data?.id) || data?.vaultId !== vaultId || data?.status !== 'UPLOADED' ||
@@ -152,6 +192,9 @@ export function readWillItem(data, vaultId) {
   };
 }
 
+/**
+ * Chuẩn hóa một phiên bản di chúc (version, fileName, contentType, sizeBytes, sha256, uploadedAt).
+ */
 export function readWillVersionItem(item) {
   if (!item || !Number.isSafeInteger(item.version) || item.version < 1 ||
       !cleanName(item.fileName) || !['application/pdf', 'image/jpeg', 'image/png'].includes(item.contentType) ||
@@ -169,10 +212,21 @@ export function readWillVersionItem(item) {
   };
 }
 
+/**
+ * Ánh xạ status HTTP sang mã lỗi mặc định khi backend không trả code (400, 401, 403, 404, 409 VAULT_NOT_EDITABLE, 413, 415).
+ */
 const HTTP_ERRORS = { 400: 'VALIDATION_FAILED', 401: 'UNAUTHORIZED', 403: 'FORBIDDEN',
   404: 'NOT_FOUND', 409: 'VAULT_NOT_EDITABLE', 413: 'PAYLOAD_TOO_LARGE', 415: 'UNSUPPORTED_MEDIA_TYPE' };
 
+/**
+ * Các thao tác API di chúc: uploadWill, uploadNewVersion, getWills, getWillById, listWillVersions, downloadWillVersion.
+ */
 export const willService = {
+  /**
+   * POST /api/v1/vaults/{vaultId}/wills (multipart: file và note tùy chọn, mong đợi 201) bằng XMLHttpRequest để báo tiến trình (onProgress), timeout 120 giây, hủy bằng AbortSignal.
+   * Các bước: kiểm tra tệp bằng getWillUploadErrors, tính SHA-256 phía client, gửi, rồi kiểm tra biên nhận bằng readWillReceipt.
+   * @throws lỗi có code: VALIDATION_FAILED, FILE_REQUIRED, ABORTED, UPLOAD_FAILED, TIMEOUT, BACKEND_NOT_READY hoặc ApiError mã của backend (ví dụ VAULT_NOT_EDITABLE, PAYLOAD_TOO_LARGE).
+   */
   async uploadWill(vaultId, file, note = '', options = {}) {
     checkAbort(options.signal);
     const errors = getWillUploadErrors({ file, note });
@@ -225,6 +279,9 @@ export const willService = {
     });
   },
 
+  /**
+   * POST /api/v1/vaults/{vaultId}/wills/{willId}/versions (multipart: file, mong đợi 201) để thêm phiên bản mới; luồng giống uploadWill, kiểm tra biên nhận bằng readWillVersionReceipt.
+   */
   async uploadNewVersion(vaultId, willId, file, options = {}) {
     checkAbort(options.signal);
     const errors = getWillUploadErrors({ file });
@@ -280,6 +337,9 @@ export const willService = {
     });
   },
 
+  /**
+   * GET /api/v1/vaults/{vaultId}/wills?page=&size=&sort= (mong đợi 200): danh sách di chúc có phân trang, mỗi phần tử chuẩn hóa bằng readWillItem.
+   */
   async getWills(vaultId, options = {}) {
     if (!UUID.test(vaultId || '')) throw fail('BACKEND_NOT_READY');
     const { page = 0, size = 20, sort = 'createdAt,desc' } = options;
@@ -298,6 +358,9 @@ export const willService = {
     };
   },
 
+  /**
+   * GET /api/v1/vaults/{vaultId}/wills/{willId} (mong đợi 200): chi tiết một bản di chúc.
+   */
   async getWillById(vaultId, willId, options = {}) {
     if (!UUID.test(vaultId || '') || !UUID.test(willId || '')) throw fail('BACKEND_NOT_READY');
     const data = await request(`/vaults/${vaultId}/wills/${willId}`, {
@@ -307,6 +370,9 @@ export const willService = {
     return readWillItem(data, vaultId);
   },
 
+  /**
+   * GET /api/v1/vaults/{vaultId}/wills/{willId}/versions (mong đợi 200): các phiên bản của bản di chúc.
+   */
   async listWillVersions(vaultId, willId, options = {}) {
     if (!UUID.test(vaultId || '') || !UUID.test(willId || '')) throw fail('BACKEND_NOT_READY');
     const data = await request(`/vaults/${vaultId}/wills/${willId}/versions`, {
@@ -317,6 +383,12 @@ export const willService = {
     return data.map(readWillVersionItem);
   },
 
+  /**
+   * POST /api/v1/vaults/{vaultId}/wills/{willId}/versions/{version}/download với body {password} để tải tệp; cần xác thực lại bằng mật khẩu (đi qua passwordFetch, có thể mở hộp thoại đặt mật khẩu lần đầu cho tài khoản Google).
+   * Kiểm tra Content-Type (PDF/JPEG/PNG), lấy tên tệp từ Content-Disposition.
+   * @returns {Promise<{blob:Blob,fileName:string,contentType:string}>}
+   * @throws {ApiError} VALIDATION_FAILED, TOO_MANY_ATTEMPTS (429), UNSUPPORTED_MEDIA_TYPE, NETWORK_ERROR hoặc mã backend.
+   */
   async downloadWillVersion(vaultId, willId, version, password, options = {}) {
     checkAbort(options.signal);
     if (!UUID.test(vaultId || '') || !UUID.test(willId || '')) throw fail('BACKEND_NOT_READY');
@@ -392,7 +464,13 @@ export const willService = {
   },
 };
 
+/**
+ * Các blob URL đang tồn tại, để thu hồi khi rời trang.
+ */
 const activeBlobUrls = new Set();
+/**
+ * Các bộ hẹn giờ thu hồi blob URL đang chờ.
+ */
 const activeTimers = new Set();
 
 /**
@@ -446,6 +524,9 @@ export function openBlobPreview(blob, timeoutMs = 120000) {
   return url;
 }
 
+/**
+ * Khi đóng/tải lại trang (beforeunload): hủy các bộ hẹn giờ và thu hồi mọi blob URL còn lại để không rò rỉ bộ nhớ.
+ */
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     for (const timerId of activeTimers) clearTimeout(timerId);

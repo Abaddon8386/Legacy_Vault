@@ -2,6 +2,25 @@ import { AlertTriangle, ArrowRightLeft, CheckCircle2, History, XCircle } from 'l
 import { formatCaseReference } from '../../utils/caseReference.js';
 import './StaffCaseContextBar.css';
 
+/**
+ * Thanh ngữ cảnh ở đầu các trang Staff, cho biết hồ sơ xác minh đang làm việc.
+ * Khi đã chọn hồ sơ (`caseId`) hiển thị mã hồ sơ (qua `formatCaseReference`), trạng thái, giai đoạn,
+ * chip kết quả của Ban Pháp lý, tên kho và chủ sở hữu cùng nút "Đổi hồ sơ";
+ * nếu chưa chọn thì hiện lời nhắc và nút "Chọn hồ sơ". Không gọi API, dữ liệu do trang cha truyền xuống
+ * (thường lấy từ `GET /api/v1/staff/verification-cases/{caseId}`).
+ *
+ * @param {object} props
+ * @param {string} [props.caseId] id hồ sơ (UUID) hoặc mã hồ sơ; rỗng nghĩa là chưa chọn.
+ * @param {object|null} [props.caseItem] hồ sơ đã tải (`caseNumber`, `status`, `vaultName`, `ownerName`).
+ * @param {string} [props.sessionId] id phiên bàn giao; có giá trị thì hiện nhãn "Đã chọn phiên".
+ * @param {Function} props.onOpenSelector mở hộp thoại chọn hồ sơ (`StaffCaseSelectorModal`).
+ * @param {Function} [props.onChangeCase] nếu có sẽ thay `onOpenSelector` cho nút "Đổi hồ sơ".
+ * @param {{label: string, tone: string}|null} [props.outcomeChip] chip từ `versionOutcomeChip`.
+ * @param {string} [props.statusLabel] nhãn trạng thái ghi đè nhãn suy ra từ `caseItem.status`.
+ * @param {{label: string, tone: string}|null} [props.stage] giai đoạn xử lý hiện tại.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ giao diện.
+ * @returns {JSX.Element}
+ */
 export default function StaffCaseContextBar({
   caseId = '',
   caseItem = null,

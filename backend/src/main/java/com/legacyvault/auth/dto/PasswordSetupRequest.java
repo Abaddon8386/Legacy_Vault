@@ -4,8 +4,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * First-time password for an account that so far only signs in with Google. A fresh Google ID token is required so
- * that a bare session cannot set the password: the token's subject must be linked to the signed-in account.
+ * Body của {@code POST /api/v1/auth/password/setup}: đặt mật khẩu lần đầu cho tài khoản chỉ đăng nhập bằng Google.
+ * Cần ID token Google mới để một phiên trần không thể tự đặt mật khẩu: subject của token phải đã liên kết với
+ * tài khoản đang đăng nhập (kiểm tra trong {@code GoogleAuthService.setupPassword}).
+ *
+ * @param password   mật khẩu mới, 8-72 ký tự và thỏa {@link com.legacyvault.auth.policy.ValidPassword}
+ * @param credential ID token Google mới, bắt buộc, tối đa 8192 ký tự
  */
 public record PasswordSetupRequest(
         @NotBlank(message = "{auth.register.password.required}")

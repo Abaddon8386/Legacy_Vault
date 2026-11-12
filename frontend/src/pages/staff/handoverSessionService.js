@@ -1,6 +1,22 @@
+/**
+ * handoverSessionService.js - Dịch vụ phiên bàn giao di sản tại quầy cho Staff (mở phiên, giao tài sản, xác nhận người thụ hưởng, biên bản, đóng phiên, lưu trữ).
+ *
+ * Có hai chế độ: mô phỏng (isCounterHandoverSimulationPermitted, dữ liệu tổng hợp) và thật (gọi fetch tới /api/v1/staff/verification-cases/{caseId}/handover-sessions/...).
+ * Mã PS-xx trong chú thích là mã ticket nghiệp vụ. Chế độ thật dùng Bearer accessToken và header Accept-Language; lỗi HTTP được chuyển thành Error có status và code lấy từ body lỗi của backend.
+ * Được dùng bởi BeneficiaryAccountPage, BeneficiaryConfirmationPage, CloseAndArchivePage, CounterHandoverPage và ScopedAssetHandoverPage.
+ */
 import { getLiveSession } from './liveHandoverService.js';
 import { request, ApiError } from '../../api/http.js';
 import { evaluateSessionOpenPrerequisites } from '../../utils/handoverSessionValidation.js';
+/**
+ * Kiểm tra hồ sơ bàn giao tại quầy (dữ liệu mô phỏng) còn cho phép ghi hay không; nếu không thì ném Error có {code}.
+ *
+ * Thứ tự kiểm tra: vai trò STAFF_EXECUTOR (nếu truyền options.roles) -> có dữ liệu hồ sơ -> hồ sơ chưa đóng/lưu trữ (SESSION_ALREADY_ARCHIVED) -> kho đã mở khóa UNLOCKED (VAULT_NOT_UNLOCKED) -> phê duyệt pháp lý còn hiệu lực (STALE_APPROVAL) -> phiên bàn giao đang ACTIVE (SESSION_NOT_ACTIVE, bỏ qua khi requireSession = false).
+ * @param {Object} data Dữ liệu hồ sơ bàn giao.
+ * @param {Object} [options] { lang: 'vi' | 'en', roles: string[] }
+ * @param {boolean} [requireSession=true] Có bắt buộc phiên ACTIVE hay không.
+ * @throws {Error} code: FORBIDDEN, CASE_REQUIRED, SESSION_ALREADY_ARCHIVED, VAULT_NOT_UNLOCKED, STALE_APPROVAL hoặc SESSION_NOT_ACTIVE.
+ */
 export function assertHandoverWritable(data, options = {}, requireSession = true) {
   const fail = (code, vi, en) => { const error = new Error(options.lang === 'en' ? en : vi); error.code = code; throw error; };
   if (options.roles && !options.roles.includes('STAFF_EXECUTOR')) fail('FORBIDDEN', 'Bạn không có quyền bàn giao.', 'You cannot perform handover actions.');
@@ -10,6 +26,11 @@ export function assertHandoverWritable(data, options = {}, requireSession = true
   if (!data.legalApproval?.isFresh) fail('STALE_APPROVAL', 'Cần phê duyệt pháp lý còn hiệu lực.', 'A current legal approval is required.');
   if (requireSession && data.session?.status !== 'ACTIVE') fail('SESSION_NOT_ACTIVE', 'Cần mở phiên bàn giao.', 'An active handover session is required.');
 }
+/**
+ * Bộ hồ sơ bàn giao tổng hợp (không phải dữ liệu thật) cho dev preview và unit test.
+ * Các kịch bản: 'case-standard' (kho đã mở khóa, phiên ACTIVE), 'case-locked-vault' (kho chưa mở khóa, chưa có phê duyệt pháp lý), 'case-out-of-scope' (có tài sản ngoài phạm vi),
+ * 'case-partial-progress' (tài sản đã giao, người thụ hưởng chưa xác nhận), 'case-archived' (đã đóng, chỉ đọc, có receiptSummary) và 'case-ready-to-open' (khai báo bên dưới, chưa có phiên).
+ */
 export const SYNTHETIC_HANDOVER_CASES = {
   'case-standard': {
     caseId: '6f1a4c2d-0000-4000-8000-000000000001',
@@ -374,8 +395,17 @@ export const SYNTHETIC_HANDOVER_CASES = {
   },
 };
 
+/**
+ * Kịch bản 'case-ready-to-open': giống 'case-standard' nhưng chưa có phiên bàn giao (session = null) để thử thao tác mở phiên.
+ */
 SYNTHETIC_HANDOVER_CASES['case-ready-to-open'] = { ...SYNTHETIC_HANDOVER_CASES['case-standard'], session: null };
 
+/**
+ * Cho biết có được phép chạy chế độ mô phỏng bàn giao tại quầy hay không.
+ * Trả về false nếu có accessToken thật hoặc đang ở bản build production (Vite PROD hoặc options.testEnv.PROD); ngược lại true khi options.isDevPreview hoặc options.isTest bật.
+ * @param {Object} [options] { accessToken, testEnv, isDevPreview, isTest }
+ * @returns {boolean}
+ */
 export function isCounterHandoverSimulationPermitted(options = {}) {
   if (options.accessToken) return false;
   const isViteProd = typeof import.meta !== 'undefined' && Boolean(import.meta.env?.PROD);
@@ -383,6 +413,14 @@ export function isCounterHandoverSimulationPermitted(options = {}) {
   if (isViteProd || isTestProd) return false;
   return Boolean(options.isDevPreview) || Boolean(options.isTest);
 }
+/**
+ * Tải hồ sơ bàn giao tại quầy. Chỉ có chế độ mô phỏng: trả về bản sao sâu của kịch bản trong SYNTHETIC_HANDOVER_CASES
+ * (kịch bản 'error' giả lập lỗi mạng MOCK_NETWORK_ERROR; hồ sơ ARCHIVED gắn caseStatus = CLOSED và archiveReceipt). Ngoài mô phỏng ném BACKEND_NOT_READY (503).
+ * @param {string} [scenarioKey='case-standard'] Khóa kịch bản.
+ * @param {Object} [options] { signal, isDevPreview, isTest, accessToken }
+ * @returns {Promise<{caseData: Object, isSimulation: boolean}>}
+ * @throws {Error} AbortError; BACKEND_NOT_READY; MOCK_NETWORK_ERROR.
+ */
 export async function fetchHandoverCase(scenarioKey = 'case-standard', options = {}) {
   const { signal } = options;
 
@@ -430,6 +468,15 @@ export async function fetchHandoverCase(scenarioKey = 'case-standard', options =
   notReadyError.status = 503;
   throw notReadyError;
 }
+/**
+ * Mở phiên bàn giao tại quầy (đường mô phỏng).
+ * Kiểm tra assertHandoverWritable (không yêu cầu phiên có sẵn) và evaluateSessionOpenPrerequisites(vaultStatus, session) từ utils/handoverSessionValidation.js;
+ * không đủ điều kiện thì ném Error mang code của lý do. Chế độ mô phỏng trả về phiên ACTIVE mới (sessionId HDS-năm-xxx). Ngoài mô phỏng ném BACKEND_NOT_READY (503);
+ * việc mở phiên thật nằm ở liveHandoverService.openLiveSession().
+ * @param {Object} currentCaseData Dữ liệu hồ sơ hiện tại (vaultStatus, session...).
+ * @param {Object} [options] Tùy chọn mô phỏng và ngôn ngữ.
+ * @returns {Promise<{sessionId: string, status: 'ACTIVE', openedAt: string, closedAt: null}>}
+ */
 export async function openHandoverSession(currentCaseData, options = {}) {
   if (isCounterHandoverSimulationPermitted(options)) assertHandoverWritable(currentCaseData, options, false);
   const prereq = evaluateSessionOpenPrerequisites(currentCaseData.vaultStatus, currentCaseData.session);
@@ -456,14 +503,28 @@ export async function openHandoverSession(currentCaseData, options = {}) {
 }
 
 /**
- * PS-63 / PS-97: Lấy chi tiết phiên bàn giao (GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId})
+ * PS-63 / PS-97: Lấy chi tiết phiên bàn giao (GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}).
+ * Mô phỏng trả về { caseId, sessionId, status: 'OPEN' }; chế độ thật ủy quyền cho liveHandoverService.getLiveSession().
+ * @param {string} caseId UUID hồ sơ.
+ * @param {string} sessionId UUID phiên.
+ * @param {Object} [options] Tùy chọn của request().
+ * @returns {Promise<Object>} Phiên bàn giao.
  */
 export async function fetchHandoverSession(caseId, sessionId, options = {}) {
   if (isCounterHandoverSimulationPermitted(options)) return {caseId, sessionId, status: 'OPEN'};
   return getLiveSession(caseId, sessionId, options);
 }
 
-// Delivery history is readable after completion/archive; eligible-assets requires OPEN.
+/**
+ * Lấy lịch sử các lần giao tài sản của phiên: GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/deliveries (HTTP 200).
+ * Đọc được cả sau khi phiên hoàn tất/lưu trữ (khác eligible-assets chỉ dùng khi phiên OPEN). Mỗi phần tử phải thuộc đúng sessionId, status DELIVERED và itemId, recipientId, assetId là UUID.
+ * Mô phỏng trả về mảng rỗng.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {string} sessionId UUID phiên.
+ * @param {Object} [options] Tùy chọn của request().
+ * @returns {Promise<Object[]>} Danh sách mục đã giao.
+ * @throws {ApiError} INVALID_RESPONSE khi phản hồi sai định dạng, hoặc lỗi API.
+ */
 export async function fetchHandoverDeliveries(caseId, sessionId, options = {}) {
   if (isCounterHandoverSimulationPermitted(options)) return [];
   const value = await request(`/staff/verification-cases/${caseId}/handover-sessions/${sessionId}/deliveries`, {...options, expectedStatus: 200});
@@ -474,7 +535,13 @@ export async function fetchHandoverDeliveries(caseId, sessionId, options = {}) {
 }
 
 /**
- * PS-64 / PS-97: Lấy danh sách tài sản đủ điều kiện bàn giao trong phiên
+ * PS-64 / PS-97: Lấy danh sách tài sản đủ điều kiện bàn giao trong phiên.
+ * Gọi GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/eligible-assets[?recipientId=...] (chỉ dùng khi phiên OPEN).
+ * Mô phỏng lấy từ tài sản của 'case-standard' (có thể lọc theo recipientId). Lỗi HTTP chuyển thành Error có status và code (mặc định FETCH_ELIGIBLE_ASSETS_FAILED).
+ * @param {string} caseId UUID hồ sơ.
+ * @param {string} sessionId UUID phiên.
+ * @param {Object} [options] { accessToken, recipientId, signal, lang }
+ * @returns {Promise<Object[]>} Tài sản đủ điều kiện (assetId, assetName, category, recipientId, recipientName, status, allocatedShare).
  */
 export async function fetchEligibleAssets(caseId, sessionId, options = {}) {
   const { accessToken, recipientId, signal, lang = 'vi' } = options;
@@ -523,7 +590,15 @@ export async function fetchEligibleAssets(caseId, sessionId, options = {}) {
 }
 
 /**
- * PS-65 / PS-97: Ghi nhận bàn giao tài sản cho người nhận
+ * PS-65 / PS-97: Ghi nhận bàn giao tài sản cho người nhận.
+ * Yêu cầu có recipientId và ít nhất một assetId (nếu không ném VALIDATION_FAILED). Chế độ thật gọi
+ * POST /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/deliveries với body JSON { recipientId, assetIds }; lỗi HTTP có code mặc định DELIVERY_FAILED.
+ * Mô phỏng trả về danh sách mục DELIVERED giả.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {string} sessionId UUID phiên.
+ * @param {{recipientId: string, assetIds: string[]}} payload Người nhận và các tài sản được giao.
+ * @param {Object} [options] { accessToken, signal, lang }
+ * @returns {Promise<Object[]>} Các mục bàn giao đã ghi nhận.
  */
 export async function deliverAssets(caseId, sessionId, { recipientId, assetIds }, options = {}) {
   const { accessToken, signal, lang = 'vi' } = options;
@@ -578,7 +653,13 @@ export async function deliverAssets(caseId, sessionId, { recipientId, assetIds }
 }
 
 /**
- * PS-67 / PS-97: Lấy danh sách xác nhận của người thụ hưởng
+ * PS-67 / PS-97: Lấy danh sách xác nhận của người thụ hưởng trong phiên:
+ * GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/beneficiary-confirmations. Lỗi HTTP có code mặc định FETCH_CONFIRMATIONS_FAILED.
+ * Mô phỏng trả về người thụ hưởng của 'case-standard'. Được BeneficiaryConfirmationPage dùng.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {string} sessionId UUID phiên.
+ * @param {Object} [options] { accessToken, signal, lang }
+ * @returns {Promise<Object[]>} beneficiaryId, beneficiaryName, identityNumberMasked, confirmationStatus, receiptReference, confirmedAt.
  */
 export async function fetchBeneficiaryConfirmations(caseId, sessionId, options = {}) {
   const { accessToken, signal, lang = 'vi' } = options;
@@ -624,7 +705,15 @@ export async function fetchBeneficiaryConfirmations(caseId, sessionId, options =
 }
 
 /**
- * PS-67 / PS-97: Xác nhận bàn giao của người thụ hưởng
+ * PS-67 / PS-97: Xác nhận người thụ hưởng đã nhận tài sản bằng biên nhận giấy đã ký.
+ * Bắt buộc có tệp biên nhận và attested = true (nếu không ném VALIDATION_FAILED). Chế độ thật gửi POST multipart (file, attested = 'true', paperReference tùy chọn) tới
+ * /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/beneficiaries/{beneficiaryId}/confirmation; lỗi HTTP có code mặc định CONFIRMATION_FAILED.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {string} sessionId UUID phiên.
+ * @param {string} beneficiaryId UUID người thụ hưởng.
+ * @param {{receiptReference?: string, file: File, attested: boolean}} payload Mã biên nhận giấy, tệp scan và cờ xác nhận đã đối chiếu.
+ * @param {Object} [options] { accessToken, signal, lang }
+ * @returns {Promise<Object>} Kết quả xác nhận (confirmationStatus, receiptReference, confirmedAt...).
  */
 export async function confirmBeneficiary(caseId, sessionId, beneficiaryId, { receiptReference, file, attested }, options = {}) {
   const { accessToken, signal, lang = 'vi' } = options;
@@ -676,7 +765,13 @@ export async function confirmBeneficiary(caseId, sessionId, beneficiaryId, { rec
 }
 
 /**
- * PS-68-70 / PS-97: Lấy tiến độ cổng nghiệm thu kép (Dual Completion Gates)
+ * PS-68-70 / PS-97: Lấy tiến độ cổng nghiệm thu kép (Dual Completion Gates): hoàn tất giao tài sản và hoàn tất xác nhận người thụ hưởng.
+ * Gọi GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/completion-progress; lỗi HTTP có code mặc định FETCH_PROGRESS_FAILED.
+ * Kết quả có assetCompletion, beneficiaryCompletion (completed, total, pending, ready), readyForClose, readyForArchive.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {string} sessionId UUID phiên.
+ * @param {Object} [options] { accessToken, signal, lang }
+ * @returns {Promise<Object>} Tiến độ hoàn tất.
  */
 export async function fetchCompletionProgress(caseId, sessionId, options = {}) {
   const { accessToken, signal, lang = 'vi' } = options;
@@ -720,7 +815,12 @@ export async function fetchCompletionProgress(caseId, sessionId, options = {}) {
 }
 
 /**
- * PS-61 / PS-97: Lấy danh sách biên bản bàn giao (Receipts)
+ * PS-61 / PS-97: Lấy danh sách biên bản bàn giao (Receipts) của phiên:
+ * GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/receipts; lỗi HTTP có code mặc định FETCH_RECEIPTS_FAILED.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {string} sessionId UUID phiên.
+ * @param {Object} [options] { accessToken, signal, lang }
+ * @returns {Promise<Object[]>} Danh sách biên bản (receiptId, recipientId, assetIds, attestationType, createdAt, staffId).
  */
 export async function fetchHandoverReceipts(caseId, sessionId, options = {}) {
   const { accessToken, signal, lang = 'vi' } = options;
@@ -770,7 +870,14 @@ export async function fetchHandoverReceipts(caseId, sessionId, options = {}) {
 }
 
 /**
- * PS-61 / PS-97: Tạo biên bản bàn giao có chữ ký xác nhận của Staff
+ * PS-61 / PS-97: Tạo biên bản bàn giao có chữ ký xác nhận của Staff:
+ * POST /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/receipts với body JSON { recipientId, assetIds, supersedesReceiptId } (supersedesReceiptId để thay thế biên bản cũ, mặc định null).
+ * Lỗi HTTP có code mặc định CREATE_RECEIPT_FAILED.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {string} sessionId UUID phiên.
+ * @param {{recipientId: string, assetIds: string[], supersedesReceiptId?: string}} payload Nội dung biên bản.
+ * @param {Object} [options] { accessToken, signal, lang }
+ * @returns {Promise<Object>} Biên bản vừa tạo.
  */
 export async function createHandoverReceipt(caseId, sessionId, { recipientId, assetIds, supersedesReceiptId }, options = {}) {
   const { accessToken, signal, lang = 'vi' } = options;
@@ -819,7 +926,13 @@ export async function createHandoverReceipt(caseId, sessionId, { recipientId, as
 }
 
 /**
- * PS-71 / PS-97: Đóng phiên bàn giao sau khi đạt cổng nghiệm thu kép và có biên bản
+ * PS-71 / PS-97: Đóng phiên bàn giao sau khi đạt cổng nghiệm thu kép và có biên bản:
+ * POST /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/close. Lỗi HTTP có code mặc định CLOSE_SESSION_FAILED.
+ * Phản hồi phải có đúng sessionId và status = COMPLETED, nếu không ném Error code INVALID_RESPONSE (yêu cầu tải lại trạng thái).
+ * @param {string} caseId UUID hồ sơ.
+ * @param {string} sessionId UUID phiên.
+ * @param {Object} [options] { accessToken, signal, lang }
+ * @returns {Promise<{sessionId: string, status: 'COMPLETED', closedAt: string, proofHash: string}>}
  */
 export async function closeHandoverSession(caseId, sessionId, options = {}) {
   const { accessToken, signal, lang = 'vi' } = options;
@@ -868,7 +981,13 @@ export async function closeHandoverSession(caseId, sessionId, options = {}) {
 }
 
 /**
- * PS-72 / PS-97: Lưu trữ kho di sản và hoàn tất đóng ca (Atomic Archive & Case Close)
+ * PS-72 / PS-97: Lưu trữ kho di sản và hoàn tất đóng ca (Atomic Archive and Case Close):
+ * POST /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/archive. Lỗi HTTP có code mặc định ARCHIVE_FAILED.
+ * Phản hồi phải có đúng caseId, caseStatus = CLOSED và vaultStatus = ARCHIVED, nếu không ném Error code INVALID_RESPONSE. Được CloseAndArchivePage dùng.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {string} sessionId UUID phiên.
+ * @param {Object} [options] { accessToken, signal, lang }
+ * @returns {Promise<{caseId: string, vaultId: string, caseStatus: 'CLOSED', vaultStatus: 'ARCHIVED', archivedAt: string}>}
  */
 export async function archiveHandoverCase(caseId, sessionId, options = {}) {
   const { accessToken, signal, lang = 'vi' } = options;

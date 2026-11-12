@@ -45,11 +45,40 @@ import { isUuid } from '../../api/contracts.js';
  *    B. Xác minh danh tính người thụ hưởng (PS-45): Staff bắt buộc chọn đúng người được xác minh,
  *       không mặc định người nộp PS-26 là người thụ hưởng.
  */
+/**
+ * Trang xác minh danh tính người thụ hưởng trực tiếp tại quầy (Staff). Bọc `VerificationForm` với `key` theo
+ * (hồ sơ, token, dev preview). Được mở từ `StaffCaseDashboard.jsx`.
+ *
+ * @param {object} props xem `VerificationForm`.
+ */
 export default function StaffCaseVerificationPage(props) {
   const scope = JSON.stringify([props.caseItem?.id || props.caseItem?.caseNumber, props.accessToken, Boolean(props.isDevPreview)]);
   return <VerificationForm key={scope} {...props} />;
 }
 
+/**
+ * Biểu mẫu xác minh danh tính: Staff chọn đúng người thụ hưởng, nhập loại giấy tờ, kết quả đối chiếu (MATCH hoặc NOT_MATCH),
+ * 4 ký tự cuối số giấy tờ và cơ quan cấp, rồi gửi. Quy trình:
+ * - Tải danh sách người thụ hưởng của hồ sơ bằng `loadBeneficiaries` (mặc định `fetchCaseBeneficiaries`).
+ * - Khi chọn một người, tải lịch sử xác minh bằng `loadHistory` (mặc định `fetchVerificationHistory`,
+ *   dự kiến `GET /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications`).
+ * - Gửi bằng `onSubmitVerification` (mặc định `submitIdentityVerification`, dự kiến
+ *   `POST /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications`), kiểm tra bằng `validateVerificationForm`
+ *   và `validateVerificationReceipt`.
+ * Dùng các ref `AbortController` để hủy request cũ và bỏ qua phản hồi của hồ sơ/người đã đổi. Không dùng camera, eKYC hay tải ảnh giấy tờ.
+ *
+ * @param {object} props
+ * @param {object} props.caseItem hồ sơ đang xác minh.
+ * @param {Function} props.onBack quay lại danh sách.
+ * @param {string|null} [props.accessToken] JWT của staff.
+ * @param {boolean} [props.isDevPreview=false] chế độ dev preview.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {Function} [props.onUnauthorized] gọi khi API trả 401.
+ * @param {Function} [props.loadBeneficiaries] hàm tải người thụ hưởng.
+ * @param {Function} [props.loadHistory] hàm tải lịch sử xác minh.
+ * @param {Function} [props.onSubmitVerification] hàm gửi kết quả xác minh.
+ * @param {string|null} [props.initialBeneficiaryId] người thụ hưởng chọn sẵn.
+ */
 function VerificationForm({
   caseItem,
   onBack,
@@ -105,6 +134,7 @@ function VerificationForm({
   const [successReceipt, setSuccessReceipt] = useState(null);
 
   // Format Helper
+  /** Định dạng ISO-8601 thành ngày giờ theo ngôn ngữ; rỗng trả "—", lỗi phân tích trả nguyên chuỗi. */
   const formatDate = (isoString) => {
     if (!isoString) return '—';
     try {
@@ -233,6 +263,7 @@ function VerificationForm({
   }, []);
 
   // Beneficiary selection handler
+  /** Chọn người thụ hưởng: hủy request cũ, xóa lịch sử, đặt lại biểu mẫu và lỗi. */
   const handleSelectBeneficiary = (ben) => {
     if (selectedBeneficiary?.id === ben.id) return;
     submitAbortRef.current?.abort();
@@ -250,6 +281,7 @@ function VerificationForm({
   };
 
   // Form input change handler
+  /** Cập nhật một trường biểu mẫu và xóa lỗi của trường đó. */
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (fieldErrors[field]) {
@@ -262,6 +294,7 @@ function VerificationForm({
   };
 
   // Submission handler
+  /** Kiểm tra biểu mẫu rồi gửi kết quả xác minh danh tính cho người thụ hưởng đang chọn; chống gửi lặp và bỏ qua phản hồi cũ. */
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     if (isSubmitting || submitAbortRef.current) return;

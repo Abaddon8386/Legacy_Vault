@@ -14,15 +14,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * Mã hóa đối xứng phía server cho payload tài sản và file di chúc (ST-02, ST-03): AES-256-GCM,
- * IV ngẫu nhiên 12 byte mỗi lần mã hóa.
+ * Mã hóa/giải mã AES-256-GCM phía server cho payload tài sản, di chúc và file (ST-02, ST-03). Được
+ * các service tài sản, di chúc, người thụ hưởng, bàn giao gọi trước khi ghi DB và sau khi đọc DB.
  *
- * <p>Khóa lấy từ {@code legacyvault.encryption.key} (base64 của 32 byte, cấp qua biến môi trường
- * {@code LEGACYVAULT_ENCRYPTION_KEY}). Không có giá trị mặc định: thiếu hoặc sai khóa thì ứng dụng không khởi động,
- * tránh âm thầm mã hóa bằng một khóa ai cũng biết. Không log khóa, plaintext hay ciphertext.
+ * <p>Mỗi lần mã hóa tạo IV ngẫu nhiên 12 byte, thẻ xác thực 128 bit. Khóa nạp từ cấu hình
+ * {@code legacyvault.encryption.key} (biến môi trường {@code LEGACYVAULT_ENCRYPTION_KEY}); thiếu hoặc sai định dạng
+ * thì ứng dụng không khởi động. Phiên bản khóa lấy từ {@code legacyvault.encryption.key-version} (mặc định
+ * {@code v1}).
  *
- * <p>{@code associatedData} gắn ciphertext với đúng bản ghi (ví dụ UUID của Asset): chép ciphertext sang bản ghi khác
- * sẽ giải mã thất bại.
+ * <p>Nội dung gốc (giữ nguyên): Mã hóa đối xứng phía server cho payload tài sản và file di chúc.
  */
 @Service
 public class EncryptionService {
@@ -36,17 +36,38 @@ public class EncryptionService {
 	private final String keyVersion;
 	private final SecureRandom random = new SecureRandom();
 
+	/**
+	 * Khởi tạo service, phân tích khóa base64.
+	 *
+	 * @param base64Key  khóa AES-256 dạng base64 (32 byte)
+	 * @param keyVersion nhãn phiên bản khóa gắn vào {@link EncryptedData}
+	 * @throws IllegalStateException nếu khóa thiếu, không phải base64 hoặc không đủ 32 byte
+	 */
 	public EncryptionService(@Value("${legacyvault.encryption.key:}") String base64Key,
 			@Value("${legacyvault.encryption.key-version:v1}") String keyVersion) {
 		this.key = parseKey(base64Key);
 		this.keyVersion = keyVersion;
 	}
 
+	/**
+	 * Mã hóa chuỗi văn bản (UTF-8), ví dụ payload JSON của tài sản.
+	 *
+	 * @param plaintext      văn bản gốc
+	 * @param associatedData dữ liệu xác thực kèm theo (AAD), bắt buộc khớp khi giải mã
+	 * @return {@link EncryptedData} gồm ciphertext, IV và phiên bản khóa
+	 */
 	public EncryptedData encrypt(String plaintext, byte[] associatedData) {
 		return encrypt(plaintext.getBytes(StandardCharsets.UTF_8), associatedData);
 	}
 
-	/** Mã hóa dữ liệu nhị phân (vd nội dung file di chúc — PS-17). */
+	/**
+	 * Mã hóa dữ liệu nhị phân (ví dụ nội dung file di chúc, PS-17) bằng AES-GCM với IV ngẫu nhiên.
+	 *
+	 * @param plaintext      dữ liệu gốc
+	 * @param associatedData AAD gắn ciphertext với đúng bản ghi
+	 * @return {@link EncryptedData}
+	 * @throws IllegalStateException nếu thao tác mã hóa thất bại
+	 */
 	public EncryptedData encrypt(byte[] plaintext, byte[] associatedData) {
 		byte[] iv = new byte[IV_BYTES];
 		random.nextBytes(iv);
@@ -62,13 +83,27 @@ public class EncryptionService {
 	}
 
 	/**
-	 * Chỉ dùng nội bộ (kiểm thử, và các luồng sau này đã được Legal duyệt — LV-LEG-001). Sprint 1 không có API giải mã.
+	 * Giải mã thành chuỗi UTF-8. Chỉ dùng nội bộ (kiểm thử, và các luồng sau này đã được Legal duyệt — LV-LEG-001).
+	 * Sprint 1 không có API giải mã.
 	 * Sai khóa, sai associatedData hoặc dữ liệu bị sửa đều ném lỗi (GCM xác thực toàn vẹn).
+	 *
+	 * @param data           dữ liệu đã mã hóa
+	 * @param associatedData AAD đã dùng khi mã hóa
+	 * @return văn bản gốc
+	 * @throws IllegalStateException nếu phiên bản khóa không khớp hoặc giải mã/xác thực thất bại
 	 */
 	public String decrypt(EncryptedData data, byte[] associatedData) {
 		return new String(decryptBytes(data, associatedData), StandardCharsets.UTF_8);
 	}
 
+	/**
+	 * Giải mã thành mảng byte. Kiểm tra {@code keyVersion} trùng phiên bản khóa hiện hành rồi giải mã AES-GCM.
+	 *
+	 * @param data           dữ liệu đã mã hóa
+	 * @param associatedData AAD đã dùng khi mã hóa
+	 * @return dữ liệu gốc dạng byte
+	 * @throws IllegalStateException nếu phiên bản khóa lạ hoặc giải mã/xác thực thất bại
+	 */
 	public byte[] decryptBytes(EncryptedData data, byte[] associatedData) {
 		if (!keyVersion.equals(data.keyVersion())) {
 			throw new IllegalStateException("Unknown encryption key version");
@@ -84,6 +119,11 @@ public class EncryptionService {
 		}
 	}
 
+	/**
+	 * Giải mã base64 và kiểm tra độ dài 32 byte để tạo khóa AES.
+	 *
+	 * @throws IllegalStateException nếu khóa trống, không phải base64 hoặc sai độ dài
+	 */
 	private static SecretKey parseKey(String base64Key) {
 		if (base64Key == null || base64Key.isBlank()) {
 			throw new IllegalStateException(

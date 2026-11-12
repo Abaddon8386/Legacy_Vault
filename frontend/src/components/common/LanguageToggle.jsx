@@ -1,5 +1,10 @@
 import './LanguageToggle.css';
 
+/**
+ * Nút chuyển ngôn ngữ VI/EN. Gọi {@code onToggleLang(value)} với "vi" hoặc "en". Dùng trong {@code AppShell} và các màn hình công khai.
+ *
+ * @param {{lang?:string, onToggleLang?:(lang:string)=>void}} props
+ */
 export default function LanguageToggle({ lang = 'vi', onToggleLang }) {
   return <div className="lv-shell-lang-toggle" role="group" aria-label="Ngôn ngữ / Language">
     {['vi', 'en'].map(value => <button key={value} type="button"

@@ -3,10 +3,21 @@
  * Handles validation, role formatting, dirty-state tracking, and session isolation.
  */
 
+/**
+ * Logic kiểm tra hợp lệ và trạng thái cho trang chỉnh sửa hồ sơ tài khoản (thuần phía client, không gọi API).
+ * Được dùng bởi App.jsx, pages/account/AccountEditPage.jsx và services/profileService.js
+ * (việc lưu thật sự do profileService gọi PATCH/PUT hồ sơ của backend; backend vẫn là nơi quyết định quyền).
+ */
 import { EMAIL_REGEX } from './registrationValidation.js';
 export { EMAIL_REGEX };
+/**
+ * Danh sách vai trò hợp lệ của ứng dụng (dạng không có tiền tố ROLE_).
+ */
 export const APP_ROLES = ['VAULT_OWNER', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'ADMIN', 'BENEFICIARY'];
 
+/**
+ * Nhãn hiển thị song ngữ (vi/en) của từng vai trò.
+ */
 export const ROLE_LABELS = {
   VAULT_OWNER: {
     vi: 'Chủ sở hữu kho',
@@ -36,6 +47,8 @@ export const ROLE_LABELS = {
  * @param {Object|null|undefined} session
  * @param {number} [now=Date.now()]
  * @returns {boolean}
+ *
+ * Dùng bởi App.jsx để quyết định có cho vào màn hình chỉnh sửa hồ sơ hay không: cần accessToken, chưa hết hạn (expiresAt) và có ít nhất một vai trò hợp lệ.
  */
 export function canAccessAccountEdit(session, now = Date.now()) {
   if (!session || typeof session.accessToken !== 'string' || !session.accessToken.trim()) {
@@ -60,6 +73,8 @@ export function canAccessAccountEdit(session, now = Date.now()) {
  * @param {string} role
  * @param {string} [lang='vi']
  * @returns {string}
+ *
+ * Dùng khi hiển thị vai trò trong trang hồ sơ: bỏ tiền tố ROLE_ rồi tra ROLE_LABELS; không có thì trả nguyên tên hoặc "Chưa xác định".
  */
 export function formatRoleName(role, lang = 'vi') {
   if (!role || typeof role !== 'string') {
@@ -81,6 +96,8 @@ export function formatRoleName(role, lang = 'vi') {
  *
  * @param {string} email
  * @returns {boolean}
+ *
+ * Kiểm tra email sau khi trim: không rỗng, tối đa 254 ký tự và khớp EMAIL_REGEX (định nghĩa trong registrationValidation.js).
  */
 export function isValidEmail(email) {
   if (typeof email !== 'string') return false;
@@ -97,6 +114,8 @@ export function isValidEmail(email) {
  *
  * @param {Object|null|undefined} session
  * @returns {{ canEdit: boolean, reason: string, hasConflict: boolean }}
+ *
+ * Dùng bởi AccountEditPage để bật/tắt ô email. Trả về lý do (NO_ROLES, MULTI_ROLE_CONFLICT, STAFF_LEGAL_READONLY, OWNER_PERMITTED, DEFAULT_READONLY).
  */
 export function canEditProfileEmail(session) {
   const roles = session?.user?.roles;
@@ -145,6 +164,8 @@ export function canEditProfileEmail(session) {
  * @param {{ fullName?: string, email?: string }} values
  * @param {{ canEditEmail?: boolean }} [options={}]
  * @returns {{ isValid: boolean, errors: Record<string, string> }}
+ *
+ * Dùng bởi AccountEditPage trước khi lưu: fullName bắt buộc (tối đa 150, không xuống dòng), phoneNumber tùy chọn (+ và 8-15 chữ số), email chỉ kiểm tra khi canEditEmail. Trả về mã lỗi REQUIRED hoặc INVALID_FORMAT theo từng trường.
  */
 export function validateProfileEditForm(values, options = {}) {
   const errors = {};
@@ -181,6 +202,8 @@ export function validateProfileEditForm(values, options = {}) {
  * @param {string|{ fullName?: string, email?: string }|null|undefined} initial
  * @param {{ canEditEmail?: boolean }} [options={}]
  * @returns {boolean}
+ *
+ * Dùng bởi AccountEditPage để biết người dùng đã sửa dữ liệu chưa lưu (cảnh báo khi thoát, bật nút Lưu). Tên so sánh sau trim; email so sánh không phân biệt hoa thường khi được phép sửa.
  */
 export function isFormDirty(current, initial, options = {}) {
   const currentName = typeof current === 'object' && current !== null ? current.fullName : current;
@@ -204,6 +227,8 @@ export function isFormDirty(current, initial, options = {}) {
  *
  * @param {Object|null|undefined} session
  * @returns {{ id: string, fullName: string, email: string, roles: string[] }|null}
+ *
+ * Dùng bởi AccountEditPage/profileService để lấy dữ liệu khởi tạo form từ session.user (id, fullName, email, roles và phoneNumber nếu có); trả null nếu session không đủ trường.
  */
 export function resolveInitialProfileData(session) {
   const user = session?.user;
@@ -234,6 +259,8 @@ export function resolveInitialProfileData(session) {
  * @param {string|null|undefined} prevUserId
  * @param {string|null|undefined} newUserId
  * @returns {boolean}
+ *
+ * Dùng bởi AccountEditPage khi session được làm mới để quyết định có ghi đè form hay không.
  */
 export function shouldUpdateFormFromSession(isDirty, prevUserId, newUserId) {
   if (!newUserId) {

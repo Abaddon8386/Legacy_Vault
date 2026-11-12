@@ -12,9 +12,17 @@ import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx'
 import './CloseAndArchivePage.css';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 
+/** Kiểm tra giá trị có phải chuỗi UUID hợp lệ không. */
 const isUuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
-// Context owns the whole page lifetime, including pending mutations and private state.
+/**
+ * Trang "Đóng phiên và lưu trữ hồ sơ" (Staff, đường dẫn `/staff/close-archive`). Xác định token, chế độ mô phỏng
+ * (`isCounterHandoverSimulationPermitted`), `caseId`/`sessionId` (từ prop hoặc query string) rồi bọc
+ * `CloseArchiveContext` với `key` theo (người dùng, token, caseId, sessionId, preview). Context sở hữu toàn bộ vòng đời
+ * của trang, gồm cả thao tác ghi đang chạy và state riêng.
+ *
+ * @param {object} props xem `CloseArchiveContext`; thêm `session`, `preview`, `isDevPreview`.
+ */
 export default function CloseAndArchivePage(props) {
   const token = props.accessToken || props.session?.accessToken || null;
   const preview = isCounterHandoverSimulationPermitted({accessToken: token, isDevPreview: props.preview || props.isDevPreview});
@@ -25,6 +33,40 @@ export default function CloseAndArchivePage(props) {
     {...props} caseId={caseId} sessionId={sessionId} effectiveAccessToken={token} effectiveIsDevPreview={preview} />;
 }
 
+/**
+ * Nội dung trang đóng phiên và lưu trữ hồ sơ sau bàn giao. Luồng chính:
+ * 1. Tải song song phiên (`fetchHandoverSession`), hồ sơ (`loadStaffCase`), biên bản Staff (`fetchHandoverReceipts`) và
+ *    các lần giao (`fetchHandoverDeliveries`); hồ sơ chưa đóng thì tải thêm người nhận (`fetchStaffCaseBeneficiaries`) và tiến độ
+ *    hoàn tất (`fetchCompletionProgress`, `GET .../handover-sessions/{sessionId}/completion-progress`).
+ * 2. Tính điều kiện bằng `evaluateCloseArchivePreconditions`: đã bàn giao đủ tài sản và mọi người nhận đã xác nhận ("dual gate").
+ * 3. Cho phép ba thao tác (qua `execute`, có khóa chống chạy trùng, xong thì tải lại):
+ *    - Đóng phiên: `closeHandoverSession` = `POST /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/close`
+ *      (phiên OPEN và đủ điều kiện).
+ *    - Lập biên bản Staff: `createHandoverReceipt` = `POST .../handover-sessions/{sessionId}/receipts` với `{recipientId, assetIds}`
+ *      cho các tài sản đã giao nhưng chưa có biên bản (phiên COMPLETED).
+ *    - Đóng và lưu trữ hồ sơ: `archiveHandoverCase` = `POST .../handover-sessions/{sessionId}/archive`
+ *      (phiên COMPLETED, đã có biên bản bao phủ toàn bộ tài sản đã giao; backend kiểm tra lại dưới khóa).
+ * 4. Hồ sơ đã đóng/lưu trữ thì chỉ xem lịch sử. Có thể chọn hồ sơ khác qua `StaffCaseSelectorModal`.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {string} props.caseId id hồ sơ xác minh.
+ * @param {string} props.sessionId id phiên bàn giao.
+ * @param {string|null} props.effectiveAccessToken JWT của staff.
+ * @param {boolean} props.effectiveIsDevPreview chế độ mô phỏng.
+ * @param {object|null} [props.caseItem] hồ sơ đã biết.
+ * @param {string|null} [props.sessionStatus] trạng thái phiên do cha cung cấp (bỏ qua việc tải).
+ * @param {string|null} [props.vaultStatus] trạng thái kho do cha cung cấp.
+ * @param {string|null} [props.caseStatus] trạng thái hồ sơ do cha cung cấp.
+ * @param {object|null} [props.assetData] tiến độ tài sản do cha cung cấp.
+ * @param {object|null} [props.beneficiaryData] tiến độ người nhận do cha cung cấp.
+ * @param {Array<object>|null} [props.receipts] biên bản do cha cung cấp.
+ * @param {string} [props.recipientId] người nhận được chọn sẵn để lập biên bản.
+ * @param {Array<string>} [props.assetIds] giới hạn tài sản khi lập biên bản.
+ * @param {Function|null} [props.onCaseChange] báo khi đổi hồ sơ.
+ * @param {Function|null} [props.onUnauthorized] gọi khi API trả 401.
+ * @param {Function|null} [props.onNavigateCases] chuyển tới danh sách hồ sơ.
+ */
 function CloseArchiveContext({
   lang = 'vi', caseId, sessionId, effectiveAccessToken, effectiveIsDevPreview,
   caseItem: propCaseItem = null,
@@ -57,6 +99,7 @@ function CloseArchiveContext({
     const controller = new AbortController();
     if (!caseId || !sessionId) return () => controller.abort();
     const opts = {accessToken: effectiveAccessToken, isDevPreview: effectiveIsDevPreview, lang, signal: controller.signal};
+    /** Tải dữ liệu phiên, hồ sơ, biên bản, các lần giao và tiến độ hoàn tất rồi ghi vào state `server`; lỗi đặt vào `loadError`. */
     async function load() {
       try {
         await Promise.resolve();
@@ -95,9 +138,11 @@ function CloseArchiveContext({
   const vaultStatus = server?.vaultStatus || propVaultStatus || '';
   const isArchived = isCaseArchived(vaultStatus, caseStatus);
   const receipts = server?.receipts || [];
+  /** Tên người nhận theo id, ưu tiên từ biên bản, sau đó từ danh sách người nhận, cuối cùng là chính id. */
   const recipientName = id => receipts.find(r => r.recipientId === id && r.recipientName)?.recipientName || server?.people?.find(person => person.beneficiaryId === id)?.fullName || id;
   const {isAssetComplete, isBeneficiaryComplete} = evaluateCloseArchivePreconditions(
     server?.progress?.assets || {}, server?.progress?.beneficiaries || {});
+  /** Gom các tài sản đã giao thành công (`DELIVERED`) theo từng người nhận: `Map<recipientId, assetId[]>`. */
   const groups = new Map();
   for (const item of server?.deliveries || []) {
     if (item.status !== 'DELIVERED') continue;
@@ -109,6 +154,7 @@ function CloseArchiveContext({
   const targetRecipientId = selectedRecipient;
   const targetAssetIds = (groups.get(targetRecipientId) || []).filter(id => !propAssetIds.length || propAssetIds.includes(id));
   const superseded = new Set(receipts.map(r => r.supersedesReceiptId).filter(Boolean));
+  /** Kiểm tra tài sản của người nhận đã nằm trong một biên bản Staff còn hiệu lực (chưa bị biên bản mới thay thế) hay chưa. */
   const covered = (recipient, asset) => receipts.some(r => !superseded.has(r.receiptId) && r.recipientId === recipient && r.assetIds?.includes(asset));
   const uncoveredAssetIds = targetAssetIds.filter(id => !covered(targetRecipientId, id));
   const hasValidReceiptTarget = isUuid(targetRecipientId) && uncoveredAssetIds.length > 0 && uncoveredAssetIds.every(isUuid);
@@ -116,9 +162,12 @@ function CloseArchiveContext({
   const allDeliveredCovered = groups.size > 0 && [...groups].every(([recipient, assets]) => assets.every(asset => covered(recipient, asset)));
   const isDualGateReady = Boolean(isAssetComplete && isBeneficiaryComplete);
   const ready = !loading && !loadError && server?.revision === revision && !busy && !isArchived && caseStatus === 'OPEN';
+  /** Điều kiện đóng phiên: trang sẵn sàng, phiên đang OPEN và thỏa cả hai cổng (giao đủ, xác nhận đủ). */
   const canCloseSession = ready && sessionStatus === 'OPEN' && isDualGateReady;
+  /** Điều kiện lập biên bản Staff: phiên COMPLETED, thỏa hai cổng và có người nhận cùng tài sản đã giao chưa được biên bản bao phủ. */
   const canCreateReceipt = ready && sessionStatus === 'COMPLETED' && isDualGateReady && hasValidReceiptTarget;
   // BE rechecks coverage against the current full allocation snapshot under lock.
+  /** Điều kiện lưu trữ hồ sơ: phiên COMPLETED, thỏa hai cổng, đã có biên bản và mọi tài sản đã giao đều được bao phủ. */
   const canArchive = ready && sessionStatus === 'COMPLETED' && isDualGateReady && hasReceipts && allDeliveredCovered;
   const say = (vi, en) => lang === 'en' ? en : vi;
   const commonBlock = loading || busy ? say('Chờ kiểm tra hoặc ghi nhận hoàn tất.', 'Wait for loading or saving to finish.')
@@ -133,6 +182,14 @@ function CloseArchiveContext({
     ? say('Đóng phiên trước khi lưu trữ.', 'Close the session before archiving.')
     : say('Cần biên nhận Staff bao phủ đầy đủ phần tài sản đã giao.', 'Staff receipts must cover all delivered items.'));
   const isCreatingReceipt = busy === 'receipt', isClosingSession = busy === 'close', isArchiving = busy === 'archive';
+  /**
+   * Chạy một thao tác ghi (lập biên bản, đóng phiên hoặc lưu trữ) khi được phép, có khóa chống chạy trùng.
+   * Thành công thì báo thông báo tương ứng và tăng `revision` để tải lại; lỗi thì hiển thị và cũng tải lại vì phạm vi/phê duyệt có thể đã đổi.
+   *
+   * @param {'receipt'|'close'|'archive'} kind loại thao tác.
+   * @param {boolean} permitted có được phép chạy hay không.
+   * @param {Function} work hàm nhận tùy chọn request (có `signal`) và gọi API tương ứng.
+   */
   async function execute(kind, permitted, work) {
     if (!permitted || mutation.current) return;
     const controller = new AbortController();
@@ -153,10 +210,14 @@ function CloseArchiveContext({
       if (alive.current && !controller.signal.aborted) { mutation.current = null; setBusy(''); }
     }
   }
+  /** Lập biên bản Staff cho người nhận được chọn với các tài sản đã giao nhưng chưa có biên bản. */
   const handleCreateReceipt = () => execute('receipt', canCreateReceipt,
     opts => createHandoverReceipt(caseId, sessionId, {recipientId: targetRecipientId, assetIds: uncoveredAssetIds}, opts));
+  /** Đóng phiên bàn giao hiện tại. */
   const handleCloseSession = () => execute('close', canCloseSession, opts => closeHandoverSession(caseId, sessionId, opts));
+  /** Đóng và lưu trữ hồ sơ sau khi phiên đã hoàn tất. */
   const handleArchiveCase = () => execute('archive', canArchive, opts => archiveHandoverCase(caseId, sessionId, opts));
+  /** Trả nhãn hiển thị cho trạng thái phiên (đang mở, hoàn tất, đã hủy) hoặc nhãn "không có dữ liệu". */
   const resolveSessionLabel = status => ({OPEN:t.statusSessionActive, COMPLETED:t.statusSessionCompleted, CANCELLED:t.cancelled}[status] || t.statusUnavailable);
   const resolveVaultLabel = status => ({ARCHIVED:t.statusVaultArchived, UNLOCKED:t.statusVaultOpen, HANDOVER_IN_PROGRESS:t.statusSessionInProgress, LOCKED:t.statusVaultLocked}[status] || t.statusUnavailable);
   const resolveCaseLabel = status => ({OPEN:t.statusCaseInProgress, CLOSED:t.statusCaseClosed, CANCELLED:t.cancelled}[status] || t.statusUnavailable);

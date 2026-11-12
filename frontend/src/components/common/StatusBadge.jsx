@@ -1,5 +1,8 @@
 import './StatusBadge.css';
 
+/**
+ * Nhãn (vi/en) và tông màu cho các trạng thái DMS, hầm và hồ sơ xác minh/bàn giao (ACTIVE, MONITORING, TRIGGERED, AWAITING_VERIFICATION, UNLOCKED, ARCHIVED, ...).
+ */
 const STATUS_LABELS = {
   ACTIVE: { vi: 'Đang hoạt động', en: 'Active', tone: 'active' },
   MONITORING: { vi: 'Đang theo dõi', en: 'Monitoring', tone: 'active' },
@@ -19,6 +22,11 @@ const STATUS_LABELS = {
   CANCELLED: { vi: 'Đã hủy', en: 'Cancelled', tone: 'danger' },
 };
 
+/**
+ * Huy hiệu trạng thái có chấm màu. Mã trạng thái lạ được hiển thị nguyên văn với tông trung tính.
+ *
+ * @param {{status?:string, lang?:string}} props
+ */
 export default function StatusBadge({ status = 'ACTIVE', lang = 'vi' }) {
   const config = STATUS_LABELS[status] || {
     vi: status,

@@ -1,10 +1,19 @@
 ﻿// Synthetic FE-only fixtures, never a backend contract or proof of handover.
+/** Id người nhận giả dùng cho dữ liệu xem trước. */
 export const PREVIEW_SUBJECT = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const first = '11111111-1111-4111-8111-111111111111';
 const second = '22222222-2222-4222-8222-222222222222';
 const imageId = '33333333-3333-4333-8333-333333333333';
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6XcAAAAASUVORK5CYII=';
 
+/**
+ * Tạo bộ action giả (list, detail, content, image) mô phỏng API tài sản đã nhận cho các kịch bản: unlinked, waiting, partial, received (mặc định), slow (chậm 800ms), error (NETWORK_ERROR).
+ * Có độ trễ giả và hỗ trợ hủy bằng AbortSignal; ảnh mẫu là PNG 1x1 pixel.
+ *
+ * @param {string} [scenario='unlinked'] Kịch bản.
+ * @param {'vi'|'en'} [lang='vi'] Ngôn ngữ cho nhãn mẫu.
+ * @returns {{list: Function, detail: Function, content: Function, image: Function}} Bộ action dùng cho ReceivedAssets ở chế độ preview.
+ */
 export function previewReceivedActions(scenario = 'unlinked', lang = 'vi') {
   const en = lang === 'en';
   const items = [

@@ -48,6 +48,38 @@ import StaffLegalOutcomeCard from '../../components/staff/StaffLegalOutcomeCard.
 import { mapCurrentBasisDecision } from './staffLegalDocumentsService.js';
 
 
+/**
+ * Trang "Hồ sơ căn cứ pháp lý" của Staff (đường dẫn `/staff/legal-documents`): Staff tiếp nhận giấy tờ phân chia
+ * (văn bản Tòa án hoặc công chứng), chuyển cho Ban Pháp lý thẩm định và lập phân bổ tài sản theo căn cứ đã duyệt.
+ * Bốn tab: tổng quan (`overview`), tiếp nhận (`intake`), phân bổ (`allocations`), lịch sử (`history`); tab ban đầu lấy từ query `tab`.
+ * Luồng chính:
+ * - Tải hồ sơ căn cứ `fetchBasisDossier` (`GET /api/v1/staff/verification-cases/{caseId}/basis-dossier`), danh mục tài sản
+ *   (`fetchStaffAssetCatalog`, `GET .../assets`) và người nhận (`fetchStaffCaseBeneficiaries`).
+ * - Tiếp nhận phiên bản mới: `receiveAndForwardBasisVersion` (tải tệp multipart lên
+ *   `POST .../basis-dossier/versions`, kiểm tra bằng `validateStaffLegalDocumentForm`, kèm các dòng phân bổ nếu là văn bản Tòa án).
+ * - Chuyển cho Legal: `forwardBasisVersion` = `POST .../basis-dossier/versions/{version}/forward`.
+ * - Xem tệp của phiên bản: `readBasisVersionContent` = `GET .../basis-dossier/versions/{versionNo}/content` qua `EvidencePreviewModal`.
+ * - Workflow phân phối (`useDistributionWorkflow`, vai trò STAFF) quyết định hành động nào được phép (tiếp nhận, gửi phân bổ
+ *   qua `StaffDistributionAllocations`); kết quả của Legal hiển thị bằng `StaffLegalOutcomeCard`, `BasisVersionOutcome`,
+ *   `StaffLegalDecisionNotice`.
+ * - Đổi hồ sơ qua `StaffCaseContextBar`/`StaffCaseSelectorModal`; nếu đang có bản nháp chưa lưu thì hỏi xác nhận trước khi bỏ.
+ * - Mọi thao tác ghi dùng `AbortController` và id thao tác để bỏ qua phản hồi cũ khi hồ sơ hoặc token đã đổi; lỗi 401 gọi `onUnauthorized`.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {string|null} [props.accessToken] JWT của staff.
+ * @param {object|null} [props.session] phiên đăng nhập (dự phòng lấy token).
+ * @param {boolean} [props.preview=false] chế độ xem trước.
+ * @param {boolean} [props.isDevPreview=false] chế độ dev preview.
+ * @param {string} [props.caseId] id hồ sơ.
+ * @param {string} [props.sessionId] id phiên bàn giao.
+ * @param {object|null} [props.caseItem] hồ sơ đã biết.
+ * @param {object|null} [props.initialDossier] hồ sơ căn cứ mẫu (dev/test).
+ * @param {object|null} [props.legalDecision] quyết định Legal đã chuẩn hóa để hiển thị thông báo.
+ * @param {Function} [props.onCaseChange] báo khi đổi hồ sơ.
+ * @param {Function} [props.onUnauthorized] gọi khi API trả 401.
+ * @returns {JSX.Element}
+ */
 export default function StaffLegalDocumentsPage({
   lang = 'vi',
   accessToken = null,
@@ -260,6 +292,7 @@ export default function StaffLegalDocumentsPage({
   const mutationControllerRef = useRef(null);
   const activeMutationIdRef = useRef(0);
 
+  /** Xóa toàn bộ biểu mẫu tiếp nhận (các trường, tệp, phân bổ, tiến độ tải lên, lỗi và thông báo). */
   const handleResetForm = useCallback(() => {
     setIssuer('');
     setDocumentNumber('');
@@ -345,6 +378,7 @@ export default function StaffLegalDocumentsPage({
 
     let active = true;
 
+    /** Tải hồ sơ căn cứ của hồ sơ đang chọn và ghi vào state `dossier` (bỏ qua phản hồi cũ khi hồ sơ/token đã đổi). */
     async function load() {
       if (!selectedCaseId) {
         if (active) {
@@ -406,6 +440,7 @@ export default function StaffLegalDocumentsPage({
   }, [selectedCaseId, effectiveAccessToken, effectiveIsDevPreview, lang, en, caseStatus, vaultStatus, isCaseMetadataReady, dossierRevision]);
 
   useEffect(() => {
+    /** Làm mới hồ sơ căn cứ khi cửa sổ lấy lại focus hoặc tab hiển thị lại (không chạy khi đang ghi). */
     const refresh = () => {
       if (!document.hidden && !isSubmitting && !isForwarding && !hasUnsavedDraft) setDossierRevision(value => value + 1);
     };
@@ -414,6 +449,7 @@ export default function StaffLegalDocumentsPage({
   }, [selectedCaseId, effectiveAccessToken, isSubmitting, isForwarding, hasUnsavedDraft]);
 
   // Handle case change request (from Context Bar / Modal)
+  /** Yêu cầu đổi hồ sơ; nếu đang có bản nháp chưa lưu thì mở hộp thoại xác nhận, ngược lại đổi ngay. */
   const handleRequestCaseChange = (caseItem) => {
     const nextId = typeof caseItem === 'object' && caseItem !== null
       ? (caseItem.caseId || caseItem.id || '')
@@ -433,6 +469,7 @@ export default function StaffLegalDocumentsPage({
     executeCaseSwitch(caseItem);
   };
 
+  /** Thực hiện đổi hồ sơ: đặt lại biểu mẫu và trạng thái, cập nhật `caseId` trong URL và báo `onCaseChange`. */
   const executeCaseSwitch = (caseItem) => {
     const nextId = typeof caseItem === 'object' && caseItem !== null
       ? (caseItem.caseId || caseItem.id || '')
@@ -460,6 +497,7 @@ export default function StaffLegalDocumentsPage({
     }
   };
 
+  /** Người dùng đồng ý bỏ bản nháp: đóng hộp thoại và đổi sang hồ sơ đang chờ. */
   const handleConfirmDiscardDraft = () => {
     setShowUnsavedModal(false);
     if (pendingCaseSwitchItem) {
@@ -468,6 +506,7 @@ export default function StaffLegalDocumentsPage({
     }
   };
 
+  /** Người dùng giữ bản nháp: đóng hộp thoại và hủy việc đổi hồ sơ. */
   const handleCancelDiscardDraft = () => {
     setShowUnsavedModal(false);
     setPendingCaseSwitchItem(null);
@@ -492,6 +531,7 @@ export default function StaffLegalDocumentsPage({
   }, [selectedCaseId, effectiveAccessToken, distribution.data?.phase, distribution.data?.document?.version, lang, en, onUnauthorized]);
 
   // Allocations management (Finding B)
+  /** Thêm một dòng phân bổ rỗng vào danh sách đang soạn. */
   const handleAddAllocation = () => {
     setAllocations((prev) => [
       ...prev,
@@ -506,6 +546,7 @@ export default function StaffLegalDocumentsPage({
     ]);
   };
 
+  /** Cập nhật một trường của dòng phân bổ theo chỉ số. */
   const handleUpdateAllocation = (index, field, value) => {
     setAllocations((prev) => {
       const next = [...prev];
@@ -514,6 +555,7 @@ export default function StaffLegalDocumentsPage({
     });
   };
 
+  /** Xóa dòng phân bổ theo chỉ số. */
   const handleRemoveAllocation = (index) => {
     setAllocations((prev) => prev.filter((_, idx) => idx !== index));
   };
@@ -534,6 +576,7 @@ export default function StaffLegalDocumentsPage({
   const basisTypeRouteError = basisTypeMatchesRoute ? '' : (isRouteNotarial
     ? (en ? 'This dossier currently accepts notarized documents. Select the matching document type; Legal must review a change of legal basis.' : 'Hồ sơ hiện tiếp nhận văn bản công chứng. Chọn đúng loại văn bản; nếu cần dùng giấy tờ Tòa án, Ban Pháp lý phải xem xét lại căn cứ.')
     : (en ? 'This dossier currently accepts court documents. Select the matching court document type.' : 'Hồ sơ hiện tiếp nhận giấy tờ Tòa án. Chọn đúng loại bản án hoặc quyết định của Tòa án.'));
+  /** Điều kiện được tiếp nhận phiên bản căn cứ mới: hồ sơ thuộc tuyến Tòa án hoặc công chứng (hoặc chưa có hồ sơ) và workflow cho phép `uploadDocuments` của STAFF. */
   const canReceiveBasis = (!dossier || isRouteCourt || isRouteNotarial) && canUseDistributionAction(distribution.data, 'uploadDocuments', 'STAFF');
   const isLatestForwarded = latestVersion?.forwardStatus === 'FORWARDED';
 
@@ -567,6 +610,12 @@ export default function StaffLegalDocumentsPage({
                 : isLatestForwarded ? (en ? 'This version has already been sent to Legal Department.' : 'Phiên bản này đã chuyển cho Ban Pháp lý.') : '';
 
   // Submit phiên bản mới (Finding B & C & Lỗi A/B/C)
+  /**
+   * Kiểm tra biểu mẫu (loại căn cứ theo tuyến, các trường, tệp, phân bổ) rồi tiếp nhận phiên bản căn cứ mới và chuyển cho Legal
+   * bằng `receiveAndForwardBasisVersion`; thành công thì làm mới hồ sơ và workflow, báo thông báo cho Legal.
+   *
+   * @param {Event} e sự kiện submit.
+   */
   const handleSubmitVersion = async (e) => {
     e.preventDefault();
     if (isSubmitting || isForwarding || isDossierLoading || dossierError || !canReceiveBasis || ['CLOSED', 'CANCELLED'].includes(displayCaseItem?.status)) return;
@@ -712,6 +761,7 @@ export default function StaffLegalDocumentsPage({
   };
 
   // Forward phiên bản mới nhất cho Ban Pháp lý (Finding C & Lỗi B/C)
+  /** Tải nội dung tệp của một phiên bản căn cứ (`readBasisVersionContent`) và mở bản xem trước bằng object URL. */
   const handleViewVersionFile = async (version) => {
     if (!selectedCaseId || !version?.version) return;
     if (previewController.current && !previewController.current.signal.aborted) return;
@@ -744,6 +794,7 @@ export default function StaffLegalDocumentsPage({
     }
   };
 
+  /** Chuyển phiên bản mới nhất chưa chuyển cho Ban Pháp lý (`forwardBasisVersion`), rồi làm mới hồ sơ căn cứ và workflow. */
   const handleForwardToLegal = async () => {
     if (forwardBlocked) return;
     if (mutationControllerRef.current && !mutationControllerRef.current.signal.aborted) return;
@@ -812,6 +863,7 @@ export default function StaffLegalDocumentsPage({
   };
 
   // Keyboard navigation for tabs (chuyển cả activeTab và focus nút)
+  /** Điều hướng giữa các tab bằng phím mũi tên, Home và End. */
   const handleTabKeyDown = (e) => {
     const tabs = ['overview', 'intake', 'allocations', 'history'];
     const tabIds = ['tab-btn-overview', 'tab-btn-intake', 'tab-btn-allocations', 'tab-btn-history'];

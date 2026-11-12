@@ -1,3 +1,6 @@
+/**
+ * Bảng nhãn (vi, en) và sắc thái (wait, action, bad, done) của từng giai đoạn quy trình phân phối, thể hiện hồ sơ đang ở bước nào và đến lượt ai.
+ */
 const stages = {
   AWAITING_DEATH: ['Chờ Ban Pháp lý xác minh giấy tờ tử vong', 'Waiting for Legal to verify death documents', 'wait'],
   AWAITING_WILL: ['Chờ Ban Pháp lý đối chiếu di chúc', 'Waiting for Legal to compare the will', 'wait'],

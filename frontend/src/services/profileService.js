@@ -5,6 +5,17 @@ import { isSessionActive } from '../utils/session.js';
 import { canEditProfileEmail, isValidEmail } from '../utils/accountEditValidation.js';
 
 // Only explicitly editable profile fields are sent; IDs/roles/system state never enter the body.
+/**
+ * Cập nhật hồ sơ cá nhân: {@code PATCH /auth/me} (200). Chỉ gửi các trường cho phép ({@code fullName}, {@code phoneNumber}, {@code email}).
+ * Đổi email cần quyền sửa email ({@code canEditProfileEmail}), email hợp lệ và {@code currentPassword} (đi qua {@code passwordRequest}, trường {@code currentPassword}).
+ * Sau khi nhận phản hồi, kiểm tra phiên còn hoạt động và id người dùng không đổi.
+ * Dùng bởi trang tài khoản/hồ sơ.
+ * @param {object} session Phiên hiện tại ({@code accessToken}, {@code user}).
+ * @param {object} changes Các trường thay đổi.
+ * @param {{signal?:AbortSignal, lang?:string}} [opts] Tùy chọn.
+ * @returns {Promise<object>} Người dùng đã cập nhật.
+ * @throws {ApiError} {@code UNAUTHENTICATED}, {@code INVALID_PROFILE_PATCH}, {@code ACCESS_DENIED}, {@code VALIDATION_FAILED}, {@code CURRENT_PASSWORD_REQUIRED}, {@code INVALID_PROFILE_RESPONSE}.
+ */
 export async function updateProfile(session, changes, { signal, lang = 'vi' } = {}) {
   if (!isSessionActive(session)) throw new ApiError('UNAUTHENTICATED', 401);
   const keys = Object.keys(changes);

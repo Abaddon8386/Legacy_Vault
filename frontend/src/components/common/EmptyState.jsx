@@ -1,6 +1,20 @@
 import { Button } from './Button.jsx';
 import './EmptyState.css';
 
+/**
+ * Trạng thái rỗng dùng chung. Mặc định là màn "chưa khởi tạo kho di sản" (kèm ba trụ cột giới thiệu) với nút tạo kho; khi có {@code title} thì hiển thị nội dung tùy biến (không có trụ cột).
+ *
+ * @param {object} props
+ * @param {()=>void} [props.onCreateVault] Hành động tạo kho (dùng khi không có {@code onAction}).
+ * @param {()=>void} [props.onAction] Hành động tùy biến.
+ * @param {string} [props.title]
+ * @param {string} [props.description]
+ * @param {string} [props.actionLabel]
+ * @param {string} [props.badge]
+ * @param {*} [props.icon]
+ * @param {boolean} [props.showPillars=true]
+ * @param {string} [props.lang='vi']
+ */
 export default function EmptyState({
   onCreateVault,
   onAction,

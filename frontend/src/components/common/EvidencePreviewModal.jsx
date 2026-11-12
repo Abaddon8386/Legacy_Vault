@@ -5,6 +5,19 @@ import { Button } from './Button.jsx';
 import ZoomableImage from './ZoomableImage.jsx';
 import './EvidencePreviewModal.css';
 
+/**
+ * Hộp thoại xem trước tệp chứng cứ từ blob/URL: PDF hiển thị trong iframe, ảnh JPEG/PNG qua {@code ZoomableImage}, định dạng khác chỉ cho tải về. Có nút tải về và đóng.
+ * URL blob được thu hồi ({@code URL.revokeObjectURL}) khi đóng hoặc khi đổi/unmount. Không gọi API; cha cung cấp blob đã tải.
+ *
+ * @param {object} props
+ * @param {boolean} [props.isOpen] Nếu không truyền thì mở khi có URL.
+ * @param {()=>void} props.onClose
+ * @param {string} [props.blobUrl] URL blob (ưu tiên).
+ * @param {string} [props.url] URL thay thế.
+ * @param {string} [props.fileName='evidence-document']
+ * @param {string} [props.contentType='application/pdf']
+ * @param {string} [props.lang='vi']
+ */
 export default function EvidencePreviewModal({
   isOpen,
   onClose,
@@ -33,6 +46,9 @@ export default function EvidencePreviewModal({
   const isPdf = !isDeclaredImage && (contentType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf'));
   const isImage = isDeclaredImage || fileName.match(/\.(jpe?g|png)$/i);
 
+  /**
+   * Thu hồi URL blob rồi gọi {@code onClose}.
+   */
   const handleClose = () => {
     if (activeUrl) {
       URL.revokeObjectURL(activeUrl);
@@ -40,6 +56,9 @@ export default function EvidencePreviewModal({
     onClose?.();
   };
 
+  /**
+   * Tải tệp về máy bằng thẻ {@code <a download>} tạm.
+   */
   const handleDownload = () => {
     const a = document.createElement('a');
     a.href = activeUrl;

@@ -1,8 +1,12 @@
 /**
- * LegacyVault — Song ngữ cho Staff Case Dashboard (PS-25)
- * Hỗ trợ giao diện tiếng Việt (mặc định) và tiếng Anh.
+ * LegacyVault - Song ngữ cho Staff Case Dashboard (PS-25). Hỗ trợ giao diện tiếng Việt (mặc định) và tiếng Anh.
+ * Dùng bởi StaffCaseDashboard, StaffCaseDetailModal, StaffCaseIntakePage, StaffCaseVerificationPage, staffIdentityService và staffIntakeService (thông báo kiểm tra biểu mẫu).
+ * Truy cập qua getStaffCaseTranslations(lang).
  */
 export const STAFF_CASE_I18N = {
+  /**
+   * Bản dịch tiếng Việt (ngôn ngữ mặc định).
+   */
   vi: {
     portalTitle: 'Cổng Xác Minh Hồ Sơ',
     roleBadge: 'Nhân viên xử lý (STAFF_EXECUTOR)',
@@ -319,6 +323,9 @@ export const STAFF_CASE_I18N = {
     },
   },
 
+  /**
+   * Bản dịch tiếng Anh.
+   */
   en: {
     portalTitle: 'Staff Verification Portal',
     roleBadge: 'Staff Executor (STAFF_EXECUTOR)',
@@ -636,6 +643,11 @@ export const STAFF_CASE_I18N = {
   },
 };
 
+/**
+ * Lấy bộ bản dịch Staff Case theo ngôn ngữ.
+ * @param {string} [lang='vi'] 'vi' hoặc 'en'.
+ * @returns {Object} Bộ bản dịch tương ứng; ngôn ngữ không hỗ trợ thì dùng tiếng Việt.
+ */
 export function getStaffCaseTranslations(lang = 'vi') {
   return STAFF_CASE_I18N[lang] || STAFF_CASE_I18N.vi;
 }

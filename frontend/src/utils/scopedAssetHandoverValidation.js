@@ -10,6 +10,9 @@
  * - State preserves language-neutral error keys for dynamic VI <-> EN rendering.
  */
 
+/**
+ * Các khóa lỗi (i18n) của màn hình bàn giao tài sản theo phạm vi phân bổ đã duyệt. Dùng bởi App.jsx và pages/staff/ScopedAssetHandoverPage.jsx.
+ */
 export const SCOPED_ASSET_HANDOVER_ERROR_KEYS = {
   SCOPE_REQUIRED: 'scopeRequired',
   SCOPE_NOT_APPROVED: 'scopeNotApproved',
@@ -20,6 +23,9 @@ export const SCOPED_ASSET_HANDOVER_ERROR_KEYS = {
   CASE_REQUIRED: 'caseRequired',
 };
 
+/**
+ * Trạng thái bàn giao một mục tài sản: PENDING hoặc DELIVERED.
+ */
 export const HANDOVER_STATUS = {
   PENDING: 'PENDING',
   DELIVERED: 'DELIVERED',
@@ -31,6 +37,8 @@ export const HANDOVER_STATUS = {
  *
  * @param {Object|null|undefined} session
  * @returns {boolean}
+ *
+ * Chỉ ROLE_STAFF_EXECUTOR có session còn hạn mới được vào màn hình bàn giao tài sản (chốt giao diện; backend vẫn kiểm tra quyền).
  */
 export function canAccessScopedAssetHandover(session) {
   if (!session || !session.accessToken || typeof session.expiresAt !== 'number') {
@@ -55,6 +63,8 @@ export function canAccessScopedAssetHandover(session) {
  *
  * @param {Object|null|undefined} scopeData
  * @returns {{ isValid: boolean, isApproved: boolean, errorKey: string|null }}
+ *
+ * Kiểm tra phạm vi phân bổ đã được duyệt (isApproved/status/allocationStatus = APPROVED) và có ít nhất một phân bổ. Thiếu hoặc chưa duyệt thì bàn giao bị chặn.
  */
 export function validateApprovedAllocationScope(scopeData) {
   if (!scopeData || typeof scopeData !== 'object') {
@@ -102,6 +112,8 @@ export function validateApprovedAllocationScope(scopeData) {
  * @param {Array<Object>} candidates
  * @param {Object} approvedScope
  * @returns {{ eligible: Array<Object>, blocked: Array<Object> }}
+ *
+ * Lọc danh sách mục ứng viên theo phạm vi đã duyệt: chỉ mục có cả assetId và beneficiaryId nằm trong phân bổ mới được eligible, còn lại vào blocked kèm reason.
  */
 export function filterScopedHandoverItems(candidates = [], approvedScope = null) {
   const scopeValidation = validateApprovedAllocationScope(approvedScope);
@@ -157,6 +169,8 @@ export function filterScopedHandoverItems(candidates = [], approvedScope = null)
  * @param {Object} item
  * @param {Object} approvedScope
  * @returns {{ isAllowed: boolean, errorKey: string|null }}
+ *
+ * Kiểm tra một lần ghi nhận bàn giao theo LV-HANDOVER-001: phải nằm trong phạm vi đã duyệt, chưa DELIVERED và đang PENDING. Trả {isAllowed, errorKey}.
  */
 export function validateHandoverAttempt(item, approvedScope) {
   if (!item || !item.assetId) {

@@ -29,6 +29,7 @@ import {
 import './WillUploadPage.css';
 import ZoomableImage from '../../components/common/ZoomableImage.jsx';
 
+/** Bảng chuỗi giao diện song ngữ (vi/en) của trang Di chúc: tiêu đề, nhãn, nút, thông báo trạng thái và hộp thoại. */
 const copy = {
   vi: {
     title: 'Hồ sơ di chúc số hóa',
@@ -148,8 +149,24 @@ const copy = {
   },
 };
 
+/** Ánh xạ MIME được chấp nhận (PDF, JPEG, PNG) sang tên định dạng ngắn để hiển thị. */
 const formatNames = { 'application/pdf': 'PDF', 'image/jpeg': 'JPEG', 'image/png': 'PNG' };
 
+/**
+ * Trang quản lý di chúc số của chủ kho (WillsRoute render, đường dẫn /wills). Hiển thị danh sách di chúc của kho, các phiên bản của di chúc đang chọn, và các hộp thoại:
+ * tạo di chúc mới (CreateWillModal), tải phiên bản mới (UploadVersionModal) và xem/tải xuống sau khi xác thực lại mật khẩu (DownloadReauthModal).
+ * Dùng willService (utils/willService.js): getWills (GET /api/v1/vaults/{vaultId}/wills) và listWillVersions (GET .../wills/{willId}/versions). Tải lại khi onRefreshTrigger đổi hoặc sau khi tải lên;
+ * 401 -> onUnauthorized. Ở chế độ readOnly (kho không ACTIVE) ẩn các thao tác ghi.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {string} props.vaultId Id kho.
+ * @param {string} props.accessToken JWT.
+ * @param {() => void} [props.onUnauthorized] Gọi khi 401.
+ * @param {*} [props.onRefreshTrigger] Giá trị đổi để ép tải lại.
+ * @param {boolean} [props.readOnly=false] Chỉ xem.
+ * @returns {JSX.Element}
+ */
 export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUnauthorized, onRefreshTrigger, readOnly = false }) {
   const language = lang === 'en' ? 'en' : 'vi';
   const t = copy[language];
@@ -171,6 +188,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
   const [downloadTarget, setDownloadTarget] = useState(null); // { willId, version, fileName, mode: 'download' | 'view' }
 
   // Fetch Wills List
+  /** Tải danh sách di chúc của kho (willService.getWills), chọn lại di chúc đang chọn nếu còn hoặc di chúc đầu tiên, đặt lại danh sách phiên bản; 401 -> onUnauthorized, lỗi khác lưu mã lỗi. */
   const loadWills = useCallback(async () => {
     setVersions([]);
     setVersionsError(null);
@@ -233,6 +251,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
     return () => { active = false; controller.abort(); };
   }, [vaultId, selectedWillId, language, accessToken, onUnauthorized, versionsReload, onRefreshTrigger]);
 
+  /** Di chúc đang được chọn trong danh sách. */
   const selectedWill = wills.find((w) => w.id === selectedWillId);
 
   return (
@@ -463,6 +482,20 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
 // -----------------------------------------------------------------------------
 // Sub-component: CreateWillModal (Initial Version 1)
 // -----------------------------------------------------------------------------
+/**
+ * Hộp thoại tạo di chúc mới: chọn tệp (PDF/JPEG/PNG) và ghi chú tùy chọn, kiểm tra bằng getWillUploadErrors, rồi gọi willService.uploadWill
+ * (POST /api/v1/vaults/{vaultId}/wills, multipart) có thanh tiến trình và hủy được; thành công gọi onSuccess(receipt).
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {object} props.t Chuỗi giao diện.
+ * @param {object} props.messages Thông báo trạng thái lỗi/thành công.
+ * @param {string} props.vaultId Id kho.
+ * @param {string} props.accessToken JWT.
+ * @param {() => void} props.onUnauthorized Gọi khi 401.
+ * @param {() => void} props.onClose Đóng hộp thoại.
+ * @param {(receipt: object) => void} props.onSuccess Gọi khi tải lên thành công.
+ */
 function CreateWillModal({ lang, t, messages, vaultId, accessToken, onUnauthorized, onClose, onSuccess }) {
   const [file, setFile] = useState(null);
   const [note, setNote] = useState('');
@@ -481,6 +514,7 @@ function CreateWillModal({ lang, t, messages, vaultId, accessToken, onUnauthoriz
     };
   }, []);
 
+  /** Kiểm tra tệp/ghi chú, rồi tải di chúc mới lên bằng willService.uploadWill (có tiến trình, AbortController, khóa chống gửi lặp); thành công gọi onSuccess, lỗi hiển thị theo mã lỗi. */
   async function handleSubmit(e) {
     e.preventDefault();
     if (pendingRef.current) return;
@@ -588,6 +622,22 @@ function CreateWillModal({ lang, t, messages, vaultId, accessToken, onUnauthoriz
 // -----------------------------------------------------------------------------
 // Sub-component: UploadVersionModal (Version > 1)
 // -----------------------------------------------------------------------------
+/**
+ * Hộp thoại tải phiên bản mới cho một di chúc đã có: chọn tệp, kiểm tra, gọi willService.uploadNewVersion
+ * (POST /api/v1/vaults/{vaultId}/wills/{willId}/versions, multipart); thành công gọi onSuccess(receipt).
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {object} props.t Chuỗi giao diện.
+ * @param {object} props.messages Thông báo.
+ * @param {string} props.vaultId Id kho.
+ * @param {string} props.willId Id di chúc.
+ * @param {number} props.currentVersionNumber Số phiên bản hiện tại.
+ * @param {string} props.accessToken JWT.
+ * @param {() => void} props.onUnauthorized Gọi khi 401.
+ * @param {() => void} props.onClose Đóng.
+ * @param {(receipt: object) => void} props.onSuccess Thành công.
+ */
 function UploadVersionModal({ lang, t, messages, vaultId, willId, currentVersionNumber, accessToken, onUnauthorized, onClose, onSuccess }) {
   const [file, setFile] = useState(null);
   const [errors, setErrors] = useState({});
@@ -605,6 +655,7 @@ function UploadVersionModal({ lang, t, messages, vaultId, willId, currentVersion
     };
   }, []);
 
+  /** Kiểm tra tệp rồi tải phiên bản mới bằng willService.uploadNewVersion (có tiến trình và AbortController); thành công gọi onSuccess, lỗi hiển thị theo mã lỗi. */
   async function handleSubmit(e) {
     e.preventDefault();
     if (pendingRef.current) return;
@@ -703,6 +754,23 @@ function UploadVersionModal({ lang, t, messages, vaultId, willId, currentVersion
 // -----------------------------------------------------------------------------
 // Sub-component: DownloadReauthModal (Binary Download via Password Reauth)
 // -----------------------------------------------------------------------------
+/**
+ * Hộp thoại xác thực lại bằng mật khẩu để tải xuống (mode 'download') hoặc xem trước (mode 'preview') một phiên bản di chúc.
+ * Gọi willService.downloadWillVersion (POST /api/v1/vaults/{vaultId}/wills/{willId}/versions/{version}/download với {password}); nhận Blob rồi tải xuống hoặc mở bản xem trước (URL được thu hồi khi đóng).
+ * Lỗi mật khẩu/401 xử lý theo mã; dọn dẹp request và object URL khi đóng hoặc đổi ngữ cảnh.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {object} props.t Chuỗi giao diện.
+ * @param {string} props.vaultId Id kho.
+ * @param {string} props.willId Id di chúc.
+ * @param {number} props.version Số phiên bản.
+ * @param {string} props.fileName Tên tệp.
+ * @param {'download'|'preview'} [props.mode='download'] Chế độ.
+ * @param {string} props.accessToken JWT.
+ * @param {() => void} props.onUnauthorized Gọi khi 401.
+ * @param {() => void} props.onClose Đóng.
+ */
 export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode = 'download', accessToken, onUnauthorized, onClose }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -736,6 +804,7 @@ export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileNam
     onClose();
   };
 
+  /** Xác nhận mật khẩu và gọi willService.downloadWillVersion để lấy tệp; bắt buộc nhập mật khẩu, kiểm tra ngữ cảnh còn đúng khi phản hồi về, rồi tải xuống hoặc mở xem trước. */
   async function handleConfirm(e) {
     e.preventDefault();
     if (pendingRef.current || isSubmitting) return;

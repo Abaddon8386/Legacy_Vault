@@ -3,6 +3,10 @@ import { invitationMessages } from './invitationMessages.js';
 import './Invitations.css';
 
 // Internal presentation model, not an HTTP response contract.
+/**
+ * Kiểm tra mô hình hiển thị lời mời (không phải hợp đồng HTTP): đúng hầm/người thụ hưởng, trạng thái available|empty|expired|used|revoked, và có mã khi available.
+ * @throws {Error} {@code INVALID_INVITATION_VIEW}.
+ */
 function readInvitationView(value, vaultId, beneficiaryId) {
   if (!value || value.vaultId !== vaultId || value.beneficiaryId !== beneficiaryId ||
       !['available', 'empty', 'expired', 'used', 'revoked'].includes(value.state)) throw Error('INVALID_INVITATION_VIEW');
@@ -10,6 +14,10 @@ function readInvitationView(value, vaultId, beneficiaryId) {
   return { state: value.state, code: value.state === 'available' ? value.code : null };
 }
 
+/**
+ * Hiển thị mã mời của một người thụ hưởng cho chủ hầm: gọi hàm {@code loadInvitation({vaultId, beneficiaryId}, {accessToken, signal})} do cha cung cấp (không gọi API trực tiếp), hiện mã, nút sao chép vào clipboard và nút tải lại khi lỗi hoặc chưa có mã.
+ * State: {@code view}, {@code error}, {@code retry}, {@code copyState} (idle|success|error). Không render gì nếu cha không truyền {@code loadInvitation}.
+ */
 function InvitationCodeView({ vaultId, beneficiaryId, accessToken, lang = 'vi', loadInvitation }) {
   const t = invitationMessages[lang] || invitationMessages.vi;
   const [view, setView] = useState(null), [error, setError] = useState(false), [retry, setRetry] = useState(0);
@@ -29,6 +37,9 @@ function InvitationCodeView({ vaultId, beneficiaryId, accessToken, lang = 'vi', 
     }
     return () => { active.current = false; controller.abort(); };
   }, [vaultId, beneficiaryId, accessToken, loadInvitation, available, retry]);
+  /**
+   * Sao chép mã mời vào clipboard ({@code navigator.clipboard.writeText}); chống gọi đồng thời; cập nhật {@code copyState}.
+   */
   async function copy() {
     if (copying.current || view?.state !== 'available') return;
     copying.current = true;
@@ -54,6 +65,10 @@ function InvitationCodeView({ vaultId, beneficiaryId, accessToken, lang = 'vi', 
   </section>;
 }
 
+/**
+ * Bọc {@code InvitationCodeView} với {@code key} theo hầm/người thụ hưởng/token để reset khi đổi đối tượng.
+ * Props: {@code vaultId}, {@code beneficiaryId}, {@code accessToken}, {@code lang}, {@code loadInvitation}.
+ */
 export default function BeneficiaryInvitationCode(props) {
   return <InvitationCodeView key={`${props.vaultId}:${props.beneficiaryId}:${props.accessToken || ''}`} {...props} />;
 }

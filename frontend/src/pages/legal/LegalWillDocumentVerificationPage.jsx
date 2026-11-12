@@ -14,6 +14,16 @@ import {
 import { legalI18n } from './legalI18n.js';
 import './LegalWillDocumentVerificationPage.css';
 
+/**
+ * Trang tĩnh "Đối chiếu di chúc" cho Legal (App.jsx render). Form gồm mã tham chiếu hồ sơ, kết quả đối chiếu bản số với bản cứng và ghi chú; kiểm tra cục bộ bằng validateWillVerificationForm
+ * (utils/legalWillVerificationValidation.js). Nút gửi bị vô hiệu hóa và không gọi API; việc ghi đối chiếu thật nằm ở LegalLiveWorkflow (POST /api/v1/legal-verifications/verification-cases/{caseId}/will-comparisons).
+ *
+ * @param {object} props
+ * @param {object} props.session Phiên đăng nhập.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {{docketReference?: string}} [props.initialDoc=null] Tài liệu đã ghi nhận (nếu có).
+ * @returns {JSX.Element}
+ */
 export default function LegalWillDocumentVerificationPage({
   session,
   lang = 'vi',
@@ -39,6 +49,7 @@ export default function LegalWillDocumentVerificationPage({
     ? `${session.user.fullName} (${session.user.email})`
     : session?.user?.email || (lang === 'en' ? 'Legal Verifier' : 'Chuyên viên Pháp lý');
 
+  /** Chọn kết quả đối chiếu; nếu đã kiểm tra một lần thì kiểm tra lại ngay. */
   const handleComparisonChange = (selected) => {
     setComparison(selected);
     if (validatedOnce) {
@@ -52,6 +63,7 @@ export default function LegalWillDocumentVerificationPage({
     }
   };
 
+  /** Kiểm tra form cục bộ bằng validateWillVerificationForm, lưu lỗi từng trường và trạng thái 'success' / 'error'. */
   const handleValidateLocal = () => {
     setValidatedOnce(true);
     const res = validateWillVerificationForm({

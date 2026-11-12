@@ -23,6 +23,9 @@ import com.legacyvault.verification.service.StaffVaultCaseGuard;
  * PS-88 (ST-14, ST-24): read-only view of the Beneficiaries of a case for the Staff serving them at the counter.
  * Only the Staff assigned to an OPEN case sees anything; any other case, a closed case or an unknown id is 404. The
  * view never lists data of another Vault and never exposes contact data, identity numbers or invitation secrets.
+ *
+ * <p>Gọi từ {@code StaffCaseBeneficiaryController} (hai endpoint {@code GET .../beneficiaries}). Bảng: {@code verification_cases},
+ * {@code beneficiaries}, {@code beneficiary_invitations}, {@code beneficiary_counter_attestations}. Quyền do {@code StaffVaultCaseGuard} kiểm tra.
  */
 @Service
 public class CounterBeneficiaryService {
@@ -34,6 +37,9 @@ public class CounterBeneficiaryService {
 	private final BeneficiaryCounterAttestationRepository attestations;
 	private final StaffContextService staff;
 
+	/**
+	 * Hàm khởi tạo, Spring tiêm các phụ thuộc.
+	 */
 	public CounterBeneficiaryService(VerificationCaseRepository cases, StaffVaultCaseGuard guard,
 			BeneficiaryRepository beneficiaries, BeneficiaryInvitationRepository invitations,
 			BeneficiaryCounterAttestationRepository attestations, StaffContextService staff) {
@@ -45,6 +51,11 @@ public class CounterBeneficiaryService {
 		this.staff = staff;
 	}
 
+	/**
+	 * Liệt kê người thụ hưởng của Vault thuộc case. Nạp mã mời hiện hành của cả Vault và chứng thực mới nhất của từng người trong case,
+	 * rồi ghép thành {@code Item}. Endpoint: {@code GET /api/v1/staff/verification-cases/{caseId}/beneficiaries}.
+	 * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND} nếu case không thuộc Staff hoặc đã đóng
+	 */
 	@Transactional(readOnly = true)
 	public List<CounterBeneficiaryDtos.Item> list(UUID caseId) {
 		VerificationCase verificationCase = authorize(caseId);
@@ -60,6 +71,10 @@ public class CounterBeneficiaryService {
 				.toList();
 	}
 
+	/**
+	 * Lấy một người thụ hưởng của case. Endpoint: {@code GET /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}}.
+	 * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND}
+	 */
 	@Transactional(readOnly = true)
 	public CounterBeneficiaryDtos.Item get(UUID caseId, UUID beneficiaryId) {
 		VerificationCase verificationCase = authorize(caseId);
@@ -72,6 +87,9 @@ public class CounterBeneficiaryService {
 				LocalDateTime.now(ZoneOffset.UTC));
 	}
 
+	/**
+	 * Xác thực Staff, tìm case được giao cho Staff đó và kiểm tra case đang mở của Vault (quyền đọc). Mọi trường hợp sai trả 404.
+	 */
 	private VerificationCase authorize(UUID caseId) {
 		User actor = staff.requireStaff();
 		VerificationCase verificationCase = cases.findByPublicIdAndAssignedStaffUserId(caseId, actor.getUserId())

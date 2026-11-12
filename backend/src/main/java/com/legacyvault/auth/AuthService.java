@@ -42,23 +42,63 @@ import java.util.Map;
 import java.util.Objects;
 
 
+/**
+ * Dịch vụ xác thực bằng mật khẩu: đăng ký, đăng nhập, phát hành JWT, đặt mật khẩu lần đầu và hồ sơ cá nhân.
+ * Được {@link AuthController} (các endpoint {@code /api/v1/auth/register|login|me}) và {@link GoogleAuthService} gọi.
+ * Dùng các bảng {@code users}, {@code roles}, {@code user_roles}; ghi audit qua {@code AuditService}
+ * ({@code AUTH_REGISTERED}, {@code AUTH_LOGIN_SUCCEEDED}, {@code AUTH_PASSWORD_SET}, {@code AUTH_PROFILE_UPDATED}).
+ * Giới hạn thử sai do {@link LoginAttemptLimiter} đảm nhiệm.
+ */
 @Service
 public class AuthService {
 
+    /**
+     * Role mặc định gán cho mọi tài khoản tự đăng ký.
+     */
     private static final String DEFAULT_ROLE = "ROLE_VAULT_OWNER";
 
+    /**
+     * Truy cập bảng {@code users}.
+     */
     private final UserRepository userRepository;
+    /**
+     * Tra cứu role theo mã.
+     */
     private final RoleRepository roleRepository;
+    /**
+     * Quan hệ người dùng - role.
+     */
     private final UserRoleRepository userRoleRepository;
+    /**
+     * Băm/so khớp mật khẩu (BCrypt).
+     */
     private final PasswordEncoder passwordEncoder;
+    /**
+     * Cấp access token.
+     */
     private final JwtService jwtService;
+    /**
+     * Ghi nhật ký kiểm toán.
+     */
     private final AuditService auditService;
+    /**
+     * Xác thực lại mật khẩu hiện tại khi đổi thông tin nhạy cảm.
+     */
     private final PasswordReauthService passwordReauthService;
+    /**
+     * Thu hồi mã xác minh email khi người dùng đổi email.
+     */
     private final EmailVerificationService emailVerificationService;
+    /**
+     * Bộ giới hạn số lần đăng nhập sai theo email và IP.
+     */
     private final LoginAttemptLimiter loginAttemptLimiter;
     /** Hash verified when the email is unknown so the response time matches a real wrong password. */
     private volatile String dummyPasswordHash;
 
+    /**
+     * Khởi tạo dịch vụ với các phụ thuộc được Spring tiêm vào.
+     */
     public AuthService(
             UserRepository userRepository,
             RoleRepository roleRepository,
@@ -81,6 +121,16 @@ public class AuthService {
         this.loginAttemptLimiter = loginAttemptLimiter;
     }
 
+    /**
+     * Đăng ký tài khoản Vault Owner mới ({@code POST /api/v1/auth/register}).
+     * Các bước: chuẩn hóa email, kiểm tra trùng, lấy role {@code ROLE_VAULT_OWNER}, tạo {@code User} (mật khẩu BCrypt,
+     * trạng thái {@code ACTIVE}), gán role, ghi audit {@code AUTH_REGISTERED}.
+     *
+     * @param request dữ liệu đăng ký đã validate
+     * @return thông tin công khai của tài khoản mới
+     * @throws BusinessException {@code EMAIL_ALREADY_EXISTS} nếu email đã tồn tại
+     * @throws IllegalStateException nếu thiếu role mặc định trong DB
+     */
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
         String normalizedEmail = EmailNormalizer.normalize(request.email());
@@ -135,10 +185,14 @@ public class AuthService {
     }
 
     /**
-     * Creates the Owner account for a first-time Google sign-in. The caller has already verified the Google
-     * credential and that the email is Google-verified and not yet registered. The account has no usable
-     * password: the stored hash is random and unknown to everyone, and password login stays off until the
-     * user sets one through {@link #setupPassword}.
+     * Tạo tài khoản Owner cho lần đăng nhập Google đầu tiên (gọi từ {@link GoogleAuthService}, đã xác minh credential
+     * và email chưa đăng ký). Tài khoản không có mật khẩu dùng được: hash là chuỗi ngẫu nhiên không ai biết và
+     * đăng nhập bằng mật khẩu bị tắt cho đến khi người dùng gọi {@link #setupPassword}. Email được đánh dấu đã xác
+     * minh. Ghi audit {@code AUTH_REGISTERED} (provider GOOGLE).
+     *
+     * @param normalizedEmail email đã chuẩn hóa
+     * @param displayName     tên hiển thị từ Google (nếu rỗng dùng phần trước dấu @, cắt tối đa 150 ký tự)
+     * @return người dùng đã lưu
      */
     User createGoogleOwner(String normalizedEmail, String displayName) {
         Role ownerRole = roleRepository.findByRoleCode(DEFAULT_ROLE)
@@ -180,8 +234,15 @@ public class AuthService {
     }
 
     /**
-     * Lets a Google-only account choose its first password. Not allowed once password login is on. The caller
-     * ({@link GoogleAuthService#setupPassword}) must already have proven control of the linked Google account.
+     * Cho tài khoản Google-only đặt mật khẩu đầu tiên ({@code POST /api/v1/auth/password/setup}, gọi từ
+     * {@code GoogleAuthService.setupPassword} sau khi chứng minh quyền với tài khoản Google). Khóa dòng user
+     * ({@code findActiveAccountForUpdate}), kiểm tra chưa bật mật khẩu và đúng chính sách, lưu hash, bật đăng nhập mật
+     * khẩu và ghi audit {@code AUTH_PASSWORD_SET}. Không tăng auth-version để phiên hiện tại không bị đăng xuất.
+     *
+     * @param userId   id nội bộ của người dùng
+     * @param password mật khẩu mới
+     * @return {@link PasswordSetupResponse} với {@code passwordLoginEnabled = true}
+     * @throws BusinessException {@code UNAUTHENTICATED}, {@code PASSWORD_ALREADY_SET}, {@code PASSWORD_POLICY}
      */
     @Transactional
     public PasswordSetupResponse setupPassword(Long userId, String password) {
@@ -215,13 +276,30 @@ public class AuthService {
         return new PasswordSetupResponse(true);
     }
 
-    // Transactional here too: the call below is a self-invocation, so the annotation on the two-argument
-    // method is bypassed when this one is entered (lazy roles and the locked read then run without a session).
+    /**
+     * Đăng nhập không biết IP nguồn (chỉ tương thích); ủy quyền cho {@link #login(LoginRequest, String)}.
+     * {@code @Transactional} được lặp lại vì self-invocation bỏ qua proxy của phương thức hai tham số.
+     *
+     * @param request thông tin đăng nhập
+     * @return phản hồi đăng nhập
+     */
     @Transactional
     public LoginResponse login(LoginRequest request) {
         return login(request, null);
     }
 
+    /**
+     * Đăng nhập bằng email + mật khẩu ({@code POST /api/v1/auth/login}).
+     * Các bước: chuẩn hóa email; {@code loginAttemptLimiter.reserveAttempt} (đếm nguyên tử trước mọi việc nặng); tìm user;
+     * luôn chạy một lần BCrypt (kể cả email không tồn tại, dùng hash giả) để chống dò email qua thời gian; chỉ khi
+     * đúng mật khẩu mới tiết lộ tài khoản bị khóa; kiểm tra trạng thái {@code ACTIVE}, chưa xóa, đã bật đăng nhập mật khẩu;
+     * thành công thì phát hành token và xóa bộ đếm thất bại.
+     *
+     * @param request  thông tin đăng nhập
+     * @param clientIp địa chỉ IP nguồn (có thể {@code null})
+     * @return {@link LoginResponse}
+     * @throws BusinessException {@code INVALID_CREDENTIALS}, {@code ACCOUNT_LOCKED_BY_ADMIN} và lỗi giới hạn thử sai
+     */
     @Transactional
     public LoginResponse login(LoginRequest request, String clientIp) {
         String normalizedEmail = EmailNormalizer.normalize(request.email());
@@ -260,6 +338,9 @@ public class AuthService {
         return response;
     }
 
+    /**
+     * Trả về hash BCrypt giả (khởi tạo lười, cache) để so khớp khi email không tồn tại.
+     */
     private String dummyPasswordHash() {
         String hash = dummyPasswordHash;
         if (hash == null) {
@@ -269,7 +350,16 @@ public class AuthService {
         return hash;
     }
 
-    /** Shared JWT/session issuance for password and already-linked provider logins. */
+    /**
+     * Phát hành JWT và {@link LoginResponse} cho người dùng đang hoạt động; dùng chung cho đăng nhập mật khẩu và
+     * Google. Lấy role từ DB; riêng tài khoản chỉ có {@code ROLE_BENEFICIARY} (dữ liệu cũ) sẽ được tự cấp thêm
+     * {@code ROLE_VAULT_OWNER} theo chính sách tài khoản cá nhân (khóa dòng user, kiểm tra lại authVersion, ghi audit
+     * {@code AUTH_PROFILE_UPDATED}). Cuối cùng ghi audit {@code AUTH_LOGIN_SUCCEEDED}.
+     *
+     * @param user người dùng đã xác thực
+     * @return phản hồi đăng nhập kèm token
+     * @throws BusinessException {@code INVALID_CREDENTIALS} nếu tài khoản không còn hoạt động
+     */
     LoginResponse issueLoginResponseForActiveUser(User user) {
         if (user == null || !"ACTIVE".equals(user.getStatus()) || user.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
@@ -347,6 +437,13 @@ public class AuthService {
         );
     }
 
+    /**
+     * Lấy hồ sơ của người dùng hiện tại ({@code GET /api/v1/auth/me}).
+     *
+     * @param authentication đối tượng xác thực
+     * @return hồ sơ công khai
+     * @throws BusinessException {@code UNAUTHENTICATED} nếu không hợp lệ
+     */
     @Transactional(readOnly = true)
     public ProfileResponse getCurrentUser(
             Authentication authentication
@@ -355,6 +452,19 @@ public class AuthService {
         return toProfileResponse(user);
     }
 
+    /**
+     * Cập nhật hồ sơ ({@code PATCH /api/v1/auth/me}). Khóa dòng user; đổi email hoặc mật khẩu là thay đổi nhạy cảm nên
+     * bắt buộc tài khoản có mật khẩu và xác thực lại bằng {@code currentPassword} ({@code PasswordReauthService}).
+     * Đổi email: kiểm tra trùng, xóa {@code emailVerifiedAt}, thu hồi mã xác minh cũ. Đổi mật khẩu: băm lại và tăng
+     * auth-version (vô hiệu token cũ). Bắt lỗi vi phạm ràng buộc {@code UQ_users_email} khi đua. Ghi audit
+     * {@code AUTH_PROFILE_UPDATED} kèm danh sách trường đã đổi.
+     *
+     * @param authentication đối tượng xác thực
+     * @param request        các trường cần đổi
+     * @return hồ sơ sau cập nhật
+     * @throws BusinessException {@code PASSWORD_POLICY}, {@code PASSWORD_NOT_SET}, {@code MALFORMED_REQUEST},
+     *         {@code EMAIL_ALREADY_EXISTS}, {@code UNAUTHENTICATED}
+     */
     @Transactional
     public ProfileResponse updateCurrentUser(Authentication authentication, ProfileUpdateRequest request) {
         User user = requireCurrentUser(authentication, true);
@@ -426,6 +536,12 @@ public class AuthService {
         return toProfileResponse(user);
     }
 
+    /**
+     * Kiểm tra chuỗi nguyên nhân có phải vi phạm ràng buộc duy nhất {@code UQ_users_email} không.
+     *
+     * @param exception ngoại lệ toàn vẹn dữ liệu
+     * @return {@code true} nếu do trùng email
+     */
     private boolean violatesEmailUniqueConstraint(DataIntegrityViolationException exception) {
         for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
             if (cause instanceof ConstraintViolationException violation
@@ -436,6 +552,13 @@ public class AuthService {
         return false;
     }
 
+    /**
+     * Ghi một sự kiện audit của người dùng lên chính tài khoản mình (đối tượng {@code USER}).
+     *
+     * @param action  hành động audit
+     * @param userId  id người dùng
+     * @param context ngữ cảnh bổ sung
+     */
     private void recordProfileAudit(AuditAction action, Long userId, Map<String, Object> context) {
         auditService.record(new AuditEvent(
                 action,
@@ -453,6 +576,14 @@ public class AuthService {
         ));
     }
 
+    /**
+     * Lấy người dùng hiện tại từ {@link Authentication}, yêu cầu còn {@code ACTIVE} và chưa xóa.
+     *
+     * @param authentication đối tượng xác thực
+     * @param lock           {@code true} để khóa dòng ({@code findActiveAccountForUpdate}) khi sắp ghi
+     * @return thực thể người dùng
+     * @throws BusinessException {@code UNAUTHENTICATED}
+     */
     private User requireCurrentUser(Authentication authentication, boolean lock) {
         if (authentication == null || !authentication.isAuthenticated()
                 || !(authentication.getPrincipal() instanceof CustomUserPrincipal principal)) {
@@ -469,6 +600,9 @@ public class AuthService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
     }
 
+    /**
+     * Chuyển {@link User} thành {@link ProfileResponse} (role bỏ tiền tố, loại trùng, sắp xếp).
+     */
     private ProfileResponse toProfileResponse(User user) {
 
         List<String> apiRoles = userRoleRepository
@@ -494,8 +628,11 @@ public class AuthService {
     }
 
     /**
-     * Chuẩn hóa role chỉ dành cho dữ liệu trả về từ API.
-     * Không sử dụng kết quả này để tạo JWT hoặc GrantedAuthority.
+     * Chuẩn hóa role chỉ dành cho dữ liệu trả về từ API (bỏ tiền tố {@code ROLE_}).
+     * Không dùng kết quả này để tạo JWT hoặc GrantedAuthority.
+     *
+     * @param roleCode mã role đầy đủ
+     * @return mã role đã bỏ tiền tố
      */
     private String toApiRole(String roleCode) {
         if (roleCode == null || roleCode.isBlank()) {

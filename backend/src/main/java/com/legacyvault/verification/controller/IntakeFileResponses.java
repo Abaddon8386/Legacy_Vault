@@ -18,6 +18,14 @@ final class IntakeFileResponses {
 
 	private IntakeFileResponses() { }
 
+	/**
+	 * Dựng {@link ResponseEntity} 200 cho một file bằng chứng: đặt content-type theo file, {@code nosniff},
+	 * CSP {@code default-src 'none'; sandbox}, {@code no-store} và {@code Content-Disposition: attachment}.
+	 * Được các controller đính kèm (Staff/Legal) và đối soát người thụ hưởng dùng.
+	 *
+	 * @param file nội dung và metadata file
+	 * @return response chứa byte của file
+	 */
 	static ResponseEntity<byte[]> of(IntakeFile file) {
 		return ResponseEntity.ok()
 				.contentType(MediaType.parseMediaType(file.contentType()))

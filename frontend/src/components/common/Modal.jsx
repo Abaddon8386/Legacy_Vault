@@ -2,6 +2,19 @@ import { useModalFocus } from './useModalFocus'
 import { X } from 'lucide-react'
 import './Modal.css'
 
+/**
+ * Hộp thoại dùng chung: nền mờ (bấm để đóng), tiêu đề, mô tả, nút đóng và nội dung. Dùng {@code useModalFocus} để khóa cuộn, bẫy focus, đóng bằng Escape và trả focus.
+ *
+ * @param {object} props
+ * @param {boolean} props.isOpen Hiện hộp thoại.
+ * @param {()=>void} props.onClose Gọi khi đóng.
+ * @param {string} props.title Tiêu đề.
+ * @param {string} [props.description] Mô tả.
+ * @param {*} props.children Nội dung.
+ * @param {string} [props.maxWidth='540px']
+ * @param {string} [props.closeLabel] Nhãn nút đóng (aria-label).
+ * @param {{current:HTMLElement}} [props.returnFocusRef] Phần tử nhận lại focus khi đóng.
+ */
 export function Modal({
   isOpen,
   onClose,

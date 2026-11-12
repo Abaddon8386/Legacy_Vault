@@ -391,6 +391,13 @@ export const adminI18n = {
   },
 };
 
+/**
+ * Nhãn vai trò hiển thị cho admin (mã không có tiền tố ROLE_).
+ *
+ * @param {string} role Một trong VAULT_OWNER, BENEFICIARY, STAFF_EXECUTOR, LEGAL_VERIFIER, ADMIN.
+ * @param {'vi'|'en'} [lang='vi'] Ngôn ngữ.
+ * @returns {string} Nhãn, hoặc chính mã nếu không nhận ra.
+ */
 export function adminRoleLabel(role, lang = 'vi') {
   const key = {
     VAULT_OWNER: 'roleOwner', BENEFICIARY: 'roleBeneficiary',

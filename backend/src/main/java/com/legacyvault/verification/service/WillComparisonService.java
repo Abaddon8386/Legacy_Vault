@@ -48,14 +48,33 @@ import java.util.UUID;
  *
  * <p>Thứ tự khóa dòng: Vault -> ca xác minh (như Cancel Alert và quyết định chứng tử) để không deadlock.
  *
+ * <p>Được {@code LegalWillComparisonController} gọi, base path
+ * {@code /api/v1/legal-verifications/verification-cases/{caseId}/will-comparisons} (vai trò LEGAL_VERIFIER):
+ * {@code POST} gọi {@link #record} (body {@link RecordWillComparisonRequest}, trả {@link WillComparisonResponse}) và
+ * {@code GET} gọi {@link #overview} (trả {@link WillComparisonOverviewResponse}). {@link #isApprovalBlocked} được
+ * {@code CourtRouteGuard} và {@code DistributionWorkflowService} dùng. Bảng: {@code will_comparisons},
+ * {@code original_will_intakes}, {@code verification_cases}, {@code vaults}, tài sản di chúc và phiên bản. Ghi audit
+ * {@code WILL_COMPARISON_RECORDED} và gửi thông báo cho Staff.
  */
 @Service
 public class WillComparisonService {
     private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
+    /**
+     * Loại thực thể ghi trong audit.
+     */
     static final String ENTITY_TYPE = "WILL_COMPARISON";
+    /**
+     * Mã bước quy trình ghi vào audit.
+     */
     static final String STEP_ID = "ST-15";
+    /**
+     * Mã quy tắc nghiệp vụ ghi vào audit.
+     */
     static final String RULE_ID = "LV-WILL-001";
+    /**
+     * Số di chúc tối đa trả về trong phần tổng quan đối chiếu.
+     */
     static final int MAX_WILLS = 100;
 
     private final LegalCaseLookupRepository caseLookup;
@@ -67,6 +86,17 @@ public class WillComparisonService {
     private final WillComparisonRepository comparisonRepository;
     private final AuditService auditService;
 
+    /**
+     * @param caseLookup tra cứu case theo phạm vi Legal toàn cục
+     * @param caseRepository repository hồ sơ xác minh (có khóa ghi)
+     * @param vaultRepository repository Vault (có khóa ghi)
+     * @param intakeRepository repository bản ghi nhận di chúc gốc
+     * @param willAssetRepository repository tài sản loại di chúc
+     * @param assetVersionRepository repository phiên bản tài sản (bản scan)
+     * @param comparisonRepository repository kết quả đối chiếu
+     * @param auditService dịch vụ ghi nhật ký kiểm toán
+     * @param notifications dịch vụ thông báo workflow
+     */
     public WillComparisonService(
             LegalCaseLookupRepository caseLookup,
             VerificationCaseRepository caseRepository,
@@ -88,6 +118,23 @@ public class WillComparisonService {
         this.auditService = auditService;
     }
 
+    /**
+     * Ghi kết quả đối chiếu di chúc giấy với bản scan.
+     * API: {@code POST /api/v1/legal-verifications/verification-cases/{caseId}/will-comparisons}.
+     *
+     * <p>Các bước: kiểm tra request; tra case không khóa rồi khóa Vault -> case; yêu cầu case mở và Vault ở
+     * DOCUMENT_VERIFICATION hoặc WILL_VERIFICATION; tìm bản ghi nhận, di chúc và phiên bản scan; từ chối nếu bản giấy đã có
+     * kết luận; từ chối nếu bản scan đã bị thay bằng phiên bản mới hơn; nếu kết quả là MATCH và Vault ở
+     * DOCUMENT_VERIFICATION thì chuyển Vault sang WILL_VERIFICATION; lưu kết quả; ghi audit {@code WILL_COMPARISON_RECORDED}
+     * (không ghi lý do, có ghi SHA-256); gửi thông báo cho Staff.
+     *
+     * @param caseId public id của hồ sơ xác minh
+     * @param principal Legal Verifier đang đăng nhập
+     * @param request bản giấy, di chúc, phiên bản, kết quả và lý do
+     * @return kết quả đã lưu kèm thông báo
+     * @throws BusinessException {@code VALIDATION_FAILED}, {@code RESOURCE_NOT_FOUND},
+     *         {@code LEGAL_VERIFICATION_INVALID_STATE}, {@code WILL_COMPARISON_ALREADY_RECORDED}
+     */
     @Transactional
     public WillComparisonResponse record(
             UUID caseId,
@@ -193,6 +240,16 @@ public class WillComparisonService {
         ).withNotification(notification);
     }
 
+    /**
+     * Tổng quan đối chiếu của ca: các lần nhận bản giấy, danh sách di chúc cùng phiên bản (tối đa 100), các kết luận đã ghi
+     * (mới nhất trước), kết quả mới nhất và cờ chặn luồng duyệt.
+     * API: {@code GET /api/v1/legal-verifications/verification-cases/{caseId}/will-comparisons}. Chỉ đọc; cũng được
+     * {@code LegalReadService.context} dùng.
+     *
+     * @param caseId public id của hồ sơ xác minh
+     * @return tổng quan đối chiếu
+     * @throws BusinessException {@code RESOURCE_NOT_FOUND}
+     */
     @Transactional(readOnly = true)
     public WillComparisonOverviewResponse overview(UUID caseId) {
         VerificationCase verificationCase = caseLookup.findByPublicId(caseId)
@@ -246,6 +303,9 @@ public class WillComparisonService {
      * MATCH <b>và</b> bản scan được đối chiếu vẫn là phiên bản mới nhất của di chúc đó (PS-139 AC4). Chưa đối chiếu,
      * MISMATCH, INCONCLUSIVE, hoặc MATCH của một bản số đã bị thay bằng bản mới hơn đều chặn: kết luận cũ chỉ là lịch sử
      * của bản số cũ. Dành cho bước duyệt ST-21 về sau.
+     *
+     * @param verificationCaseId id nội bộ của hồ sơ xác minh
+     * @return {@code true} nếu bị chặn (kể cả khi không tìm thấy hồ sơ)
      */
     @Transactional(readOnly = true)
     public boolean isApprovalBlocked(Long verificationCaseId) {
@@ -258,7 +318,13 @@ public class WillComparisonService {
         return blockedByLatest(comparisonRepository.findRowsByCase(verificationCaseId), vaultId);
     }
 
-    /** @param rowsNewestFirst kết quả đối chiếu của ca, mới nhất trước (đúng thứ tự của {@code findRowsByCase}). */
+    /**
+     * Quyết định bị chặn hay không dựa trên kết quả mới nhất: bị chặn nếu chưa có kết quả, kết quả không phải MATCH hoặc
+     * bản scan đã đối chiếu không còn hiện hành.
+     *
+     * @param rowsNewestFirst kết quả đối chiếu của ca, mới nhất trước (đúng thứ tự của {@code findRowsByCase})
+     * @param vaultId id nội bộ của Vault
+     */
     private boolean blockedByLatest(List<WillComparisonRow> rowsNewestFirst, Long vaultId) {
         if (rowsNewestFirst.isEmpty()) {
             return true;
@@ -270,7 +336,9 @@ public class WillComparisonService {
         return !comparedScanIsStillCurrent(latest, vaultId);
     }
 
-    /** Bản scan đã đối chiếu còn là phiên bản mới nhất của di chúc đó. Không tìm thấy di chúc thì coi là không còn hiện hành. */
+    /**
+     * Bản scan đã đối chiếu còn là phiên bản mới nhất của di chúc đó. Không tìm thấy di chúc thì coi là không còn hiện hành.
+     */
     private boolean comparedScanIsStillCurrent(WillComparisonRow comparison, Long vaultId) {
         return willAssetRepository.findWill(comparison.willId(), vaultId)
                 .map(will -> assetVersionRepository.findVersions(will.getAssetId()).stream()
@@ -278,6 +346,12 @@ public class WillComparisonService {
                 .orElse(false);
     }
 
+    /**
+     * Kiểm tra request đối chiếu: các trường bắt buộc, phiên bản từ 1, lý do tối đa 1000 ký tự; MISMATCH và INCONCLUSIVE
+     * bắt buộc có lý do để người sau hiểu vì sao luồng bị chặn.
+     *
+     * @throws BusinessException {@code VALIDATION_FAILED}
+     */
     private static void validate(RecordWillComparisonRequest request) {
         if (request == null || request.originalWillIntakeId() == null || request.willId() == null
                 || request.version() == null || request.version() < 1 || request.result() == null) {
@@ -293,6 +367,9 @@ public class WillComparisonService {
         }
     }
 
+    /**
+     * Trim chuỗi; trả {@code null} nếu null hoặc rỗng.
+     */
     private static String normalize(String value) {
         if (value == null) {
             return null;

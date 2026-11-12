@@ -12,15 +12,27 @@ import com.legacyvault.verification.repository.VerificationCaseRepository;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
 
+/**
+ * Bộ xử lý từng cấu hình DMS cho {@link DmsScanJob}, mỗi phương thức chạy trong một transaction. Thao tác trên các
+ * bảng {@code dms_configs}, {@code vaults} và {@code verification_cases}; luôn khóa Vault trước rồi mới khóa DMS (cùng
+ * thứ tự với luồng lưu trữ/hủy cảnh báo trong {@code VaultService}) để tránh deadlock. Ghi audit hệ thống
+ * ({@code DMS_TRIGGERED}, {@code DMS_GRACE_PERIOD_EXCEEDED}, {@code VERIFICATION_CASE_CREATED}).
+ */
 @Service
 public class DmsTriggerProcessor {
 
+	/** Repository cấu hình DMS. */
 	private final DmsConfigRepository configs;
+	/** Repository két (có truy vấn khóa ghi theo chủ sở hữu). */
 	private final VaultRepository vaults;
+	/** Repository vụ xác minh; dùng để tạo vụ mới và kiểm tra vụ đang mở. */
 	private final VerificationCaseRepository verificationCases;
+	/** Ghi audit nghiệp vụ. */
 	private final AuditService audit;
+	/** Làm mới entity từ DB sau khi đã khóa để đọc trạng thái mới nhất. */
 	private final com.legacyvault.verification.service.LegalBasisLockedState state;
 
+	/** Nhận các repository và service phụ thuộc. */
 	public DmsTriggerProcessor(
 			DmsConfigRepository configs,
 			VaultRepository vaults,
@@ -38,6 +50,13 @@ public class DmsTriggerProcessor {
 	/**
 	 * ST-07: MONITORING -> TRIGGERED.
 	 * Giữ nguyên hành vi nghiệp vụ đã có.
+	 *
+	 * <p>Bỏ qua nếu cấu hình không còn {@code MONITORING} hoặc chưa tới hạn. Khóa két của chủ (nếu có) và bỏ qua nếu
+	 * két đã {@code ARCHIVED}; tính {@code graceDeadline = now + gia hạn}; gọi truy vấn cập nhật có điều kiện
+	 * {@code triggerIfExpired}; nếu thành công ghi audit {@code DMS_TRIGGERED} (actor SYSTEM).
+	 *
+	 * @param configId id cấu hình DMS
+	 * @param now      thời điểm quét (UTC)
 	 */
 	@Transactional
 	public void triggerIfExpired(Long configId, LocalDateTime now) {
@@ -85,7 +104,13 @@ public class DmsTriggerProcessor {
 	 * Hết Grace Period -> GRACE_PERIOD_EXCEEDED
 	 * -> tạo Verification Case -> Vault AWAITING_VERIFICATION.
 	 *
-	 * Toàn bộ thao tác nằm trong cùng transaction.
+	 * <p>Toàn bộ thao tác nằm trong cùng transaction. Khóa két rồi khóa DMS; kiểm tra lại gia hạn đã hết; chỉ tiếp tục
+	 * nếu két {@code ACTIVE} (có thể vào xác minh) và chưa có vụ {@code OPEN}. Đánh dấu {@code GRACE_PERIOD_EXCEEDED},
+	 * tạo {@code VerificationCase}, chuyển két sang {@code AWAITING_VERIFICATION}, lưu và ghi hai audit
+	 * ({@code DMS_GRACE_PERIOD_EXCEEDED}, {@code VERIFICATION_CASE_CREATED}).
+	 *
+	 * @param configId id cấu hình DMS
+	 * @param now      thời điểm quét (UTC)
 	 */
 	@Transactional
 	public void processGracePeriodExpired(Long configId, LocalDateTime now) {

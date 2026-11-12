@@ -11,15 +11,39 @@ import org.springframework.data.repository.query.Param;
 
 import com.legacyvault.asset.entity.AssetDocument;
 
+/**
+ * Repository JPA cho bảng {@code asset_documents}, dùng bởi {@code AssetDocumentService}.
+ */
 public interface AssetDocumentRepository extends JpaRepository<AssetDocument, Long> {
 
-	/** Metadata only: listing must never load the encrypted content. */
+	/**
+	 * Projection chỉ gồm metadata để liệt kê tài liệu, không bao giờ nạp nội dung mã hóa.
+	 *
+	 * <ul>
+	 * <li>{@code id} - public id; {@code fileName}, {@code contentType}, {@code sizeBytes}, {@code sha256}, {@code createdAt} - metadata</li>
+	 * </ul>
+	 */
 	record Row(UUID id, String fileName, String contentType, long sizeBytes, String sha256, Instant createdAt) { }
 
+	/**
+	 * Đếm số tài liệu của một Asset (kiểm tra giới hạn mỗi Asset).
+	 *
+	 * @param assetId id nội bộ của Asset
+	 */
 	long countByAssetId(Long assetId);
 
+	/**
+	 * Tìm một tài liệu theo public id và phải thuộc đúng Asset (tránh truy cập chéo).
+	 *
+	 * @return tài liệu hoặc rỗng
+	 */
 	Optional<AssetDocument> findByPublicIdAndAssetId(UUID publicId, Long assetId);
 
+	/**
+	 * Lấy danh sách metadata tài liệu của Asset theo thứ tự tải lên (JPQL tạo trực tiếp {@link Row}, không nạp ciphertext).
+	 *
+	 * @param assetId id nội bộ của Asset
+	 */
 	@Query("""
 		select new com.legacyvault.asset.repository.AssetDocumentRepository$Row(d.publicId, d.fileName, d.contentType,
 			d.size, d.sha256, d.createdAt)

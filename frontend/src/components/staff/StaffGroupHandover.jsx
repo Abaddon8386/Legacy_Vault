@@ -3,7 +3,38 @@ import {loadGroupHandover,saveGroupHandover} from '../../services/groupHandoverS
 import {fetchStaffCaseBeneficiaries} from '../../pages/staff/liveHandoverService.js';
 import {workflowFailure} from '../../utils/workflowFeedback.js';
 import './StaffGroupHandover.css';
+/**
+ * Cổng "người nhận có mặt" cho bàn giao theo nhóm (nhiều người nhận). Bọc `GroupScope` với `key`
+ * theo (caseId, sessionId, accessToken, lang) để đổi hồ sơ/phiên thì state được tạo lại.
+ * Được dùng bởi `StaffSessionBoundary` (thao tác `delivery`) và các trang bàn giao.
+ *
+ * @param {object} props xem `GroupScope`.
+ */
 export default function StaffGroupHandover(props){return <GroupScope key={JSON.stringify([props.caseId,props.sessionId,props.accessToken,props.lang])} {...props}/>;}
+/**
+ * Thân của cổng ghi nhận người nhận có mặt khi bàn giao nhóm.
+ * Luồng chính:
+ * 1. Effect tải song song `GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover`
+ *    (`loadGroupHandover`) và danh sách người nhận (`fetchStaffCaseBeneficiaries`,
+ *    `GET /api/v1/staff/verification-cases/{caseId}/beneficiaries`); tự tải lại khi cửa sổ lấy lại focus.
+ * 2. Nhân viên đánh dấu người có mặt và nhập lý do, rồi `save('attendance')` gửi
+ *    `POST .../group-handover/attendance` (kèm `expectedRevision`, khóa idempotency `crypto.randomUUID()`).
+ *    Nếu mọi người có mặt khi đang SUSPENDED thì nối tiếp `POST .../group-handover/reopen-requests`.
+ * 3. Khi trạng thái cho phép bàn giao (`view.deliveryAllowed`) thì render `children` (có thể là hàm nhận `view, people`).
+ * Xử lý lỗi: 401 gọi `onUnauthorized`, 409 (xung đột phiên bản) tải lại dữ liệu. Sau khi lưu bắn sự kiện
+ * `lv-workflow-notifications-changed`.
+ * Trạng thái nhóm: UNCONFIRMED, READY, SUSPENDED (tạm khóa), AWAITING_LEGAL (chờ Ban Pháp lý duyệt mở lại).
+ *
+ * @param {object} props
+ * @param {string} props.caseId id hồ sơ xác minh.
+ * @param {string} props.sessionId id phiên bàn giao.
+ * @param {string} props.accessToken JWT của staff.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {React.ReactNode|Function} props.children nội dung bàn giao hiển thị khi được phép.
+ * @param {Function} [props.onUnauthorized] gọi khi API trả 401.
+ * @param {Function} [props.layout] nếu có, tự bố trí `(attendance, delivery, view)`.
+ * @param {boolean} [props.hideWhenAllowed=false] ẩn khối điểm danh khi đã được phép bàn giao.
+ */
 function GroupScope({caseId,sessionId,accessToken,lang='vi',children,onUnauthorized,layout,hideWhenAllowed=false}){
   const en=lang==='en',[result,setResult]=useState(null),[attempt,setAttempt]=useState(0),[error,setError]=useState(null),[busy,setBusy]=useState(false),[present,setPresent]=useState([]),[reason,setReason]=useState(''),[notice,setNotice]=useState('');
   const [editing,setEditing]=useState(false);

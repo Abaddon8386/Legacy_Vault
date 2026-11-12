@@ -3,6 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 import { classifyLegalDossier, holdLegalDossier, loadLegalContext } from './legalLiveService.js';
 import { legalReadOnly } from './legalPresentation.js';
 
+/**
+ * Tạo "dấu vân tay" JSON của ngữ cảnh hồ sơ (case, trạng thái, hồ sơ căn cứ, các phiên bản và hash, snapshot) để so sánh trước/sau khi tải lại.
+ * Nếu khác nhau tại thời điểm gửi thì thao tác bị hủy với lỗi STALE_CONTEXT (409), tránh tạm dừng/tiếp tục trên dữ liệu cũ.
+ *
+ * @param {object} context Ngữ cảnh hồ sơ Legal.
+ * @returns {string} Chuỗi JSON.
+ */
 function scope(context) {
   const dossier = context.basisDossier;
   return JSON.stringify([context.caseId, context.caseStatus, context.vaultStatus, dossier?.id,
@@ -10,6 +17,30 @@ function scope(context) {
     dossier?.versions.map(item => [item.version, item.sha256, item.forwardStatus]), context.snapshot]);
 }
 
+/**
+ * Điều khiển "Tạm dừng / Tiếp tục xử lý hồ sơ" của Legal, hiển thị trong LegalLiveWorkflow.
+ * - Chế độ hold: khi hồ sơ căn cứ có route COURT hoặc NOTARIAL và kho ở AWAITING_LEGAL_BASIS/LEGAL_BASIS_VERIFICATION; chọn nguyên nhân (NEW_DISPUTE, INSUFFICIENT_EVIDENCE) + lý do (tối đa 1000 ký tự)
+ *   rồi gọi holdLegalDossier(caseId, {cause, reason}).
+ * - Chế độ resume: khi route === 'ON_HOLD', dossier DRAFT và kho ON_HOLD; chọn lại căn cứ (NOTARIAL/COURT) + lý do rồi gọi classifyLegalDossier(caseId, {route, routeReason}, {reclassification: true}).
+ * Trước khi gửi nó tải lại ngữ cảnh bằng loadLegalContext và so sánh scope(); nếu khác thì báo 409. Dùng AbortController và khóa lock để chống gửi trùng; 401 -> onUnauthorized, 403 -> onDenied.
+ * Chỉ hiển thị khi case OPEN, không ở chế độ chỉ xem; nếu không đủ điều kiện chỉ trả về thanh công cụ (toolbar).
+ *
+ * @param {object} props
+ * @param {React.ReactNode} [props.toolbar] Thanh nút của cha, luôn được hiển thị.
+ * @param {object} props.context Ngữ cảnh hồ sơ (caseId, caseStatus, vaultStatus, basisDossier, snapshot).
+ * @param {{accessToken: string, user: {id: string, roles: string[]}}} props.session Phiên đăng nhập.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {boolean} [props.disabled] Khóa toàn bộ form.
+ * @param {() => boolean} props.claimOperation Xin quyền thực hiện thao tác (chặn thao tác song song ở cha).
+ * @param {() => void} props.releaseOperation Trả quyền sau khi xong.
+ * @param {(receipt?: object) => void} props.onComplete Gọi khi xong (kèm holdAction 'held'/'resumed') hoặc khi bấm "Tải lại hồ sơ" (không tham số).
+ * @param {() => void} [props.onUnauthorized] Khi API trả 401.
+ * @param {(error: Error) => void} [props.onDenied] Khi API trả 403.
+ * @param {object} [props.draft] Bản nháp do cha giữ (tùy chọn).
+ * @param {Function} [props.onDraftChange] Cập nhật bản nháp.
+ * @param {(pending: boolean) => void} [props.onPendingChange] Báo trạng thái đang xử lý.
+ * @returns {JSX.Element|null} Form tạm dừng/tiếp tục hoặc thanh công cụ.
+ */
 export default function LegalHoldControls({ toolbar, context, session, lang = 'vi', disabled, claimOperation, releaseOperation,
   onComplete, onUnauthorized, onDenied, draft, onDraftChange, onPendingChange }) {
   const en = lang === 'en', dossier = context.basisDossier;
@@ -28,6 +59,10 @@ export default function LegalHoldControls({ toolbar, context, session, lang = 'v
   const [pending, setPending] = useState(false), [error, setError] = useState(null);
   const request = useRef(null), lock = useRef(false);
   useEffect(() => () => { request.current?.abort(); onPendingChange?.(false); }, [onPendingChange]);
+  /**
+   * Gửi thao tác tạm dừng hoặc tiếp tục: kiểm tra điều kiện, claimOperation, tải lại ngữ cảnh để phát hiện thay đổi (409), gọi holdLegalDossier hoặc classifyLegalDossier, rồi onComplete(receipt).
+   * Lỗi được lưu vào state error (lý do đã nhập được giữ lại).
+   */
   async function submit(event) {
     event.preventDefault();
     if (!eligible || disabled || pending || error || lock.current || !choice || !reason.trim() || reason.trim().length > 1000) return;

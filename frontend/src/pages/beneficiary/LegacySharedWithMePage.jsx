@@ -3,6 +3,23 @@ import { ArrowRight, KeyRound, CheckCircle2, AlertCircle } from 'lucide-react';
 import ReceivedAssets from './ReceivedAssets.jsx';
 import './SharedWithMePage.css';
 
+/**
+ * Màn hình "Tài sản thụ hưởng" theo quy trình cũ (liên kết bằng mã mời), được SharedWithMePage chọn khi không có caseLinkActions.
+ * Cho nhập mã mời và gọi invitationActions.accept (hoặc redeem) kèm accessToken; nếu chưa có action thì báo dịch vụ chưa khả dụng, hướng dẫn đến quầy. Thành công thì tăng linkRevision để ReceivedAssets tải lại.
+ * Có chặn đổi ngữ cảnh (đổi người dùng/token sẽ hủy request và xóa mã đã nhập) và AbortController dọn dẹp khi unmount. Danh sách tài sản đã nhận (ReceivedAssets) chỉ hiển thị với vai trò BENEFICIARY hoặc preview.
+ *
+ * @param {object} props
+ * @param {object} [props.user] Người dùng hiện tại.
+ * @param {object} [props.session] Phiên đăng nhập.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {boolean} [props.isDevPreview=false] Chế độ xem trước DEV.
+ * @param {string} [props.previewScenario='unlinked'] Kịch bản xem trước.
+ * @param {() => void} [props.onUnauthorized] 401.
+ * @param {number} [props.refreshKey=0] Ép tải lại tài sản.
+ * @param {{accept?: Function, redeem?: Function}} [props.invitationActions] Bộ action mã mời.
+ * @param {object} [props.receivedAssetActions] Bộ action tài sản đã nhận.
+ * @returns {JSX.Element}
+ */
 export default function SharedWithMePage({
   user,
   session,
@@ -50,6 +67,7 @@ export default function SharedWithMePage({
     }
   }, [contextKey]);
 
+  /** Gửi mã mời để liên kết hồ sơ: chống gửi lặp bằng ref AbortController, gọi invitationActions.accept/redeem({code}), hiển thị thông báo thành công/lỗi; 401 -> onUnauthorized. */
   const handleLinkSubmit = async (e) => {
     e.preventDefault();
     const cleanCode = code.trim();

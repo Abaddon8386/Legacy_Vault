@@ -1,3 +1,6 @@
+/**
+ * Các tính năng chung của mọi gói (tiếng Việt).
+ */
 export const COMMON_FEATURES_VI = [
   'Tệp tối đa 10 MB',
   'Người thụ hưởng và người thi hành bên ngoài',
@@ -5,6 +8,9 @@ export const COMMON_FEATURES_VI = [
   'Lịch sử phiên bản',
 ];
 
+/**
+ * Các tính năng chung của mọi gói (tiếng Anh).
+ */
 export const COMMON_FEATURES_EN = [
   'Max 10 MB per file',
   'Beneficiaries and external executors',
@@ -12,6 +18,9 @@ export const COMMON_FEATURES_EN = [
   'Document version history',
 ];
 
+/**
+ * Danh mục 3 gói dùng để hiển thị phía giao diện: BASIC (miễn phí, 5 tài sản, 100 MB), STANDARD (499.000 đ, 50 tài sản, 1 GB), EXTENDED (999.000 đ, 200 tài sản, 5 GB); mỗi gói 1 kho trọn đời và tệp tối đa 10 MB. Giá và giới hạn chính thức do backend quyết định. Dùng bởi pages/landing/LandingPage.jsx và subscriptionService.js.
+ */
 export const SUBSCRIPTION_PLANS = [
   {
     code: 'BASIC',

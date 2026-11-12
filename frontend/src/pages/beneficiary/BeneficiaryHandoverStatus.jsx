@@ -1,7 +1,27 @@
 import {useEffect,useState} from 'react';
 import {readBeneficiaryHandover} from '../../utils/beneficiaryHandoverModel.js';
 import './BeneficiaryHandoverStatus.css';
+/**
+ * Khối "Tình hình bàn giao" cho người thụ hưởng. Vỏ bọc mỏng: dùng key theo (userId, accessToken, lang) để StatusScope được dựng lại từ đầu khi đổi người dùng/phiên/ngôn ngữ.
+ *
+ * @param {object} props Truyền thẳng xuống StatusScope (userId, accessToken, lang, loadStatus, preview, previewState).
+ * @returns {JSX.Element}
+ */
 export default function BeneficiaryHandoverStatus(props){return <StatusScope key={JSON.stringify([props.userId,props.accessToken,props.lang])} {...props}/>;}
+/**
+ * Tải và hiển thị trạng thái bàn giao các hồ sơ của người thụ hưởng. Dữ liệu được lấy bằng hàm loadStatus({userId, accessToken, lang, signal}) do cha cung cấp,
+ * sau đó chuẩn hóa bằng readBeneficiaryHandover (utils/beneficiaryHandoverModel.js). Không có loadStatus thì hiển thị thông báo chưa có thông tin.
+ * Ở chế độ DEV + preview + không có token dùng dữ liệu mẫu. Tự tải lại khi cửa sổ lấy lại focus (state attempt) và có nút "Thử lại" khi lỗi. Có AbortController để hủy khi unmount.
+ *
+ * @param {object} props
+ * @param {string} props.userId Id người thụ hưởng.
+ * @param {string} props.accessToken JWT.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {Function} [props.loadStatus] Hàm tải dữ liệu bàn giao.
+ * @param {boolean} [props.preview=false] Cho phép dữ liệu mẫu trong DEV.
+ * @param {string} [props.previewState='SUSPENDED'] Trạng thái mẫu.
+ * @returns {JSX.Element}
+ */
 function StatusScope({userId,accessToken,lang='vi',loadStatus,preview=false,previewState='SUSPENDED'}){
   const en=lang==='en',[result,setResult]=useState(null),[attempt,setAttempt]=useState(0),[error,setError]=useState(null);
   const mock=Boolean(import.meta.env.DEV&&preview&&!accessToken);

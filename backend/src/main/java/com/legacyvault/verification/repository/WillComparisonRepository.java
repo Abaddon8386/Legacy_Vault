@@ -8,7 +8,11 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
-/** Chỉ có thêm mới và đọc: kết quả đối chiếu là chứng cứ nên không có hàm sửa hay xóa (LV-AUD-001). */
+/**
+ * Chỉ có thêm mới và đọc: kết quả đối chiếu là chứng cứ nên không có hàm sửa hay xóa (LV-AUD-001).
+ *
+ * Bảng {@code will_comparisons}. Được {@code WillComparisonService} dùng cho {@code GET/POST .../will-comparisons}.
+ */
 public interface WillComparisonRepository extends JpaRepository<WillComparison, Long> {
 
     /** Kết quả đối chiếu mới nhất của ca: căn cứ để chặn hay cho qua luồng duyệt thông thường. */
@@ -31,5 +35,8 @@ public interface WillComparisonRepository extends JpaRepository<WillComparison, 
           and u.userId = c.checkedByUserId
         order by c.comparedAt desc, c.willComparisonId desc
         """)
+    /**
+     * Các kết quả đối chiếu của ca (mới nhất trước) dạng {@link WillComparisonRow}.
+     */
     List<WillComparisonRow> findRowsByCase(@Param("caseId") Long caseId);
 }

@@ -15,10 +15,26 @@ import {
 
 import './BeneficiaryAccountPage.css';
 
+/**
+ * Trang "Tài khoản người thụ hưởng tại quầy" (Staff). Chọn chế độ hiển thị:
+ * nếu cho phép mô phỏng (`isCounterHandoverSimulationPermitted`: dev preview hoặc test) thì dùng
+ * `BeneficiaryAccountPreview` với dữ liệu tổng hợp; ngược lại dùng `LiveHandoverPage` ở chế độ `accounts`
+ * (dữ liệu thật từ API Staff).
+ *
+ * @param {object} props các prop của trang Staff (`accessToken`, `isDevPreview`, `lang`, `onLogout`, ...), được chuyển tiếp.
+ * @returns {JSX.Element}
+ */
 export default function BeneficiaryAccountPage(props) {
   return isCounterHandoverSimulationPermitted(props) ? <BeneficiaryAccountPreview {...props} /> : <LiveHandoverPage {...props} mode="accounts" />;
 }
 
+/**
+ * Bản mô phỏng của trang tài khoản người thụ hưởng, dùng trong dev preview/test.
+ * Quản lý kịch bản mẫu (`SYNTHETIC_HANDOVER_CASES`) lấy từ query `scenario` (mặc định `case-standard`), cho đổi kịch bản
+ * (ghi lại vào URL) và đặt lại kịch bản bằng cách đổi `key` của `CounterHandoverContent`. Không gọi API thật.
+ *
+ * @param {object} props các prop được chuyển tiếp cho `CounterHandoverContent`.
+ */
 function BeneficiaryAccountPreview(props) {
   const [scenario, setScenario] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -35,6 +51,7 @@ function BeneficiaryAccountPreview(props) {
 
   const [resetCount, setResetCount] = useState(0);
 
+  /** Chọn kịch bản mô phỏng và ghi tham số `scenario` vào URL. */
   const handleSelectScenario = (key) => {
     setScenario(key);
     if (typeof window !== 'undefined' && window.history?.replaceState) {
@@ -44,6 +61,7 @@ function BeneficiaryAccountPreview(props) {
     }
   };
 
+  /** Đặt lại kịch bản hiện tại bằng cách tăng bộ đếm (buộc dựng lại nội dung). */
   const handleResetScenario = () => {
     setResetCount((prev) => prev + 1);
   };
@@ -59,6 +77,29 @@ function BeneficiaryAccountPreview(props) {
   );
 }
 
+/**
+ * Nội dung chi tiết của màn tài khoản người thụ hưởng ở chế độ mô phỏng: tải hồ sơ bàn giao mẫu
+ * (`fetchHandoverCase`), hiển thị danh sách người thụ hưởng và cho Staff
+ * - liên kết tài khoản có sẵn bằng email (`linkExistingBeneficiaryAccount`, ngoài mô phỏng là
+ *   `POST /api/v1/staff/beneficiaries/{beneficiaryId}/account-link`),
+ * - tạo và liên kết tài khoản mới (`createAndLinkBeneficiaryAccount`, ngoài mô phỏng là
+ *   `POST /api/v1/staff/beneficiaries/{beneficiaryId}/account`).
+ * Chỉ cho thao tác khi hồ sơ không chỉ đọc, kho đã mở khóa (`UNLOCKED`) và phê duyệt Legal còn hiệu lực
+ * (`canMutate`). Các hộp thoại dùng `useModalFocus`; thao tác ghi dùng khóa `actionLock` chống bấm trùng.
+ * Chuỗi giao diện từ `getCounterHandoverTranslations` (`beneficiaryAccountI18n.js`).
+ *
+ * @param {object} props
+ * @param {string|null} [props.accessToken] JWT của staff.
+ * @param {boolean} [props.isDevPreview=false] chế độ dev preview.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {string} [props.scenario='case-standard'] kịch bản mô phỏng.
+ * @param {Function} [props.onSelectScenario] đổi kịch bản.
+ * @param {Function} [props.onResetScenario] đặt lại kịch bản.
+ * @param {Function} [props.onLogout] đăng xuất.
+ * @param {Function} [props.onRefresh] làm mới dữ liệu.
+ * @param {boolean} [props.isRefreshing=false] đang làm mới.
+ * @param {Function} [props.onToggleLang] đổi ngôn ngữ.
+ */
 function CounterHandoverContent({
   accessToken = null,
   isDevPreview = false,
@@ -90,6 +131,7 @@ function CounterHandoverContent({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  /** Đóng hộp thoại tạo tài khoản và xóa mật khẩu đã nhập khỏi state. */
   const closeCreateDialog = () => {
     setCreateForm(prev => ({ ...prev, password: '' }));
     setCreateModalBeneficiary(null);
@@ -102,6 +144,7 @@ function CounterHandoverContent({
     let active = true;
     const controller = new AbortController();
 
+    /** Tải hồ sơ bàn giao theo kịch bản (`fetchHandoverCase`) và lưu bản chụp ban đầu để biết dữ liệu có bị thay đổi hay không. */
     async function load() {
       setIsLoading(true);
       setErrorMessage(null);
@@ -171,6 +214,7 @@ function CounterHandoverContent({
   // Check if current case is modified from initial snapshot
   const isModified = initialCaseSnapshot && JSON.stringify(caseData) !== initialCaseSnapshot;
 
+  /** Gửi biểu mẫu liên kết tài khoản có sẵn cho người thụ hưởng đang chọn và cập nhật `linkedUserId`/`linkedEmail` trong state. */
   const handleLinkExisting = async (e) => {
     e.preventDefault();
     if (!linkModalBeneficiary) return;
@@ -201,6 +245,7 @@ function CounterHandoverContent({
     }
   };
 
+  /** Gửi biểu mẫu tạo và liên kết tài khoản mới (email, mật khẩu, số điện thoại tùy chọn) rồi cập nhật người thụ hưởng trong state. */
   const handleCreateAccount = async (e) => {
     e.preventDefault();
     if (!createModalBeneficiary) return;

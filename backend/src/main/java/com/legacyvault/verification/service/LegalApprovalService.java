@@ -29,6 +29,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Ghi quyết định phê duyệt hoặc từ chối cuối cùng của Legal Verifier đối với hồ sơ căn cứ (ST-21, LV-LEG-001).
+ *
+ * <p>Được {@code LegalBasisDossierController} gọi qua
+ * {@code POST /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/decision} (vai trò LEGAL_VERIFIER),
+ * body {@link LegalApprovalRequest}, trả {@link LegalApprovalResponse}. Dùng các bảng phiên bản hồ sơ, phân bổ theo
+ * phiên bản và lịch sử xem xét; ghi audit {@code LEGAL_BASIS_DECIDED} và gửi thông báo cho Staff.
+ */
 @Service
 public class LegalApprovalService {
     private final com.legacyvault.notification.WorkflowNotificationService notifications;
@@ -41,6 +49,15 @@ public class LegalApprovalService {
     private final AuditService audit;
     private final CourtRouteGuard court;
 
+    /**
+     * @param access khóa Vault, case, dossier theo thứ tự chuẩn
+     * @param versions repository phiên bản hồ sơ căn cứ
+     * @param allocations repository dòng phân bổ theo phiên bản
+     * @param history repository lịch sử xem xét/quyết định
+     * @param audit dịch vụ ghi nhật ký kiểm toán
+     * @param court guard kiểm tra quyết định tòa án khi đi theo tuyến tòa
+     * @param notifications dịch vụ ghi thông báo workflow
+     */
     public LegalApprovalService(LegalBasisCaseAccess access,
             LegalBasisDossierVersionRepository versions,
             LegalBasisVersionAllocationRepository allocations,
@@ -55,6 +72,23 @@ public class LegalApprovalService {
         this.court = court;
     }
 
+    /**
+     * Phê duyệt hoặc từ chối hồ sơ căn cứ.
+     *
+     * <p>Các bước: kiểm tra dữ liệu (quyết định, số phiên bản, hash SHA-256, hash phân bổ, lý do tối đa 1000 ký tự); khóa
+     * Vault/case/dossier và yêu cầu case mở, không bị hold; Vault phải ở LEGAL_BASIS_VERIFICATION, dossier FORWARDED và có
+     * thể xem xét; kiểm tra quyết định tòa án hợp lệ; lấy phiên bản mới nhất đã forward và không thấp hơn phiên bản yêu cầu;
+     * đối chiếu phiên bản/SHA-256/hash phân bổ trong request và trạng thái FRESH của dossier để chống quyết định cũ; cập nhật
+     * trạng thái các dòng phân bổ (APPROVED/REJECTED); lưu lịch sử quyết định; ghi audit {@code LEGAL_BASIS_DECIDED}; gửi
+     * thông báo {@code LEGAL_BASIS_DECIDED} cho Staff.
+     *
+     * @param caseId public id của hồ sơ xác minh
+     * @param principal Legal Verifier đang đăng nhập
+     * @param request quyết định cùng dấu vết phiên bản/hash mà Legal đã xem
+     * @return kết quả quyết định
+     * @throws BusinessException {@code VALIDATION_FAILED}, {@code BASIS_DOSSIER_INVALID_STATE},
+     *         {@code LEGAL_DECISION_STALE}, {@code RESOURCE_NOT_FOUND}, cùng các lỗi từ guard tòa án và hold
+     */
     @Transactional
     public LegalApprovalResponse decide(UUID caseId, CustomUserPrincipal principal, LegalApprovalRequest request) {
         Long actorId = CustomUserPrincipal.requireUserId(principal);
@@ -128,6 +162,9 @@ public class LegalApprovalService {
                 current.sha256Hash(), currentAllocationHash, principal.publicId(), LocalDateTime.now(ZoneOffset.UTC)).withNotification(notification);
     }
 
+    /**
+     * Tính hash phạm vi phân bổ của phiên bản {@code versionNo} trong dossier.
+     */
     private String allocationHash(Long dossierId, int versionNo) {
         List<AllocationRow> rows = allocations.findRowsByDossier(dossierId).stream()
                 .filter(row -> row.versionNo() == versionNo)
@@ -135,6 +172,9 @@ public class LegalApprovalService {
         return AllocationScopeHash.hashApprovalRows(rows);
     }
 
+    /**
+     * So sánh hai hash không phân biệt hoa thường; {@code false} nếu một trong hai là null.
+     */
     private static boolean sameHash(String first, String second) {
         return first != null && second != null && first.equalsIgnoreCase(second);
     }

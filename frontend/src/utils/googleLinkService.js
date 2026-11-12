@@ -16,6 +16,11 @@ import { getAuthMessage } from './loginService.js';
  * @param {Object} payload - { credential: string, accessToken: string }
  * @param {Object} options - { lang: 'vi'|'en', signal?: AbortSignal, fetchFn?: Function }
  * @returns {Promise<{ linked: boolean, code: string, message: string }>}
+ *
+ * Cách hoạt động: kiểm tra credential và accessToken không rỗng (ném ApiError INVALID_GOOGLE_CREDENTIAL 400 hoặc UNAUTHENTICATED 401),
+ * gọi POST /api/v1/auth/google/link với Bearer token và body {credential}, chỉ chấp nhận phản hồi có linked === true (ngược lại INVALID_AUTH_RESPONSE),
+ * và đổi lỗi backend chưa sẵn sàng/404 thành GOOGLE_SIGNIN_UNAVAILABLE. Thông điệp lấy từ getAuthMessage (loginService.js).
+ * Được dùng bởi pages/account/AccountProfilePage.jsx (nút liên kết tài khoản Google).
  */
 export async function linkGoogleAccount({ credential, accessToken } = {}, options = {}) {
   const lang = options.lang || 'vi';

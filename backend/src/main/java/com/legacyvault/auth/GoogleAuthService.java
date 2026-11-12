@@ -27,20 +27,48 @@ import java.time.ZoneOffset;
 import java.util.Map;
 
 /**
- * Signs in linked Google subjects, creates an Owner account for a brand-new Google user whose email is not yet
- * registered, and supports authenticated self-linking. It never links an existing account by email.
+ * Dịch vụ xác thực bằng Google (được {@link AuthController} gọi qua {@code POST /api/v1/auth/google},
+ * {@code /google/link} và {@code /password/setup}). Đăng nhập cho subject Google đã liên kết, tự tạo tài khoản Owner
+ * cho người dùng Google mới có email chưa đăng ký, và hỗ trợ tự liên kết khi đã đăng nhập. Không bao giờ liên kết
+ * tài khoản có sẵn theo email. Dùng bảng {@code external_auth_identities}, {@code users} và
+ * {@code google_login_credential_uses} (chống phát lại token); ghi audit {@code AUTH_GOOGLE_IDENTITY_LINKED} và các
+ * sự kiện đăng nhập thất bại.
  */
 @Service
 public class GoogleAuthService {
+    /**
+     * Mã nhà cung cấp lưu trong {@code external_auth_identities.provider_code}.
+     */
     private static final String GOOGLE_PROVIDER = "GOOGLE";
 
+    /**
+     * Bộ xác minh chữ ký và claim của ID token Google.
+     */
     private final GoogleIdTokenVerifier verifier;
+    /**
+     * Truy cập bảng danh tính ngoài (provider + subject).
+     */
     private final ExternalAuthIdentityRepository identities;
+    /**
+     * Truy cập bảng {@code users}.
+     */
     private final UserRepository users;
+    /**
+     * Lưu dấu token đã dùng để chống replay.
+     */
     private final GoogleLoginCredentialUseRepository credentialUses;
+    /**
+     * Dùng để tạo tài khoản Owner, phát hành JWT và đặt mật khẩu.
+     */
     private final AuthService authService;
+    /**
+     * Ghi nhật ký kiểm toán.
+     */
     private final AuditService auditService;
 
+    /**
+     * Khởi tạo dịch vụ với các phụ thuộc được Spring tiêm vào.
+     */
     public GoogleAuthService(GoogleIdTokenVerifier verifier,
             ExternalAuthIdentityRepository identities,
             UserRepository users,
@@ -55,6 +83,18 @@ public class GoogleAuthService {
         this.auditService = auditService;
     }
 
+    /**
+     * Đăng nhập bằng Google ({@code POST /api/v1/auth/google}). Xác minh token; nếu subject chưa liên kết thì
+     * đăng ký mới qua {@link #signUp}; nếu đã liên kết thì kiểm tra tài khoản (bị khóa bởi admin thì báo
+     * {@code ACCOUNT_LOCKED_BY_ADMIN} vì credential đã được xác minh), ghi dấu token dùng một lần (phát hiện
+     * replay qua khóa chính {@code PK_google_login_credential_uses}) rồi phát hành JWT.
+     *
+     * @param request chứa ID token Google
+     * @return {@link LoginResponse}
+     * @throws BusinessException {@code INVALID_GOOGLE_CREDENTIAL}, {@code ACCOUNT_LOCKED_BY_ADMIN}, {@code INVALID_CREDENTIALS},
+     *         {@code GOOGLE_EMAIL_NOT_VERIFIED}, {@code GOOGLE_EMAIL_ALREADY_REGISTERED}, {@code GOOGLE_SIGNIN_UNAVAILABLE}
+     * @throws GoogleSignupRaceException khi một request song song vừa tạo tài khoản (controller sẽ thử lại)
+     */
     @Transactional
     public LoginResponse login(GoogleLoginRequest request) {
         GoogleIdTokenVerifier.VerifiedGoogleCredential credential;
@@ -100,7 +140,16 @@ public class GoogleAuthService {
         return authService.issueLoginResponseForActiveUser(user);
     }
 
-    /** First-time Google sign-in: unknown subject. Everything runs in the caller's single transaction. */
+    /**
+     * Đăng nhập Google lần đầu cho subject chưa biết; mọi bước chạy trong transaction của người gọi. Yêu cầu email đã
+     * được Google xác minh và hợp lệ; nếu email đã có tài khoản thì không gộp (chủ sở hữu phải đăng nhập bằng mật khẩu rồi
+     * tự liên kết Google từ hồ sơ). Tiêu thụ token, tạo Owner ({@code AuthService.createGoogleOwner}), lưu danh tính, phát
+     * hành JWT. Nếu thua cuộc đua với request song song (vi phạm {@code UQ_users_email} hoặc
+     * {@code UQ_external_auth_identities_provider_subject}) thì ném {@link GoogleSignupRaceException}.
+     *
+     * @param credential credential Google đã xác minh
+     * @return {@link LoginResponse}
+     */
     private LoginResponse signUp(GoogleIdTokenVerifier.VerifiedGoogleCredential credential) {
         if (!credential.emailVerified()) {
             throw new BusinessException(ErrorCode.GOOGLE_EMAIL_NOT_VERIFIED);
@@ -140,6 +189,14 @@ public class GoogleAuthService {
         return authService.issueLoginResponseForActiveUser(created);
     }
 
+    /**
+     * Ghi dấu một ID token đã dùng (sau khi dọn các dấu hết hạn). Trùng khóa chính nghĩa là token bị dùng lại.
+     *
+     * @param credential               credential đã xác minh
+     * @param user                     người dùng liên quan (chỉ dùng cho audit), có thể {@code null}
+     * @param auditReplayAsLoginFailure {@code true} để ghi audit đăng nhập thất bại khi phát hiện replay
+     * @throws BusinessException {@code INVALID_GOOGLE_CREDENTIAL} khi token đã được dùng
+     */
     private void consumeCredential(GoogleIdTokenVerifier.VerifiedGoogleCredential credential, User user,
             boolean auditReplayAsLoginFailure) {
         credentialUses.deleteByExpiresAtLessThanEqual(LocalDateTime.now(ZoneOffset.UTC));
@@ -158,9 +215,16 @@ public class GoogleAuthService {
     }
 
     /**
-     * First password for a Google-only account. Requires a fresh Google ID token whose subject is linked to the
-     * signed-in account, so a session alone is not enough. The token is consumed in the same transaction as the
-     * password change; if the password step fails (policy, already set) everything rolls back and the token stays usable.
+     * Đặt mật khẩu đầu tiên cho tài khoản Google-only ({@code POST /api/v1/auth/password/setup}). Cần ID token Google mới có
+     * subject đã liên kết với tài khoản đang đăng nhập, nên chỉ có phiên là chưa đủ. Token được tiêu thụ trong cùng
+     * transaction với việc đổi mật khẩu; nếu bước mật khẩu lỗi (chính sách, đã có mật khẩu) thì rollback và token vẫn dùng
+     * lại được.
+     *
+     * @param authenticatedUserId id nội bộ của người dùng đang đăng nhập
+     * @param request             mật khẩu mới và credential Google
+     * @return {@link PasswordSetupResponse}
+     * @throws BusinessException {@code GOOGLE_IDENTITY_MISMATCH}, {@code INVALID_GOOGLE_CREDENTIAL}, {@code PASSWORD_ALREADY_SET},
+     *         {@code PASSWORD_POLICY}
      */
     @Transactional
     public PasswordSetupResponse setupPassword(Long authenticatedUserId, PasswordSetupRequest request) {
@@ -176,7 +240,18 @@ public class GoogleAuthService {
         return authService.setupPassword(authenticatedUserId, request.password());
     }
 
-    /** Links only a verified Google subject to the authenticated account; never links by email. */
+    /**
+     * Liên kết subject Google đã xác minh với tài khoản đang đăng nhập ({@code POST /api/v1/auth/google/link}); không bao giờ
+     * liên kết theo email. Tài khoản Google-only chưa có mật khẩu bị từ chối để không vượt qua yêu cầu xác thực lại. Kiểm
+     * tra subject chưa được liên kết, ghi dấu token, lưu {@code ExternalAuthIdentity} (ràng buộc duy nhất là chốt chặn
+     * cuối khi liên kết song song) và ghi audit {@code AUTH_GOOGLE_IDENTITY_LINKED}.
+     *
+     * @param request             chứa ID token Google
+     * @param authenticatedUserId id nội bộ của người dùng
+     * @return {@link GoogleIdentityLinkResponse}
+     * @throws BusinessException {@code UNAUTHENTICATED}, {@code PASSWORD_NOT_SET}, {@code GOOGLE_IDENTITY_ALREADY_LINKED},
+     *         {@code INVALID_GOOGLE_CREDENTIAL}
+     */
     @Transactional
     public GoogleIdentityLinkResponse linkIdentity(GoogleLoginRequest request, Long authenticatedUserId) {
         User user = users.findById(authenticatedUserId)
@@ -232,6 +307,13 @@ public class GoogleAuthService {
         return new GoogleIdentityLinkResponse(true);
     }
 
+    /**
+     * Kiểm tra chuỗi nguyên nhân của lỗi toàn vẹn dữ liệu có vi phạm ràng buộc tên {@code expectedName} không.
+     *
+     * @param exception    lỗi toàn vẹn dữ liệu
+     * @param expectedName tên ràng buộc cần so khớp (không phân biệt hoa thường)
+     * @return {@code true} nếu khớp
+     */
     private static boolean violatesConstraint(DataIntegrityViolationException exception, String expectedName) {
         Throwable cause = exception;
         while (cause != null) {

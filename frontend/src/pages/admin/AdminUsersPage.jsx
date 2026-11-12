@@ -8,10 +8,32 @@ import { ADMIN_VAULT_STATUSES, PROCESSING_ACCOUNT_ROLES, fetchAdminUsers, fetchA
 import { ChangeRoleModal, CreateUserModal, LockUserModal } from './AdminUserForms.jsx';
 import './AdminPages.css';
 
+/**
+ * Có nên ẩn các thao tác quản lý (đổi vai trò, khóa/mở khóa) hay không: backend từ chối khi tài khoản ACTIVE đang trong
+ * hồ sơ xử lý hoặc kho ở trạng thái IN_PROCESS/ARCHIVED.
+ *
+ * @param {object} user Bản ghi người dùng (accountStatus, vaultStatus).
+ * @returns {boolean} true nếu bị chặn.
+ */
 // The backend refuses to lock an ACTIVE account that is in a case or whose vault is archived; hide the actions up front.
 const manageBlocked = user => user.status === 'ACTIVE'
   && (user.accountStatus === 'IN_PROCESS' || ['IN_PROCESS', 'ARCHIVED'].includes(user.vaultStatus));
 
+/**
+ * Trang "Quản lý người dùng" của quản trị viên (ROLE_ADMIN).
+ *
+ * Cách hoạt động: `useAdminQuery(fetchAdminUsers, ...)` gọi `GET /api/v1/admin/users` (query, role, status, vaultStatus,
+ * page, pageSize=10). Từ bảng có thể xem chi tiết (`UserDetail` -> `GET /api/v1/admin/users/{id}`), tạo tài khoản
+ * (`CreateUserModal` -> `POST /api/v1/admin/users`), đổi vai trò (`ChangeRoleModal` -> `PUT /api/v1/admin/users/{id}/role`)
+ * và khóa/mở khóa (`LockUserModal` -> `POST /api/v1/admin/users/{id}/lock|unlock`). Sau mỗi thao tác thành công trang tải lại
+ * và hiện thông báo. Cột trạng thái kho chỉ hiện khi lọc vai trò VAULT_OWNER; trạng thái xử lý hiện với vai trò xử lý hồ sơ.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {string|null} [props.accessToken] JWT admin.
+ * @param {boolean} [props.fetchOnMount=false] Có gọi API thật hay không.
+ * @param {Function|null} [props.onUnauthorized] Callback khi 401.
+ */
 export default function AdminUsersPage({
   lang = 'vi',
   accessToken = null,
@@ -40,6 +62,9 @@ export default function AdminUsersPage({
   const [lockTarget, setLockTarget] = useState(null);
   const [notice, setNotice] = useState('');
 
+  /**
+   * Sau khi tạo tài khoản: đóng modal, hiện thông báo, xóa bộ lọc, về trang 1 và tải lại danh sách.
+   */
   const handleCreated = () => {
     setCreating(false);
     setNotice(t.createdOk);
@@ -49,23 +74,35 @@ export default function AdminUsersPage({
     setPage(1);
     handleReload();
   };
+  /**
+   * Sau khi khóa/mở khóa: hiện thông báo tương ứng, đóng modal và tải lại.
+   */
   const handleLockDone = () => {
     setNotice(lockTarget?.lock ? t.lockedOk : t.unlockedOk);
     setLockTarget(null);
     handleReload();
   };
+  /**
+   * Sau khi đổi vai trò: đóng modal, hiện thông báo và tải lại.
+   */
   const handleRoleChanged = () => {
     setRoleTarget(null);
     setNotice(t.roleChangedOk);
     handleReload();
   };
 
+  /**
+   * Submit form tìm kiếm: về trang 1 và tải lại.
+   */
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     setPage(1);
     handleReload();
   };
 
+  /**
+   * Xóa toàn bộ bộ lọc (từ khóa, vai trò, trạng thái, trạng thái kho) và về trang 1.
+   */
   const handleResetFilters = () => {
     setQuery('');
     setRoleFilter('');
@@ -74,6 +111,9 @@ export default function AdminUsersPage({
     setPage(1);
   };
 
+  /**
+   * Định dạng ngày theo ngôn ngữ; không có giá trị thì trả chuỗi "không có".
+   */
   const formatDate = (isoString) => {
     if (!isoString) return t.notAvailable;
     try {
@@ -393,7 +433,16 @@ export default function AdminUsersPage({
   );
 }
 
+/**
+ * Adapter cho `useAdminQuery`: gọi `fetchAdminUserDetail` (`GET /api/v1/admin/users/{id}`).
+ */
 const loadUserDetail = (token, { id, ...options }) => fetchAdminUserDetail(token, id, options);
+/**
+ * Modal chi tiết một tài khoản: tải `GET /api/v1/admin/users/{id}` (kèm vai trò đang lọc để backend trả đúng trạng thái xử lý),
+ * hiển thị ID, họ tên, email, vai trò, trạng thái, trạng thái kho (nếu `showVaultStatus`) và ngày tạo. Lỗi 403 gọi `onDenied`.
+ *
+ * @param {object} props `id`, `accessToken`, `lang`, `role`, `showVaultStatus`, `onClose`, `onUnauthorized`, `onDenied`.
+ */
 function UserDetail({ id, accessToken, lang, role, showVaultStatus, onClose, onUnauthorized, onDenied }) {
   const t = adminI18n[lang] || adminI18n.vi;
   const ref = useModalFocus(true, onClose);

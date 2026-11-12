@@ -21,6 +21,9 @@ import './LivingHeritageWave.css';
 // - Light Seafoam: max 6.5px vertical, 2.0px lateral (guideline: 5–8px)
 // - Mid Jade: max 5px vertical, 1.5px lateral (guideline: 4–6px)
 // - Deep Forest: max 3px vertical, 1.0px lateral (guideline: 2–4px)
+/**
+ * Thông số từng lớp sóng (tâm y, độ lệch tối đa theo x/y, bán kính ảnh hưởng của con trỏ).
+ */
 const LAYER_PROFILES = {
   gold:  { y0: 240, maxDispY: 9,   maxDispX: 2.5, radius: 120 },
   mid:   { y0: 300, maxDispY: 5,   maxDispX: 1.5, radius: 115 },
@@ -28,6 +31,10 @@ const LAYER_PROFILES = {
   light: { y0: 130, maxDispY: 6.5, maxDispX: 2.0, radius: 110 },
 };
 
+/**
+ * Hình sóng SVG bốn lớp phản ứng với con trỏ bằng mô phỏng lò xo/giảm chấn (requestAnimationFrame), dùng làm trang trí trên trang tổng quan kho ({@code VaultOverviewPage}). Không gọi API.
+ * Bỏ qua với thiết bị cảm ứng và khi người dùng chọn giảm chuyển động. Props: {@code lang}.
+ */
 export default function LivingHeritageWave({ lang = 'vi' }) {
   const isVi = lang === 'vi';
   const panelRef = useRef(null);
@@ -134,6 +141,9 @@ export default function LivingHeritageWave({ lang = 'vi' }) {
   }, []);
 
   // Pointer move handler calculating local repulsion per layer
+  /**
+   * Tính vị trí con trỏ trong hệ tọa độ SVG 600x400 và đặt mục tiêu dịch chuyển cho từng lớp sóng.
+   */
   const handleMouseMove = useCallback((e) => {
     if (
       typeof window !== 'undefined' &&
@@ -190,10 +200,16 @@ export default function LivingHeritageWave({ lang = 'vi' }) {
     }
   }, []);
 
+  /**
+   * Bật trạng thái hover và khởi động vòng mô phỏng.
+   */
   const handleMouseEnter = useCallback((e) => {
     handleMouseMove(e);
   }, [handleMouseMove]);
 
+  /**
+   * Tắt hover để các lớp sóng hồi về vị trí cân bằng.
+   */
   const handleMouseLeave = useCallback(() => {
     physicsRef.current.isHovering = false;
     const layers = physicsRef.current.layers;

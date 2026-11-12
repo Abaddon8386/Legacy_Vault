@@ -20,7 +20,9 @@ import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import { legalGuidance } from '../../utils/workflowGuidance.js';
 import { workflowFailure } from '../../utils/workflowFeedback.js';
 
+/** Bảng ánh xạ id bước điều hướng của Legal -> đường dẫn trang (lấy từ LEGAL_NAVIGATION_REGISTRY), dùng cho hàm go() và liên kết sang bước mở khóa. */
 const paths = Object.fromEntries(LEGAL_NAVIGATION_REGISTRY.map(item => [item.id, item.path]));
+/** Nhãn các lựa chọn/quyết định của Legal: mã (APPROVE, MATCH, COURT, review, NEW_DISPUTE...) -> [nhãn vi, nhãn en]. */
 const choices = {
   APPROVE: ['Chấp thuận', 'Approve'], REJECT: ['Từ chối', 'Reject'], REQUEST_MORE: ['Yêu cầu bổ sung', 'Request more information'],
   MATCH: ['Khớp', 'Match'], MISMATCH: ['Không khớp', 'Mismatch'], INCONCLUSIVE: ['Chưa đủ cơ sở', 'Inconclusive'],
@@ -30,18 +32,46 @@ const choices = {
   VALID: ['Hợp lệ', 'Valid'], INVALID: ['Không hợp lệ', 'Invalid'],
   NEW_DISPUTE: ['Tranh chấp mới', 'New dispute'], INSUFFICIENT_EVIDENCE: ['Thiếu chứng cứ', 'Insufficient evidence'],
 };
+/** Thông báo cho các mã HTTP phổ biến (401, 403, 404, 409): mã -> [vi, en]. */
 const knownErrors = {
   401: ['Phiên đăng nhập đã hết hạn.', 'Your session has expired.'],
   403: ['Bạn không có quyền thực hiện thao tác này.', 'You do not have permission for this action.'],
   404: ['Không tìm thấy hồ sơ được phép truy cập.', 'An accessible record was not found.'],
   409: ['Hồ sơ đã thay đổi hoặc chưa đủ điều kiện. Hãy tải lại trước khi tiếp tục.', 'The record changed or is not eligible. Reload before continuing.'],
 };
+/** Trả về nhãn của một lựa chọn theo ngôn ngữ; mã không có trong bảng trả về "Chưa xác định" / "Not yet determined". */
 const label = (key, en) => choices[key]?.[en ? 1 : 0] || (en ? 'Not yet determined' : 'Chưa xác định');
+/**
+ * Tạo chuỗi JSON đại diện phạm vi giấy tờ và phân bổ của hồ sơ căn cứ để phát hiện thay đổi trước khi ghi nhận quyết định.
+ * Bỏ trường accountLinked vì việc liên kết tài khoản có thể đổi trong lúc Legal thẩm định và không phải điều kiện phê duyệt.
+ *
+ * @param {object|null} dossier Hồ sơ căn cứ.
+ * @returns {string} Chuỗi JSON (so sánh bằng ===).
+ */
 // Linking can change while Legal reviews a document. It is not an approval condition.
 const dossierScope = dossier => JSON.stringify(dossier && { ...dossier, versions: dossier.versions.map(item => ({ ...item,
   allocations: item.allocations?.map(row => Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'accountLinked'))),
 })) });
 
+/**
+ * Khung quy trình xử lý hồ sơ của Legal (vai trò LEGAL_VERIFIER), App.jsx render theo từng bước: death-verification, will-document-verification, basis-route-selection (dossier-review),
+ * approval-review, controlled-unlock. Cách hoạt động:
+ * 1. Kiểm tra phiên còn hiệu lực và có vai trò LEGAL_VERIFIER (nếu không hiển thị thông báo 401/403).
+ * 2. Gọi discovery (mặc định api.loadLegalQueue -> GET /api/v1/legal-verifications/verification-cases) để lấy hàng đợi hồ sơ có phân trang; kết quả chỉ hợp lệ khi khớp session/discovery/attempt/page.
+ * 3. Khi đã chọn hồ sơ (caseId từ URL), render LegalContextStep để tải ngữ cảnh hồ sơ; chọn hồ sơ khác sẽ điều hướng qua onNavigate với đường dẫn của bước + caseId.
+ * 4. Ở bước controlled-unlock có hai tab: "Mở khóa kho" (nội dung hồ sơ) và "Bàn giao tạm dừng" (LegalHandoverReopen, kèm số yêu cầu đang chờ).
+ *
+ * @param {object} props
+ * @param {object} props.session Phiên đăng nhập {accessToken, user: {id, roles, fullName}}.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {string} [props.step='death-verification'] Bước hiện tại ('dossier-review' được quy về 'basis-route-selection').
+ * @param {string} [props.caseId=''] Hồ sơ đang mở.
+ * @param {Function} [props.discovery] Hàm tải hàng đợi hồ sơ.
+ * @param {Function} [props.contextLoader] Hàm tải ngữ cảnh hồ sơ (mặc định api.loadLegalContext).
+ * @param {(url: string) => void} [props.onNavigate] Điều hướng nội bộ.
+ * @param {() => void} [props.onUnauthorized] Gọi khi API trả 401.
+ * @returns {JSX.Element}
+ */
 export default function LegalLiveWorkflow({ session, lang = 'vi', step: requestedStep = 'death-verification', caseId = '', discovery = api.loadLegalQueue,
   contextLoader = api.loadLegalContext, onNavigate, onUnauthorized }) {
   const step = requestedStep === 'dossier-review' ? 'basis-route-selection' : requestedStep;
@@ -158,6 +188,24 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
   </section>;
 }
 
+/**
+ * Tải ngữ cảnh một hồ sơ Legal và dựng giao diện theo bước.
+ * - useEffect gọi contextLoader (GET /api/v1/legal-verifications/verification-cases/{caseId}/context) với AbortController; 401 -> onUnauthorized, 403 -> onDenied.
+ * - useDistributionWorkflow (workspace LEGAL) lấy dữ liệu phân phối/điều kiện; tự tải lại ngữ cảnh khi có thay đổi từ bên ngoài.
+ * - Sau mỗi thao tác thành công, saved(receipt) lưu biên nhận, phát sự kiện 'lv-workflow-notifications-changed' và tăng attempt để tải lại trạng thái chuẩn từ server (biên nhận không tự cấp quyền cho bước kế tiếp).
+ * - Chọn component theo bước: basis-route-selection -> LegalDistributionWorkspace; approval-review/controlled-unlock -> LegalDistributionFinalWorkspace; còn lại -> LegalCaseStep.
+ *
+ * @param {object} props
+ * @param {object} props.session Phiên đăng nhập.
+ * @param {{caseId: string, label?: string}} props.selected Hồ sơ được chọn.
+ * @param {string} props.step Bước hiện tại.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {Function} props.contextLoader Hàm tải ngữ cảnh.
+ * @param {() => void} [props.onUnauthorized] 401.
+ * @param {(error: Error) => void} [props.onDenied] 403.
+ * @param {() => void} props.onChangeCase Hiện/ẩn bộ chọn hồ sơ.
+ * @returns {JSX.Element}
+ */
 function LegalContextStep({ session, selected, step, lang, contextLoader, onUnauthorized, onDenied, onChangeCase }) {
   const [result, setResult] = useState(null);
   const [guidanceStale, setGuidanceStale] = useState(false);
@@ -256,6 +304,28 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   </>;
 }
 
+/**
+ * Bước xử lý của một hồ sơ cho 3 loại: death-verification (xác minh giấy tờ khai tử), will-document-verification (đối chiếu di chúc bản cứng với bản số) và dossier-review (thẩm định hồ sơ căn cứ).
+ * Tải dữ liệu bằng legalLiveService: loadDeathDocument, loadWillComparisons, loadLegalReviewContext/loadLegalDossier, loadCourtDecisions.
+ * Khi bấm "Ghi nhận quyết định" (submit): kiểm tra lại dữ liệu mới nhất (trả 409 nếu đã đổi), rồi gọi decideDeathDocument, compareWill, classifyLegalDossier, holdLegalDossier, decideCourt hoặc reviewLegalDossier.
+ * Biên nhận không cấp thêm quyền; sau khi lưu phải tải lại (needsReload). Có khóa lock chống gửi trùng và AbortController để hủy.
+ * Hiển thị tệp chứng cứ qua LegalEvidenceFiles và các phiên bản văn bản/phân bổ qua LegalRecordDetails, LegalAllocations.
+ *
+ * @param {object} props
+ * @param {object} props.session Phiên đăng nhập.
+ * @param {object} props.selected Hồ sơ với deathDocumentIds, deathDocumentDates.
+ * @param {string} props.step Bước.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {boolean} props.readOnly Hồ sơ ở chế độ chỉ xem.
+ * @param {(receipt: object) => void} props.onSaved Callback sau khi lưu thành công.
+ * @param {(pending: boolean) => void} props.onPendingChange Báo trạng thái đang ghi.
+ * @param {object} props.draft Bản nháp form do cha giữ.
+ * @param {Function} props.setDraft Cập nhật bản nháp.
+ * @param {string} props.documentId Giấy tờ khai tử đang chọn.
+ * @param {(id: string) => void} props.setDocumentId Đổi giấy tờ.
+ * @param {() => void} props.onReload Tải lại ngữ cảnh ở cha.
+ * @returns {JSX.Element}
+ */
 function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied, onSaved, onPendingChange, readOnly, draft: storedDraft, setDraft, documentId, setDocumentId, onReload }) {
   const en = lang === 'en';
   const [data, setData] = useState(null);
@@ -323,6 +393,10 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
     : needsReload ? (receipt ? (en ? 'Select “View latest status” to continue.' : 'Chọn “Xem trạng thái mới” để tiếp tục.') : (en ? 'Select “Try again” to check the latest status before continuing.' : 'Chọn “Thử lại” để kiểm tra trạng thái mới nhất trước khi tiếp tục.'))
     : legalStepBlocker(step, { data, documentId, documentCount: selected.deathDocumentIds.length, action: draft.action }, en);
 
+  /**
+   * Ghi nhận quyết định cho bước hiện tại. Trước khi ghi, tải lại dữ liệu mới nhất và ném {status: 409} nếu hồ sơ/giấy tờ/phiên bản/hash đã thay đổi hoặc trạng thái không còn hợp lệ;
+   * sau đó gọi API tương ứng (xem LegalCaseStep). Thành công: lưu receipt, đặt needsReload và gọi onSaved. Lỗi: lưu error; 401 -> onUnauthorized; 403 -> onDenied; 401/403/404/409 hoặc INVALID_RESPONSE/NETWORK_ERROR buộc tải lại.
+   */
   async function submit(e) {
     e.preventDefault(); if (lock.current || !eligible) return;
     lock.current = true; onPendingChange?.(true); const c = new AbortController(); controller.current = c; setBusy(true); setError(null); setReceipt(null);

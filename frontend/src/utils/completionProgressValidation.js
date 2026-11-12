@@ -12,6 +12,9 @@
  * - Client guard strictly verifies active session and STAFF_EXECUTOR role.
  */
 
+/**
+ * Trạng thái tiến độ hoàn tất hồ sơ: COMPLETED, INCOMPLETE, INDETERMINATE (thiếu dữ liệu). Dùng bởi pages/staff/CloseAndArchivePage.jsx và utils/workflowGuidance.js.
+ */
 export const COMPLETION_PROGRESS_STATUS = {
   COMPLETED: 'COMPLETED',
   INCOMPLETE: 'INCOMPLETE',
@@ -19,6 +22,9 @@ export const COMPLETION_PROGRESS_STATUS = {
   PENDING_VERIFICATION: 'INDETERMINATE', // Alias if referenced as internal FE presentation state
 };
 
+/**
+ * Các khóa điều kiện còn thiếu khi tính tiến độ hoàn tất (giao tài sản, xác nhận người thụ hưởng, thiếu dữ liệu).
+ */
 export const COMPLETION_MISSING_CONDITIONS = {
   ASSET_DELIVERY_INCOMPLETE: 'assetDeliveryIncomplete',
   BENEFICIARY_CONFIRMATION_INCOMPLETE: 'beneficiaryConfirmationIncomplete',
@@ -31,6 +37,8 @@ export const COMPLETION_MISSING_CONDITIONS = {
  *
  * @param {Object|null|undefined} session
  * @returns {boolean}
+ *
+ * Chỉ ROLE_STAFF_EXECUTOR có session còn hạn mới được xem tiến độ hoàn tất.
  */
 export function canAccessCompletionProgress(session) {
   if (!session || !session.accessToken || typeof session.expiresAt !== 'number') {
@@ -56,6 +64,8 @@ export function canAccessCompletionProgress(session) {
  *
  * @param {any} val
  * @returns {number|null}
+ *
+ * Trả về số nguyên an toàn không âm; giá trị khác trả null mà không ép kiểu.
  */
 export function normalizeSafeIntegerCount(val) {
   if (typeof val !== 'number') {
@@ -79,6 +89,8 @@ export function normalizeSafeIntegerCount(val) {
  *   beneficiaryMetric: { confirmed: number|null, total: number|null, percentage: number|null, is100: boolean, isVerified: boolean },
  *   missingConditions: Array<string>
  * }}
+ *
+ * Tính tiến độ giao tài sản và xác nhận người thụ hưởng theo quy tắc LV-CLOSE-001. Hoàn tất chỉ khi cả hai đạt 100% theo số đếm (phần trăm chỉ để hiển thị, làm tròn xuống). Dữ liệu thiếu/sai cho INDETERMINATE.
  */
 export function evaluateCompletionProgress(assetData = {}, beneficiaryData = {}) {
   const missingConditions = [];

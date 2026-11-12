@@ -11,6 +11,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.*;
 import java.util.*;
+/**
+ * ST-29 (LV-CLOSE-001): lưu trữ Vault sau khi bàn giao hoàn tất và đóng ca.
+ *
+ * Được gọi bởi {@code HandoverArchiveController} qua
+ * {@code /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/archive} (POST, vai trò {@code STAFF_EXECUTOR}), trả {@link HandoverArchiveResponse}.
+ * Cập nhật {@code verification_cases} (complete), {@code vaults} (ARCHIVED) và ghi audit {@code VAULT_HANDOVER_ARCHIVED}.
+ */
 @Service
 public class HandoverArchiveService {
 private final com.legacyvault.verification.group.GroupHandoverService group;
@@ -26,6 +33,9 @@ private final com.legacyvault.verification.group.GroupHandoverService group;
  private final VaultRepository vaults;
  private final LegalBasisLockedState state;
  private final AuditService audit;
+ /**
+  * Khởi tạo với bộ khóa ca, snapshot bàn giao, các service hoàn tất/đóng, repository phiên/bằng chứng/biên nhận/ca/Vault, audit và bàn giao nhóm.
+  */
  public HandoverArchiveService(HandoverSessionCaseAccess casesAccess,HandoverCompletionAccess access,
   HandoverCompletionService completion,HandoverCloseService close,HandoverSessionRepository sessions,
   HandoverCompletionEvidenceRepository evidence,HandoverReceiptRepository receipts,HandoverReceiptAssetRepository receiptAssets,
@@ -35,6 +45,19 @@ this.group=group;
   this.evidence=evidence;this.receipts=receipts;this.receiptAssets=receiptAssets;this.cases=cases;
   this.vaults=vaults;this.state=state;this.audit=audit;
  }
+ /**
+  * Lưu trữ Vault. Idempotent: nếu Vault đã ARCHIVED và ca đã đóng bởi đúng phiên này thì chỉ trả lại kết quả; ngược lại
+  * khóa snapshot, kiểm tra bàn giao nhóm sẵn sàng, bằng chứng đóng phiên ({@link HandoverCloseService#requireEvidence}), cổng hoàn tất kép
+  * ({@link HandoverCompletionService#requireReady}) và biên nhận phủ hết các dòng phân bổ ({@link #requireReceipts}); sau đó đóng ca, flush,
+  * chuyển Vault sang ARCHIVED rồi ghi audit.
+  *
+  * @param caseId UUID công khai của ca
+  * @param sessionId UUID công khai của phiên bàn giao
+  * @param actor Staff đang đăng nhập
+  * @return trạng thái Vault/ca sau khi lưu trữ
+  * @throws com.legacyvault.common.error.BusinessException HANDOVER_SESSION_INVALID_STATE, RESOURCE_NOT_FOUND, HANDOVER_RECEIPT_INVALID_STATE,
+  *         HANDOVER_COMPLETION_PENDING, LEGAL_DECISION_STALE
+  */
  @Transactional
  public HandoverArchiveResponse archive(UUID caseId,UUID sessionId,CustomUserPrincipal actor){
   Long staff=CustomUserPrincipal.requireUserId(actor);
@@ -69,6 +92,11 @@ this.group=group;
    Map.of("caseId",caseId.toString(),"sessionId",sessionId.toString()),"ST-29","LV-CLOSE-001"));
   return response(s.locked().vault(),s.locked().verificationCase(),sessionId);
  }
+ /**
+  * Mọi dòng phân bổ đã duyệt phải được phủ bởi một biên nhận còn hiệu lực (không bị thay thế, cùng phiên bản/SHA-256/hash phạm vi).
+  *
+  * @throws com.legacyvault.common.error.BusinessException HANDOVER_RECEIPT_INVALID_STATE
+  */
  private void requireReceipts(HandoverCompletionAccess.Snapshot s){
   var records=receipts.findByHandoverSessionIdOrderByConfirmedAtDesc(s.session().getId());
   var superseded=records.stream().map(HandoverReceipt::getSupersedesReceiptId).filter(Objects::nonNull)
@@ -81,6 +109,9 @@ this.group=group;
   if(s.rows().isEmpty()||s.rows().stream().anyMatch(r->!covered.contains(r.allocationId())))
    throw new BusinessException(ErrorCode.HANDOVER_RECEIPT_INVALID_STATE);
  }
+ /**
+  * Dựng response gồm UUID Vault, ca, phiên, trạng thái và thời điểm đóng ca.
+  */
  private HandoverArchiveResponse response(Vault vault,VerificationCase c,UUID sessionId){
   return new HandoverArchiveResponse(vault.getPublicId(),c.getPublicId(),sessionId,vault.getStatus(),c.getStatus(),
    c.getClosedAt().toInstant(ZoneOffset.UTC));

@@ -4,16 +4,47 @@ import { listLegalEvidence, readLegalEvidence } from './legalEvidenceService.js'
 import { legalDate } from './legalPresentation.js';
 import ZoomableImage from '../../components/common/ZoomableImage.jsx';
 
+/**
+ * Chuyển lỗi tải tệp chứng cứ thành thông báo: 404 (tệp không khả dụng/chưa chuyển cho Pháp lý), 401/403 (không có quyền), còn lại báo không tải được.
+ *
+ * @param {{status?: number}} error Lỗi từ legalEvidenceService.
+ * @param {boolean} en Dùng tiếng Anh nếu true.
+ * @returns {string}
+ */
 const fileErrorText = (error, en) => error.status === 404
   ? (en ? 'The file is unavailable or has not been forwarded for Legal review.' : 'Tệp không khả dụng hoặc chưa được chuyển để Pháp lý thẩm định.')
   : [401, 403].includes(error.status) ? (en ? 'You do not have access to this file.' : 'Bạn không có quyền truy cập tệp này.')
   : (en ? 'Unable to load the file. Please retry.' : 'Không thể tải tệp. Vui lòng thử lại.');
 
+/**
+ * Danh sách và xem trước tệp chứng cứ của Legal. Vỏ bọc gán key theo (kind, caseId, subjectId, versionNo, accessToken) để trạng thái nội bộ được đặt lại khi đổi đối tượng.
+ * Dùng bởi LegalLiveWorkflow (khai tử, di chúc gốc, văn bản căn cứ) và LegalDistributionWorkspace.
+ *
+ * @param {object} props
+ * @param {'death'|'original-will'|'basis'} props.kind Loại chứng cứ.
+ * @param {string} props.caseId Hồ sơ xác minh.
+ * @param {string} [props.subjectId] Id giấy tờ khai tử hoặc lần tiếp nhận di chúc gốc.
+ * @param {number} [props.versionNo] Số phiên bản (kind basis).
+ * @param {string} props.accessToken JWT.
+ * @returns {JSX.Element}
+ */
 export default function LegalEvidenceFiles(props) {
   const { kind, caseId, subjectId, versionNo, accessToken } = props;
   return <EvidenceFiles key={`${kind}:${caseId}:${subjectId}:${versionNo}:${accessToken}`} {...props} />;
 }
 
+/**
+ * Xem trước một tệp chứng cứ: gọi readLegalEvidence (tải và kiểm tra SHA-256), tạo object URL (thu hồi khi unmount), hiển thị PDF bằng iframe hoặc ảnh bằng ZoomableImage.
+ * Lỗi được hiển thị kèm nút "Thử lại" và báo lên cha qua onFailure (để xử lý 401/403).
+ *
+ * @param {object} props
+ * @param {object} props.subject Đối tượng chứng cứ {kind, caseId, subjectId, versionNo}.
+ * @param {object} props.item Metadata tệp (fileName, contentType, sizeBytes, sha256, uploadedAt).
+ * @param {string} props.accessToken JWT.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {(error: Error) => void} props.onFailure Báo lỗi lên cha.
+ * @param {() => void} props.onRetry Yêu cầu tải lại tệp.
+ */
 function EvidencePreview({ subject, item, accessToken, lang, onFailure, onRetry }) {
   const en = lang === 'en';
   const [content, setContent] = useState(null), [error, setError] = useState(null);
@@ -48,6 +79,12 @@ function EvidencePreview({ subject, item, accessToken, lang, onFailure, onRetry 
   </section>;
 }
 
+/**
+ * Thành phần thực hiện: với kind khác 'basis' gọi listLegalEvidence để lấy danh sách tệp (GET .../attachments); với 'basis' chỉ có một tệp là phiên bản văn bản (thông tin lấy từ prop file).
+ * Tệp đầu tiên được mở sẵn nếu autoOpen, các tệp còn lại hiển thị nút "Xem tệp". 401 -> onUnauthorized, 403 -> onDenied.
+ *
+ * @param {object} props Xem LegalEvidenceFiles; thêm file (metadata tệp basis), onUnauthorized, onDenied, autoOpen (mặc định true).
+ */
 function EvidenceFiles({ kind, caseId, subjectId, versionNo, file, accessToken, lang, onUnauthorized, onDenied, autoOpen = true }) {
   const en = lang === 'en';
   const [result, setResult] = useState(null), [attempt, setAttempt] = useState(0);
@@ -55,6 +92,7 @@ function EvidenceFiles({ kind, caseId, subjectId, versionNo, file, accessToken, 
   const callbacks = useRef({ onUnauthorized, onDenied });
   const locale = useRef(lang);
   useEffect(() => { callbacks.current = { onUnauthorized, onDenied }; locale.current = lang; }, [onUnauthorized, onDenied, lang]);
+  /** Chuyển lỗi 401 / 403 từ phần xem trước lên callback của cha (onUnauthorized / onDenied). */
   const handleFailure = error => {
     if (error.status === 401) callbacks.current.onUnauthorized?.();
     if (error.status === 403) callbacks.current.onDenied?.(error);

@@ -7,7 +7,12 @@ import com.legacyvault.vault.entity.Vault;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.*;
 import java.util.*;
-/** One authoritative snapshot, locked Vault -> case -> dossier -> session until commit. */
+/**
+ * One authoritative snapshot, locked Vault -> case -> dossier -> session until commit.
+ *
+ * <p>Bổ sung: bộ truy cập dùng chung cho các service hoàn tất, đóng, lưu trữ và đối soát của bàn giao; toàn bộ phương thức bắt buộc có
+ * transaction sẵn ({@code Propagation.MANDATORY}). Khóa các bảng Vault, ca, dossier và phiên rồi dựng {@link Snapshot}.
+ */
 @Component
 @Transactional(propagation=Propagation.MANDATORY)
 public class HandoverCompletionAccess {
@@ -20,6 +25,9 @@ public class HandoverCompletionAccess {
     private final LegalBasisLockedState state;
     private final LegalBasisCaseAccess caseAccess;
     private final HandoverCompletionEvidenceRepository evidence;
+    /**
+     * Khởi tạo với repository ca/phiên/phiên bản/phân bổ/mục bàn giao/bằng chứng, cổng quy trình pháp lý và bộ khóa ca.
+     */
     public HandoverCompletionAccess(VerificationCaseRepository cases,LegalWorkflowGuard workflow,
             HandoverSessionRepository sessions,LegalBasisDossierVersionRepository versions,
             LegalBasisVersionAllocationRepository allocations,HandoverItemRepository items,LegalBasisLockedState state,
@@ -27,7 +35,18 @@ public class HandoverCompletionAccess {
         this.cases=cases;this.workflow=workflow;this.sessions=sessions;this.versions=versions;
         this.allocations=allocations;this.items=items;this.state=state;this.caseAccess=caseAccess;this.evidence=evidence;
     }
-    /** History reads retain assignment and session ownership without reopening mutation gates. */
+    /**
+     * History reads retain assignment and session ownership without reopening mutation gates.
+     *
+     * <p>Đọc snapshot cho các API xem lịch sử: giữ kiểm tra quyền phụ trách ca/phiên nhưng không mở lại cổng ghi. Ca còn mở thì dùng
+     * {@link #lock} (cho phép phiên đã hoàn tất); ca đã đóng thì yêu cầu Vault ARCHIVED, phiên COMPLETED đúng phiên đã đóng ca và
+     * bằng chứng còn khớp snapshot.
+     *
+     * @param caseId UUID công khai của ca
+     * @param sessionId UUID công khai của phiên
+     * @param principal Staff đang đăng nhập
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND, HANDOVER_SESSION_INVALID_STATE, LEGAL_DECISION_STALE
+     */
     public Snapshot read(UUID caseId,UUID sessionId,CustomUserPrincipal principal) {
         Long staffId=CustomUserPrincipal.requireUserId(principal);
         var initial=cases.findByPublicIdAndAssignedStaffUserId(caseId,staffId)
@@ -55,6 +74,13 @@ public class HandoverCompletionAccess {
             throw new BusinessException(ErrorCode.LEGAL_DECISION_STALE);
         return snapshot;
     }
+    /**
+     * Khóa Vault → ca → dossier → phiên cho thao tác ghi: qua cổng {@code LegalWorkflowGuard} (HANDOVER), Staff phải phụ trách ca, Vault ở
+     * UNLOCKED hoặc HANDOVER_IN_PROGRESS, phiên phải OPEN (hoặc COMPLETED nếu {@code allowCompleted}).
+     *
+     * @param allowCompleted cho phép phiên đã hoàn tất
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND, HANDOVER_VAULT_NOT_UNLOCKED, HANDOVER_SESSION_INVALID_STATE
+     */
     public Snapshot lock(UUID caseId,UUID sessionId,CustomUserPrincipal principal,boolean allowCompleted) {
         Long staffId=CustomUserPrincipal.requireUserId(principal);
         var initial=cases.findByPublicIdAndAssignedStaffUserId(caseId,staffId)
@@ -74,6 +100,12 @@ public class HandoverCompletionAccess {
             throw new BusinessException(ErrorCode.HANDOVER_SESSION_INVALID_STATE);
         return snapshot(locked,session);
     }
+    /**
+     * Dựng snapshot: phiên bản chứng cứ mới nhất, các dòng phân bổ đã duyệt (APPROVED) của phiên bản đó và tập dòng đã giao. Không dùng
+     * bộ phân giải tài sản đủ điều kiện vì nó loại người nhận chưa xác minh làm co mẫu số.
+     *
+     * @throws com.legacyvault.common.error.BusinessException BASIS_DOSSIER_INVALID_STATE nếu thiếu chứng cứ
+     */
     public Snapshot snapshot(LegalBasisCaseAccess.LockedCase locked,HandoverSession session) {
         Long dossierId=locked.dossier().getLegalBasisDossierId();
         int number=versions.findMaxVersionNo(dossierId);
@@ -86,6 +118,16 @@ public class HandoverCompletionAccess {
         Set<Long> delivered=ids.isEmpty()?Set.of():Set.copyOf(items.findDeliveredAllocationIds(ids));
         return new Snapshot(locked,session,version,locked.dossier().getLastReviewedAllocationHash(),rows,delivered);
     }
+    /**
+     * Ảnh chụp dữ liệu bàn giao đã khóa.
+     *
+     * @param locked ca/Vault/dossier đã khóa
+     * @param session phiên bàn giao
+     * @param version phiên bản chứng cứ hiện hành
+     * @param scopeHash hash phạm vi phân bổ đã được Legal duyệt
+     * @param rows các dòng phân bổ đã duyệt
+     * @param delivered tập ID dòng phân bổ đã giao
+     */
     public record Snapshot(LegalBasisCaseAccess.LockedCase locked,HandoverSession session,
             CourtEvidenceVersion version,String scopeHash,List<ReceiptAllocationRow> rows,Set<Long> delivered) {}
 }

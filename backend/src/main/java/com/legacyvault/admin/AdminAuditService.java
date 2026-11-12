@@ -12,6 +12,15 @@ import java.sql.*;
 import java.time.*;
 import java.util.*;
 
+/**
+ * Service đọc nhật ký kiểm toán cho Admin ({@code GET /api/v1/admin/audit-logs} và {@code /{id}}).
+ * <p>Dùng SQL thuần qua {@link NamedParameterJdbcTemplate} trên bảng {@code audit_logs}, JOIN với {@code users}
+ * (người thực hiện), {@code vaults}, {@code users} (chủ vault) và OUTER APPLY {@code verification_cases}
+ * (hồ sơ mở gần nhất cho vault tại thời điểm sự kiện) để suy ra mã hồ sơ và staff phụ trách.
+ * <p>Bảo mật: không bao giờ SELECT details, state_before/after, IP, email hay id nội bộ. Mọi bộ lọc đi qua
+ * tham số hóa (không nối chuỗi từ người dùng) và mọi giá trị lạ đều ném {@code VALIDATION_FAILED}.
+ * Chỉ {@code ROLE_ADMIN}; mọi truy vấn là read-only, timeout 15 giây.
+ */
 @Service
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminAuditService {
@@ -30,18 +39,34 @@ public class AdminAuditService {
     private static final List<String> ROLES=List.of("VAULT_OWNER","STAFF_EXECUTOR","LEGAL_VERIFIER","BENEFICIARY","ADMIN");
     private static final java.util.regex.Pattern CASE_NUMBER=java.util.regex.Pattern.compile("^HS-([0-9]{4})-([0-9]{6})$");
     private final NamedParameterJdbcTemplate jdbc;
+    /** @param jdbc template có tham số đặt tên, dùng chạy các câu SELECT lọc audit. */
     public AdminAuditService(NamedParameterJdbcTemplate jdbc) {this.jdbc=jdbc;}
 
+    /** Bản rút gọn của {@code list} đầy đủ: không lọc theo vai trò, vault, mã hồ sơ. */
     @Transactional(readOnly=true,timeout=15)
     public PageResponse<Event> list(String from,String to,String action,UUID actorId,String actorKind,int page,int size) {
         return list(from,to,action,actorId,actorKind,null,null,page,size);
     }
 
+    /** Bản rút gọn của {@code list} đầy đủ: không lọc theo vai trò người thực hiện. */
     @Transactional(readOnly=true,timeout=15)
     public PageResponse<Event> list(String from,String to,String action,UUID actorId,String actorKind,UUID vaultId,String caseNumber,int page,int size) {
         return list(from,to,action,actorId,actorKind,null,vaultId,caseNumber,page,size);
     }
 
+    /**
+     * Truy vấn nhật ký có phân trang; được {@code AdminAuditController#list} gọi.
+     * <ol>
+     *   <li>Kiểm tra {@code page>=0}, {@code 1<=size<=100}, {@code from<to}.</li>
+     *   <li>Dựng mệnh đề WHERE động: khoảng thời gian (UTC), action ({@code LEGACY_EVENT} = action không còn trong enum),
+     *       actorId, actorRole (tìm trong JSON {@code actor_roles}, loại actor có role xếp trước để khớp với role hiển thị),
+     *       vaultId, caseNumber ({@code HS-YYYY-NNNNNN} tách ra id + năm), actorKind.</li>
+     *   <li>Chạy {@code COUNT_BIG} lấy tổng, rồi chạy trang dữ liệu sắp xếp {@code occurred_at DESC} bằng OFFSET/FETCH.</li>
+     * </ol>
+     *
+     * @return {@link PageResponse} gồm danh sách {@link Event}, trang, size, tổng bản ghi, tổng số trang
+     * @throws BusinessException {@code VALIDATION_FAILED} khi tham số sai
+     */
     @Transactional(readOnly=true,timeout=15)
     public PageResponse<Event> list(String from,String to,String action,UUID actorId,String actorKind,String actorRole,UUID vaultId,String caseNumber,int page,int size) {
         if(page<0 || size<1 || size>100) throw invalid();
@@ -79,12 +104,21 @@ public class AdminAuditService {
         var rows=jdbc.query("SELECT "+COLUMNS+FROM+where+" ORDER BY a.occurred_at DESC,a.audit_log_id DESC OFFSET :offset ROWS FETCH NEXT :size ROWS ONLY",params,(rs,n)->event(rs));
         return new PageResponse<>(rows,page,size,total,(int)Math.min(Integer.MAX_VALUE,(total+size-1)/size));
     }
+    /**
+     * Lấy chi tiết một dòng audit theo publicId (dùng cho {@code GET /audit-logs/{id}}).
+     *
+     * @throws BusinessException {@code VALIDATION_FAILED} nếu id null; {@code RESOURCE_NOT_FOUND} nếu không có dòng nào
+     */
     @Transactional(readOnly=true,timeout=15)
     public Detail detail(UUID id) {
         if(id==null) throw invalid();
         return jdbc.query("SELECT "+COLUMNS+FROM+" WHERE a.public_id=:id",Map.of("id",id.toString()),(rs,n)->new Detail(event(rs),uuid(rs,"trace_id"))).stream().findFirst()
             .orElseThrow(()->new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
     }
+    /**
+     * Map một dòng ResultSet sang {@link Event}: ghép mã hồ sơ {@code HS-<năm>-<id 6 số>}, ẩn actor khi là SYSTEM,
+     * chỉ trả tên khi actor là USER còn tồn tại, và quy action/entity lạ về {@code LEGACY_EVENT}/{@code OTHER}.
+     */
     private Event event(ResultSet rs) throws SQLException {
         String kind=rs.getString("actor_kind"),action=rs.getString("action"),type=rs.getString("entity_type");
         String caseNumber=null;
@@ -100,11 +134,14 @@ public class AdminAuditService {
         if(json==null) return null;
         return ROLES.stream().filter(r->json.contains("\"ROLE_"+r+"\"")).findFirst().orElse(null);
     }
+    /** Đọc cột chuỗi và chuyển thành UUID; trả null nếu cột NULL. */
     private static UUID uuid(ResultSet rs,String column) throws SQLException {String s=rs.getString(column);return s==null?null:UUID.fromString(s);}
+    /** Parse chuỗi ISO-8601 thành {@link Instant}; null -> null; sai định dạng hoặc năm ngoài 1-9999 -> {@code VALIDATION_FAILED}. */
     private static Instant parse(String value) {
         if(value==null) return null;
         try {Instant i=Instant.parse(value);LocalDateTime dt=LocalDateTime.ofInstant(i,ZoneOffset.UTC);if(dt.getYear()<1 || dt.getYear()>9999) throw invalid();return i;}
         catch(DateTimeException e) {throw invalid();}
     }
+    /** Tạo lỗi {@code VALIDATION_FAILED} (HTTP 400) dùng chung cho mọi tham số không hợp lệ. */
     private static BusinessException invalid() {return new BusinessException(ErrorCode.VALIDATION_FAILED);}
 }

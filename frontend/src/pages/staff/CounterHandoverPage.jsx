@@ -14,10 +14,24 @@ import {
 import './CounterHandoverPage.css';
 import { isUuid } from '../../api/contracts.js';
 
+/**
+ * Trang "Bàn giao tại quầy" (Staff, đường dẫn `/staff/handover`). Nếu cho phép mô phỏng
+ * (`isCounterHandoverSimulationPermitted`) thì dùng `CounterHandoverPreview` với dữ liệu mẫu; ngược lại dùng
+ * `LiveHandoverPage` ở chế độ `sessions` (dữ liệu thật từ API Staff).
+ *
+ * @param {object} props các prop của trang Staff, được chuyển tiếp.
+ * @returns {JSX.Element}
+ */
 export default function CounterHandoverPage(props) {
   return isCounterHandoverSimulationPermitted(props) ? <CounterHandoverPreview {...props} /> : <LiveHandoverPage {...props} mode="sessions" />;
 }
 
+/**
+ * Bản mô phỏng của trang bàn giao tại quầy (dev preview/test): chọn kịch bản mẫu từ query `scenario`
+ * (mặc định `case-standard`), cho đổi hoặc đặt lại kịch bản (đổi `key` của `CounterHandoverContent`). Không gọi API thật.
+ *
+ * @param {object} props chuyển tiếp cho `CounterHandoverContent`.
+ */
 function CounterHandoverPreview(props) {
   const [scenario, setScenario] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -34,6 +48,7 @@ function CounterHandoverPreview(props) {
 
   const [resetCount, setResetCount] = useState(0);
 
+  /** Chọn kịch bản mô phỏng và ghi tham số `scenario` vào URL. */
   const handleSelectScenario = (key) => {
     setScenario(key);
     if (typeof window !== 'undefined' && window.history?.replaceState) {
@@ -43,6 +58,7 @@ function CounterHandoverPreview(props) {
     }
   };
 
+  /** Đặt lại kịch bản hiện tại bằng cách tăng bộ đếm. */
   const handleResetScenario = () => {
     setResetCount((prev) => prev + 1);
   };
@@ -58,6 +74,24 @@ function CounterHandoverPreview(props) {
   );
 }
 
+/**
+ * Nội dung màn bàn giao tại quầy ở chế độ mô phỏng: tải hồ sơ mẫu (`fetchHandoverCase`) và cho mở phiên bàn giao
+ * (`openHandoverSession`). Thao tác chỉ khả dụng khi hồ sơ không chỉ đọc, kho đã mở khóa (`UNLOCKED`) và phê duyệt
+ * Legal còn hiệu lực (`canMutate`). Ngoài mô phỏng, việc mở phiên thật do `LiveHandoverPage` thực hiện
+ * (`POST /api/v1/staff/verification-cases/{caseId}/handover-sessions`). Chuỗi giao diện từ `handoverSessionI18n.js`.
+ *
+ * @param {object} props
+ * @param {string|null} [props.accessToken] JWT của staff.
+ * @param {boolean} [props.isDevPreview=false] chế độ dev preview.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {string} [props.scenario='case-standard'] kịch bản mô phỏng.
+ * @param {Function} [props.onSelectScenario] đổi kịch bản.
+ * @param {Function} [props.onResetScenario] đặt lại kịch bản.
+ * @param {Function} [props.onLogout] đăng xuất.
+ * @param {Function} [props.onRefresh] làm mới.
+ * @param {boolean} [props.isRefreshing=false] đang làm mới.
+ * @param {Function} [props.onToggleLang] đổi ngôn ngữ.
+ */
 function CounterHandoverContent({
   accessToken = null,
   isDevPreview = false,
@@ -84,6 +118,7 @@ function CounterHandoverContent({
     let active = true;
     const controller = new AbortController();
 
+    /** Tải hồ sơ bàn giao theo kịch bản và lưu bản chụp ban đầu để phát hiện thay đổi. */
     async function load() {
       setIsLoading(true);
       setErrorMessage(null);
@@ -153,6 +188,7 @@ function CounterHandoverContent({
   // Check if current case is modified from initial snapshot
   const isModified = initialCaseSnapshot && JSON.stringify(caseData) !== initialCaseSnapshot;
 
+  /** Mở phiên bàn giao (có khóa chống bấm trùng) và gắn phiên mới vào state; lỗi hiển thị qua `actionError`. */
   const handleOpenSession = async () => {
     if (actionLock.current) return;
     actionLock.current = true;

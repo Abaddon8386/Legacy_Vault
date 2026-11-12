@@ -47,6 +47,7 @@ public class AdminUserManagementService {
     private final AuditService audit;
     private final AdminUserQueryService query;
 
+    /** Constructor injection các repository, bộ mã hoá mật khẩu, {@link AuditService} và {@link AdminUserQueryService}. */
     public AdminUserManagementService(UserRepository users, RoleRepository roles, UserRoleRepository userRoles,
                                       VaultRepository vaults, PasswordEncoder passwordEncoder, AuditService audit,
                                       AdminUserQueryService query) {
@@ -59,6 +60,19 @@ public class AdminUserManagementService {
         this.query = query;
     }
 
+    /**
+     * Tạo tài khoản do Admin cấp (API {@code POST /api/v1/admin/users}).
+     * <ol>
+     *   <li>Kiểm tra role thuộc {@link #ASSIGNABLE}; chuẩn hoá email bằng {@link EmailNormalizer}.</li>
+     *   <li>Từ chối nếu email đã tồn tại (kể cả khi bị đua lúc lưu: bắt {@code DataIntegrityViolationException}).</li>
+     *   <li>Lưu {@code User} trạng thái ACTIVE với mật khẩu đã băm, rồi gắn {@code UserRole} và ghi nhận Admin cấp.</li>
+     *   <li>Ghi audit {@code ADMIN_USER_CREATED}.</li>
+     * </ol>
+     *
+     * @param adminUserId id nội bộ của Admin thực hiện
+     * @return tài khoản vừa tạo
+     * @throws BusinessException {@code ADMIN_ROLE_NOT_ASSIGNABLE}, {@code EMAIL_ALREADY_EXISTS}
+     */
     @Transactional
     public AdminUserResponse createUser(Long adminUserId, AdminCreateUserRequest request) {
         String roleCode = assignable(request.role());
@@ -89,6 +103,18 @@ public class AdminUserManagementService {
         return query.getUser(saved.getPublicId(), null);
     }
 
+    /**
+     * Đổi vai trò của một tài khoản (API {@code PUT /api/v1/admin/users/{publicId}/role}).
+     * <ol>
+     *   <li>Từ chối nếu đích là chính Admin đang thao tác hoặc là tài khoản Admin ({@code ADMIN_ACCOUNT_PROTECTED}).</li>
+     *   <li>Khoá hàng user (cùng hàng mà việc tạo vault khoá) để không đua với tạo vault.</li>
+     *   <li>Nếu role hiện tại đã đúng role mới thì trả về luôn (idempotent).</li>
+     *   <li>Không cho bỏ role Vault Owner khi đã có vault ({@code ADMIN_OWNER_HAS_VAULT}).</li>
+     *   <li>Xoá các role quản lý được, gắn role mới, ghi audit {@code ADMIN_USER_ROLE_CHANGED} (trước/sau).</li>
+     * </ol>
+     *
+     * @throws BusinessException {@code RESOURCE_NOT_FOUND}, {@code ADMIN_ACCOUNT_PROTECTED}, {@code ADMIN_OWNER_HAS_VAULT}, {@code ADMIN_ROLE_NOT_ASSIGNABLE}
+     */
     @Transactional
     public AdminUserResponse changeRole(Long adminUserId, UUID publicId, AdminUpdateUserRoleRequest request) {
         String newRole = assignable(request.role());
@@ -173,6 +199,7 @@ public class AdminUserManagementService {
         return query.getUser(publicId, null);
     }
 
+    /** Chuẩn hoá role (trim, in hoa, thêm tiền tố ROLE_) và đảm bảo nằm trong {@link #ASSIGNABLE}; sai -> {@code ADMIN_ROLE_NOT_ASSIGNABLE}. */
     private static String assignable(String role) {
         String code = role == null ? "" : role.trim().toUpperCase(Locale.ROOT);
         if (!code.startsWith("ROLE_")) {
@@ -184,15 +211,18 @@ public class AdminUserManagementService {
         return code;
     }
 
+    /** Lấy entity {@link Role} theo mã; thiếu trong DB là lỗi cấu hình/migration nên ném {@link IllegalStateException}. */
     private Role requireRole(String code) {
         return roles.findByRoleCode(code)
                 .orElseThrow(() -> new IllegalStateException("Required role not found: " + code));
     }
 
+    /** Dựng mảng JSON chuỗi (ví dụ {@code ["ROLE_A","ROLE_B"]}) cho trạng thái trước/sau trong audit. */
     private static String json(List<String> values) {
         return values.stream().map(value -> "\"" + value + "\"").collect(Collectors.joining(",", "[", "]"));
     }
 
+    /** Ghi một {@link AuditEvent} do USER (Admin) thực hiện lên thực thể USER đích, kèm trạng thái trước/sau và ngữ cảnh. */
     private void record(AuditAction action, Long adminUserId, Long targetUserId, String before, String after,
                         Map<String, Object> context) {
         audit.record(new AuditEvent(action, AuditActorType.USER, adminUserId, null, "USER", targetUserId,

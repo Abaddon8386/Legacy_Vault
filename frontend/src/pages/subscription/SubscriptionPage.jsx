@@ -17,10 +17,22 @@ import {
 import './SubscriptionPage.css';
 import PaymentCheckout from './PaymentCheckout.jsx';
 
+/**
+ * Đọc kịch bản giả lập từ query string của URL (chỉ có tác dụng trong dev preview).
+ */
 function getInitialScenario() {
   return subscriptionScenario(typeof window === 'undefined' ? '' : window.location.search);
 }
 
+/**
+ * Lưới so sánh các gói (`SUBSCRIPTION_PLANS`) kèm tính năng chung, đánh dấu gói hiện tại và nút mua nâng cấp thông qua `payment`.
+ *
+ * @param {object} props
+ * @param {object} props.data Gói hiện tại và mức dùng.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {object} props.t Chuỗi giao diện.
+ * @param {object} [props.payment] Trạng thái/hành động thanh toán do `PaymentCheckout` cung cấp.
+ */
 function PlanComparison({ data, lang, t, payment }) {
   const commonFeatures = lang === 'en' ? COMMON_FEATURES_EN : COMMON_FEATURES_VI;
 
@@ -116,6 +128,19 @@ function PlanComparison({ data, lang, t, payment }) {
   );
 }
 
+/**
+ * Trang "Gói sử dụng" của chủ kho. Tải gói hiện tại và mức dùng bằng `fetchSubscription` -> `GET /api/v1/subscriptions/me`
+ * (số tài sản và dung lượng đã dùng so với hạn mức, trạng thái gói), hiển thị đồng hồ hạn mức và `PlanComparison`; việc mua/nâng cấp do `PaymentCheckout` đảm nhiệm
+ * (sau khi thanh toán xong sẽ tải lại). Lỗi 401 gọi `onUnauthorized`; lỗi khác hiện `ErrorState` có thử lại. Ở dev preview có thể chọn kịch bản giả lập.
+ *
+ * @param {object} props
+ * @param {string} props.accessToken JWT chủ kho.
+ * @param {string} [props.ownerId] ID chủ kho.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {boolean} [props.isDevPreview=false] Cho phép giả lập kịch bản (chỉ DEV).
+ * @param {Function} [props.onUnauthorized] Callback khi 401.
+ * @param {number} [props.onRefreshTrigger=0] Bộ đếm làm mới từ App.
+ */
 export default function SubscriptionPage({
   accessToken,
   ownerId,
@@ -146,6 +171,9 @@ export default function SubscriptionPage({
     return () => window.removeEventListener('popstate', onPopState);
   }, [isDevPreview]);
 
+  /**
+   * Tải lại dữ liệu gói: bật loading và tăng `reloadKey`.
+   */
   const loadData = useCallback(() => {
     setLoading(true);
     setReloadKey((k) => k + 1);
@@ -189,6 +217,9 @@ export default function SubscriptionPage({
     };
   }, [accessToken, ownerId, lang, isDevPreview, activeScenario, onUnauthorized, onRefreshTrigger, reloadKey, scopeKey]);
 
+  /**
+   * Đổi kịch bản giả lập trong dev preview và ghi vào query `scenario` của URL.
+   */
   const handleScenarioChange = (e) => {
     const nextScenario = e.target.value;
     setActiveScenario(nextScenario);
@@ -200,6 +231,9 @@ export default function SubscriptionPage({
     }
   };
 
+  /**
+   * Thanh điều khiển kịch bản giả lập, chỉ hiển thị khi `canDemo` (build DEV và dev preview).
+   */
   const devControls = (
     canDemo && (
       <details className="lv-sub-dev-banner" open>
@@ -286,6 +320,9 @@ export default function SubscriptionPage({
   const storageUsagePercent = Math.round((data.storageUsedBytes / data.maxStorageBytes) * 100);
   const storagePercent = Math.min(100, storageUsagePercent);
 
+  /**
+   * Định dạng dung lượng (byte -> KB/MB/GB); tiếng Việt dùng dấu phẩy thập phân.
+   */
   const formatStorageValue = (bytes) => {
     const formatted = formatStorageBytes(bytes);
     return lang === 'vi' ? formatted.replace('.', ',') : formatted;

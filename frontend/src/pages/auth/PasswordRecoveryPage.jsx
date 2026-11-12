@@ -5,6 +5,19 @@ import './LoginPage.css';
 import './PasswordRecoveryPage.css';
 import AuthBrand from './AuthBrand.jsx';
 
+/**
+ * Form quên mật khẩu (nhập email) hoặc đặt lại mật khẩu (mật khẩu mới + xác nhận) tùy `mode`.
+ * Không tự gọi HTTP: dùng `onRequestRecovery`/`onResetPassword` do `PasswordRecoveryRoute` cung cấp. Validate bằng
+ * `validateRecoveryEmail`/`validateRecoveryPassword`; lỗi API được ánh xạ qua `recoveryErrorKey`; nếu mã khôi phục không hợp lệ
+ * form bị khóa và gợi ý yêu cầu lại. Request bị hủy khi gỡ component; chặn gửi trùng bằng `pending`.
+ *
+ * @param {object} props
+ * @param {'request'|'reset'} props.mode Chế độ.
+ * @param {'vi'|'en'} [props.initialLang='vi'] Ngôn ngữ ban đầu.
+ * @param {Function} [props.onRequestRecovery] `({email}, {signal, lang}) => Promise`.
+ * @param {Function} [props.onResetPassword] `({password}, {signal, lang}) => Promise`.
+ * @param {Function} [props.onNavigate] Điều hướng nội bộ (đăng nhập, yêu cầu lại).
+ */
 // HTTP and credential handling belong to PasswordRecoveryRoute.
 function RecoveryForm({ mode, initialLang = 'vi', onRequestRecovery, onResetPassword, onNavigate }) {
   const [lang, setLang] = useState(initialLang === 'en' ? 'en' : 'vi');
@@ -26,15 +39,24 @@ function RecoveryForm({ mode, initialLang = 'vi', onRequestRecovery, onResetPass
     return () => requestRef.current?.abort();
   }, []);
 
+  /**
+   * Cập nhật một trường form và xóa lỗi API hiện tại.
+   */
   function change(field, value) {
     setValues(previous => ({ ...previous, [field]: value }));
     setErrorKey(null);
   }
+  /**
+   * Điều hướng nội bộ kèm `?lang=`; bỏ qua khi nhấn phím bổ trợ để trình duyệt mở tab mới như thường.
+   */
   function navigate(event, path) {
     if (!onNavigate || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     onNavigate(`${path}?lang=${lang}`);
   }
+  /**
+   * Submit form: validate (focus trường lỗi đầu), gọi handler của mode, hiển thị thành công hoặc ánh xạ lỗi sang khóa i18n.
+   */
   async function submit(event) {
     event.preventDefault();
     if (pending.current) return;
@@ -108,6 +130,11 @@ function RecoveryForm({ mode, initialLang = 'vi', onRequestRecovery, onResetPass
   </main>;
 }
 
+/**
+ * Màn quên/đặt lại mật khẩu. Bọc `RecoveryForm` với `key` theo mode để state được reset khi đổi chế độ.
+ *
+ * @param {object} props `mode` ('request' mặc định hoặc 'reset') và các props chuyển cho `RecoveryForm`.
+ */
 export default function PasswordRecoveryPage({ mode = 'request', ...props }) {
   return <RecoveryForm key={mode} mode={mode} {...props} />;
 }

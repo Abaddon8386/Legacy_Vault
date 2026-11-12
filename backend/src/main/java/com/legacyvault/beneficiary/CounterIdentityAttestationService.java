@@ -18,7 +18,12 @@ import com.legacyvault.verification.service.StaffVaultCaseGuard;
 
 import jakarta.persistence.EntityManager;
 
-/** Records authenticated Staff attestation; client-supplied identity-verification results are not accepted. */
+/**
+ * Records authenticated Staff attestation; client-supplied identity-verification results are not accepted.
+ *
+ * <p>Gọi từ {@code CounterIdentityAttestationController}. Bảng: {@code verification_cases}, {@code beneficiaries},
+ * {@code beneficiary_counter_attestations}. Audit {@code BENEFICIARY_COUNTER_ATTESTED}.
+ */
 @Service
 public class CounterIdentityAttestationService {
     private final VerificationCaseRepository cases;
@@ -30,6 +35,9 @@ public class CounterIdentityAttestationService {
     private final EntityManager entities;
     private final AuditService audit;
 
+    /**
+     * Hàm khởi tạo, Spring tiêm các phụ thuộc.
+     */
     public CounterIdentityAttestationService(VerificationCaseRepository cases, StaffCaseLockRepository caseLocks,
             BeneficiaryRepository beneficiaries, BeneficiaryCounterAttestationRepository attestations,
             StaffContextService staff, StaffVaultCaseGuard caseGuard, EntityManager entities, AuditService audit) {
@@ -43,6 +51,14 @@ public class CounterIdentityAttestationService {
         this.audit = audit;
     }
 
+    /**
+     * Ghi nhận chứng thực. Các bước: xác thực Staff và case được giao, giữ khóa Vault rồi khóa Case, refresh và kiểm tra lại case còn mở,
+     * tìm người thụ hưởng trong đúng Vault, lưu bản ghi chứng thực (append-only), gọi {@code verifyAtCounter} cho người thụ hưởng, ghi audit.
+     * @param caseId mã công khai của case
+     * @param beneficiaryId mã công khai người thụ hưởng
+     * @return {@code Response} của chứng thực
+     * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND} cho mọi trường hợp không thuộc quyền Staff
+     */
     @Transactional
     public CounterIdentityAttestationDtos.Response attest(UUID caseId, UUID beneficiaryId,
             CounterIdentityAttestationDtos.Request request) {
@@ -80,6 +96,9 @@ public class CounterIdentityAttestationService {
         return CounterIdentityAttestationDtos.Response.from(saved, actor);
     }
 
+    /**
+     * Tạo lỗi {@code RESOURCE_NOT_FOUND}.
+     */
     private static BusinessException notFound() {
         return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
     }

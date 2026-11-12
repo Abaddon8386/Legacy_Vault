@@ -13,6 +13,26 @@ import VaultSummary from '../../components/vault/VaultSummary.jsx';
 import './VaultOverviewPage.css';
 
 
+/**
+ * Trang "Tổng quan Kho di sản" của chủ kho (ROLE_VAULT_OWNER). Được `App.jsx` render.
+ *
+ * Cách hoạt động: effect gọi `fetchVault` -> `GET /api/v1/vaults?page=0&size=20&sort=createdAt,desc` (lấy kho đầu tiên; null nếu chưa có).
+ * Chưa có kho thì hiện `EmptyState` và nút mở `CreateVaultModal`; submit gọi `createVault` -> `POST /api/v1/vaults` (201) rồi hiển thị kho mới
+ * và báo `onCreated`. Có kho thì hiển thị `VaultSummary` kèm sóng trang trí. Lỗi 401 gọi `onUnauthorized`; lỗi khác hiện `ErrorState` có nút thử lại.
+ * Ở chế độ dev preview (`?preview=true`) có thể chọn kịch bản giả lập.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {string} props.accessToken JWT chủ kho.
+ * @param {string} [props.ownerId] ID chủ kho.
+ * @param {string} [props.ownerName] Tên chủ kho hiển thị.
+ * @param {Function} [props.onUnauthorized] Callback khi 401.
+ * @param {boolean} [props.showDevToolbar=false] Bật thanh kịch bản thử giao diện (chỉ DEV).
+ * @param {Function} [props.onNavigateToLogin] Về trang đăng nhập.
+ * @param {number} [props.onRefreshTrigger] Bộ đếm làm mới từ App.
+ * @param {Function} [props.onNavigate] Điều hướng sang màn khác.
+ * @param {Function} [props.onCreated] Gọi sau khi tạo kho thành công.
+ */
 export default function VaultOverviewPage({
   lang = 'vi',
   accessToken,
@@ -63,11 +83,20 @@ export default function VaultOverviewPage({
     };
   }, [showDevToolbar, selectedScenario, lang, onRefreshTrigger, refreshKey, accessToken, onUnauthorized]);
 
+  /**
+   * Thử lại tải kho: bật loading và tăng `refreshKey` để effect chạy lại.
+   */
   const handleManualRetry = useCallback(() => {
     setLoading(true);
     setRefreshKey((k) => k + 1);
   }, []);
 
+  /**
+   * Tạo kho từ form modal qua `createVault` (`POST /api/v1/vaults`); 401 gọi `onUnauthorized`, lỗi khác được ném lại cho modal hiển thị.
+   * Thành công thì cập nhật kho, gọi `onCreated`, đóng modal và hiện thông báo 4 giây.
+   *
+   * @param {{vault_name?: string, name?: string, description?: string}} formData Dữ liệu từ form.
+   */
   const handleCreateVaultSubmit = async (formData) => {
     const isDevPreviewActive = Boolean(import.meta.env.DEV && showDevToolbar);
     const scenario = isDevPreviewActive
@@ -98,6 +127,9 @@ export default function VaultOverviewPage({
     setTimeout(() => setNotification(''), 4000);
   };
 
+  /**
+   * Chuỗi giao diện song ngữ của trang tổng quan kho.
+   */
   const content = {
     vi: {
       overviewEyebrow: 'KHO DI SẢN SỐ',

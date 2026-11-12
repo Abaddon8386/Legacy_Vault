@@ -13,6 +13,14 @@ import { getAssetTranslations } from '../../pages/assets/assetI18n.js'
  * AssetFormModal — PS-5: Add asset only (Contract Aligned).
  * Fields: name, assetType (TEXT | CREDENTIAL), description, payload (write-only).
  * Validates required fields before submission. No sensitive data logged.
+ *
+ * Modal thêm tài sản mới (trường: tên, loại TEXT/CREDENTIAL, mô tả, nội dung bảo mật, ảnh và tài liệu tùy chọn).
+ * Được dùng bởi {@code pages/assets/AssetManagementPage.jsx} (trang quản lý tài sản của chủ hầm VAULT_OWNER).
+ * Không tự gọi API: sau khi validate gọi {@code onSubmit({name,assetType,description,payload,images,documents})}; component cha gọi {@code assetService.createAsset}
+ * = {@code POST /vaults/{vaultId}/assets} (hoặc {@code /assets/with-images} khi có ảnh), rồi tải tài liệu qua {@code assetDocumentService}.
+ *
+ * Props: {@code isOpen}, {@code onClose}, {@code onSubmit}, {@code t}, {@code lang}, {@code isSubmitting}, {@code assetSaved} (đã lưu tài sản nhưng còn bước đính kèm), {@code errorKey} (khóa lỗi từ cha).
+ * State: {@code formData}, {@code credentials}, {@code errors}, {@code images}, {@code documents}. Dùng {@code useModalFocus} để quản lý focus/Escape.
  */
 export function AssetFormModal({
   isOpen,
@@ -39,6 +47,10 @@ export function AssetFormModal({
   const [images, setImages] = useState([])
   const [documents, setDocuments] = useState([])
 
+  /**
+   * Kiểm tra form: tên bắt buộc <= 150 ký tự, loại phải là TEXT hoặc CREDENTIAL, mô tả <= 1000 ký tự, nội dung bảo mật bắt buộc. Ghi lỗi vào {@code errors}.
+   * @returns {boolean} true nếu hợp lệ.
+   */
   function validate() {
     const errs = {}
     const trimmedName = formData.name.trim()
@@ -65,6 +77,9 @@ export function AssetFormModal({
     return Object.keys(errs).length === 0
   }
 
+  /**
+   * Cập nhật một trường của form và xóa lỗi của trường đó.
+   */
   function handleChange(field, value) {
     setFormData((prev) => ({ ...prev, [field]: value }))
     if (errors[field]) {
@@ -72,6 +87,9 @@ export function AssetFormModal({
     }
   }
 
+  /**
+   * Submit form: bỏ qua khi đang gửi hoặc validate thất bại (trừ khi tài sản đã lưu), rồi gọi {@code onSubmit} với dữ liệu đã trim.
+   */
   function handleSubmit(e) {
     e.preventDefault()
     if (isSubmitting || (!assetSaved && !validate())) return
@@ -86,6 +104,9 @@ export function AssetFormModal({
     })
   }
 
+  /**
+   * Đóng modal và đặt lại toàn bộ form (bị bỏ qua khi đang gửi).
+   */
   function handleResetAndClose() {
     if (isSubmitting) return
     setFormData(emptyForm)

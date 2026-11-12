@@ -41,7 +41,8 @@ import com.legacyvault.subscription.service.OwnerQuotaService;
 import com.legacyvault.subscription.service.QuotaPolicy.Delta;
 
 /**
- * Bản số hóa di chúc (PS-17, PS-18 — ST-03, LV-WILL-001).
+ * Bản số hóa di chúc (PS-17, PS-18 — ST-03, LV-WILL-001), được {@code WillController} gọi
+ * (các endpoint {@code /api/v1/vaults/{vaultId}/wills}).
  *
  * <ul>
  * <li>Chỉ ghi nhận bản scan/ảnh: trạng thái là {@code UPLOADED}; không bao giờ đặt {@code LEGAL_APPROVED} hay bất kỳ
@@ -50,25 +51,70 @@ import com.legacyvault.subscription.service.QuotaPolicy.Delta;
  * phiên bản cũ giữ nguyên.</li>
  * <li>Nội dung file mã hóa trước khi lưu; không log, không đưa vào audit.</li>
  * </ul>
+ *
+ * <p>Bảng: {@code assets} (DOCUMENT), {@code legal_documents}, {@code asset_versions}. Audit: {@code WILL_UPLOADED},
+ * {@code WILL_VERSION_ADDED}, {@code WILL_FILE_OPENED}. Ghi dưới khóa Owner để quota nhất quán.
  */
 @Service
 public class WillService {
 
+	/**
+	 * Tên entity ghi trong audit.
+	 */
 	static final String ENTITY_WILL = "WILL";
+	/**
+	 * Mã bước nghiệp vụ trong audit (ST-03).
+	 */
 	static final String STEP_WILL_UPLOAD = "ST-03";
+	/**
+	 * Mã quy tắc nghiệp vụ trong audit (LV-WILL-001).
+	 */
 	static final String RULE_WILL = "LV-WILL-001";
+	/**
+	 * Độ dài tối đa tiêu đề Asset (cột title 200 ký tự).
+	 */
 	private static final int MAX_TITLE_LENGTH = 200;
 
+	/**
+	 * Truy vấn Asset di chúc.
+	 */
 	private final WillAssetRepository willAssetRepository;
+	/**
+	 * Truy vấn phiên bản file.
+	 */
 	private final AssetVersionRepository versionRepository;
+	/**
+	 * Lưu bản ghi {@code legal_documents}.
+	 */
 	private final LegalDocumentRepository legalDocumentRepository;
+	/**
+	 * Kiểm tra ownership / trạng thái Vault.
+	 */
 	private final VaultService vaultService;
+	/**
+	 * Mã hóa / giải mã nội dung file.
+	 */
 	private final EncryptionService encryptionService;
+	/**
+	 * Ghi audit.
+	 */
 	private final AuditService auditService;
+	/**
+	 * Xác thực lại mật khẩu trước khi mở file.
+	 */
 	private final PasswordReauthService reauthService;
+	/**
+	 * Dung lượng tối đa mỗi file ({@code legacyvault.will.max-file-bytes}, mặc định 10 MB).
+	 */
 	private final long maxFileBytes;
+	/**
+	 * Khóa Owner và kiểm tra quota.
+	 */
 	private final OwnerQuotaService quotas;
 
+	/**
+	 * Khởi tạo service với các phụ thuộc do Spring inject.
+	 */
 	public WillService(WillAssetRepository willAssetRepository, AssetVersionRepository versionRepository,
 			LegalDocumentRepository legalDocumentRepository, VaultService vaultService,
 			EncryptionService encryptionService, AuditService auditService, PasswordReauthService reauthService,
@@ -84,7 +130,16 @@ public class WillService {
 		this.quotas = quotas;
 	}
 
-	/** PS-17: tạo hồ sơ di chúc mới với phiên bản 1. */
+	/**
+	 * PS-17: tạo hồ sơ di chúc mới với phiên bản 1 ({@code POST .../wills}).
+	 *
+	 * Các bước: khóa Owner -> Vault ACTIVE có khóa ghi -> {@link WillFile#inspect} -> kiểm tra kích thước file và quota (+1 Asset, + byte) ->
+	 * lưu Asset DOCUMENT + {@code LegalDocument} (PENDING_VERIFICATION) -> lưu phiên bản 1 đã mã hóa -> audit {@code WILL_UPLOADED}.
+	 *
+	 * @param note ghi chú tùy chọn, lưu vào mô tả Asset
+	 * @return {@link WillResponse}
+	 * @throws com.legacyvault.common.exception.BusinessException VALIDATION_FAILED, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, lỗi quota, RESOURCE_NOT_FOUND
+	 */
 	@Transactional
 	public WillResponse uploadWill(UUID vaultId, Long ownerUserId, MultipartFile file, String note) {
 		quotas.lockOwner(ownerUserId);
@@ -103,7 +158,12 @@ public class WillService {
 		return WillResponse.from(will, vault.getPublicId(), view(version));
 	}
 
-	/** PS-18: thêm phiên bản mới cho hồ sơ di chúc đã có; phiên bản cũ không bị sửa. */
+	/**
+	 * PS-18: thêm phiên bản mới cho hồ sơ di chúc đã có ({@code POST .../wills/{willId}/versions}); phiên bản cũ không bị sửa.
+	 * Khóa dòng Asset ({@code findWillForUpdate}) để không cấp trùng số phiên bản; audit {@code WILL_VERSION_ADDED}.
+	 *
+	 * @throws com.legacyvault.common.exception.BusinessException RESOURCE_NOT_FOUND và các lỗi file / quota như {@link #uploadWill}
+	 */
 	@Transactional
 	public WillResponse addVersion(UUID vaultId, UUID willId, Long ownerUserId, MultipartFile file) {
 		quotas.lockOwner(ownerUserId);
@@ -122,6 +182,11 @@ public class WillService {
 		return WillResponse.from(will, vault.getPublicId(), view(version));
 	}
 
+	/**
+	 * Liệt kê di chúc của Vault ({@code GET .../wills}), mới nhất trước; nạp phiên bản mới nhất của cả trang bằng một truy vấn.
+	 *
+	 * @return trang {@link WillResponse}
+	 */
 	@Transactional(readOnly = true)
 	public PageResponse<WillResponse> listWills(UUID vaultId, Long ownerUserId, int page, int size) {
 		Vault vault = vaultService.requireOwnedVault(vaultId, ownerUserId);
@@ -135,6 +200,11 @@ public class WillService {
 				latest.get(will.getAssetId())));
 	}
 
+	/**
+	 * Xem một di chúc kèm phiên bản hiện tại ({@code GET .../wills/{willId}}).
+	 *
+	 * @throws com.legacyvault.common.exception.BusinessException RESOURCE_NOT_FOUND
+	 */
 	@Transactional(readOnly = true)
 	public WillResponse getWill(UUID vaultId, UUID willId, Long ownerUserId) {
 		Vault vault = vaultService.requireOwnedVault(vaultId, ownerUserId);
@@ -142,7 +212,9 @@ public class WillService {
 		return WillResponse.from(will, vault.getPublicId(), versionRepository.findVersions(will.getAssetId()).get(0));
 	}
 
-	/** PS-18: toàn bộ phiên bản, mới nhất trước, để đối chiếu toàn vẹn. */
+	/**
+	 * PS-18: toàn bộ phiên bản ({@code GET .../wills/{willId}/versions}), mới nhất trước, để đối chiếu toàn vẹn.
+	 */
 	@Transactional(readOnly = true)
 	public List<WillVersionResponse> listVersions(UUID vaultId, UUID willId, Long ownerUserId) {
 		Vault vault = vaultService.requireOwnedVault(vaultId, ownerUserId);
@@ -151,11 +223,14 @@ public class WillService {
 	}
 
 	/**
-	 * Mở/tải nội dung một phiên bản file di chúc (D-API-33): Owner của kho, kho còn {@code ACTIVE}, nhập đúng mật khẩu
+	 * Mở/tải nội dung một phiên bản file di chúc (D-API-33, {@code POST .../versions/{version}/download}): Owner của kho, kho còn {@code ACTIVE}, nhập đúng mật khẩu
 	 * hiện tại. Thứ tự: ownership (404) -> trạng thái kho (409) -> phiên bản (404) -> mật khẩu/giới hạn (403/429).
 	 *
 	 * <p>Sau khi giải mã, SHA-256 của nội dung được so với hash đã lưu lúc tải lên; lệch (dữ liệu bị sửa trong DB) thì
-	 * từ chối, không trả file. Audit chỉ ghi phiên bản/hash/kích thước, không ghi tên file hay nội dung.
+	 * từ chối, không trả file. Audit {@code WILL_FILE_OPENED} chỉ ghi phiên bản/hash/kích thước, không ghi tên file hay nội dung.
+	 *
+	 * @return {@link WillFileDownload}
+	 * @throws IllegalStateException nếu hash không khớp
 	 */
 	@Transactional
 	public WillFileDownload openVersion(UUID vaultId, UUID willId, int versionNo, Long ownerUserId, String password) {
@@ -178,11 +253,17 @@ public class WillService {
 				version.getSha256Hash());
 	}
 
+	/**
+	 * Tìm di chúc trong Vault; không có -> RESOURCE_NOT_FOUND.
+	 */
 	private Asset requireWill(UUID willId, Vault vault) {
 		return willAssetRepository.findWill(willId, vault.getVaultId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 	}
 
+	/**
+	 * Tạo và lưu một phiên bản: mã hóa nội dung với associatedData là public id của phiên bản (chép sang phiên bản khác sẽ giải mã thất bại).
+	 */
 	private AssetVersion storeVersion(Asset will, int versionNo, WillFile file, Long ownerUserId) {
 		AssetVersion version = new AssetVersion(will.getAssetId(), versionNo, file.fileName(), file.contentType(),
 				file.size(), file.sha256(), ownerUserId);
@@ -192,7 +273,9 @@ public class WillService {
 		return versionRepository.save(version);
 	}
 
-	/** Chỉ metadata toàn vẹn — không có nội dung file, không có tên file (có thể chứa thông tin cá nhân). */
+	/**
+	 * Chỉ metadata toàn vẹn (version, sha256, sizeBytes, contentType) cho audit — không có nội dung file, không có tên file (có thể chứa thông tin cá nhân).
+	 */
 	private static Map<String, Object> integrityDetails(AssetVersion version) {
 		Map<String, Object> details = new LinkedHashMap<>();
 		details.put("version", version.getVersionNo());
@@ -202,12 +285,18 @@ public class WillService {
 		return details;
 	}
 
+	/**
+	 * Chuyển entity {@link AssetVersion} thành {@link WillVersionView} để dựng response.
+	 */
 	private static WillVersionView view(AssetVersion version) {
 		return new WillVersionView(version.getAssetId(), version.getVersionNo(), version.getOriginalFileName(),
 				version.getContentType(), version.getFileSizeBytes(), version.getSha256Hash(),
 				version.getUploadStatus(), version.getUploadedAt());
 	}
 
+	/**
+	 * Trim; null hoặc rỗng trả về null.
+	 */
 	private static String normalize(String value) {
 		if (value == null) {
 			return null;
@@ -216,6 +305,9 @@ public class WillService {
 		return trimmed.isEmpty() ? null : trimmed;
 	}
 
+	/**
+	 * Cắt chuỗi còn tối đa {@code max} ký tự.
+	 */
 	private static String truncate(String value, int max) {
 		return value.length() > max ? value.substring(0, max) : value;
 	}

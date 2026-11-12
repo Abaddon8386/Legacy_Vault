@@ -3,11 +3,26 @@ import { FileText, Send, SquarePen } from 'lucide-react';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import './LegalDocumentRequestForm.css';
 
+/** Các loại giấy tờ Legal có thể yêu cầu Staff bổ sung: DISTRIBUTION (giấy tờ phân chia tài sản hợp lệ) và OTHER (giấy tờ khác, phải ghi rõ tên). Giá trị là [nhãn vi, nhãn en]. */
 const documentNames = {
   DISTRIBUTION: ['Giấy tờ phân chia tài sản hợp lệ', 'Valid asset distribution documents'],
   OTHER: ['Giấy tờ khác (ghi rõ)', 'Other documents (specify)'],
 };
 
+/**
+ * Biểu mẫu "Yêu cầu giấy tờ phân chia" của Legal. API hiện chỉ nhận một trường lý do nên component ghép tên giấy tờ và lý do thành một chuỗi
+ * (tối đa 1000 ký tự) rồi truyền cho onSubmit; việc gọi API thật do LegalLiveWorkflow thực hiện (xem legalLiveService, yêu cầu giấy tờ cho hồ sơ xác minh).
+ * Nút gửi bị khóa khi pending, không allowed, hoặc form chưa đủ (chưa chọn loại giấy tờ, thiếu tên với loại OTHER, thiếu lý do, vượt 1000 ký tự); lý do chặn hiển thị qua WorkflowActionHint.
+ *
+ * @param {object} props
+ * @param {{documentKind?: string, documentName?: string, reason?: string}} props.draft Bản nháp form do cha giữ.
+ * @param {(draft: object) => void} props.onDraftChange Cập nhật bản nháp.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {boolean} props.pending Đang gửi yêu cầu.
+ * @param {boolean} props.allowed Hồ sơ đủ điều kiện yêu cầu giấy tờ.
+ * @param {(text: string) => void} props.onSubmit Gọi với nội dung yêu cầu đã ghép.
+ * @returns {JSX.Element} Form hai khối: giấy tờ cần nộp và lý do.
+ */
 export default function LegalDocumentRequestForm({ draft, onDraftChange, lang = 'vi', pending, allowed, onSubmit }) {
   const en = lang === 'en', id = useId();
   const { documentKind = '', documentName = '', reason = '' } = draft;

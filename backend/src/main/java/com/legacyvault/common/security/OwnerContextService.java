@@ -11,16 +11,30 @@ import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.UserRepository;
 
-/** Resolves the authenticated JWT subject (the user's public UUID) to the internal database key. */
+/**
+ * Resolves the authenticated JWT subject (the user's public UUID) to the internal database key.
+ * Xác định người dùng đang đăng nhập (tải bản ghi {@code User} từ bảng {@code users}); được rất nhiều service
+ * (vault, asset, will, beneficiary, dms...) gọi để lấy chủ sở hữu hiện tại. {@link StaffContextService} dùng lại
+ * lớp này cho nhân viên.
+ */
 @Service
 public class OwnerContextService {
 
 	private final UserRepository users;
 
+	/** Nhận repository người dùng. */
 	public OwnerContextService(UserRepository users) {
 		this.users = users;
 	}
 
+	/**
+	 * Lấy người dùng đang đăng nhập từ SecurityContext (tên "owner" là tên cũ, không kiểm tra vai trò).
+	 * Lấy UUID công khai từ {@link CustomUserPrincipal} (hoặc từ tên Authentication) rồi tra bảng {@code users}.
+	 *
+	 * @return thực thể {@link User} đang hoạt động
+	 * @throws BusinessException {@code UNAUTHENTICATED} nếu chưa xác thực hoặc tài khoản không {@code ACTIVE}/đã xóa;
+	 *                           {@code RESOURCE_NOT_FOUND} nếu không tìm thấy user hoặc subject không phải UUID
+	 */
 	public User requireOwner() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (authentication == null || !authentication.isAuthenticated()) {

@@ -7,6 +7,9 @@ import './MagneticButton.css';
  * Creates a subtle, elegant magnetic pull effect toward the cursor
  * within the button boundary (2–5px translation), elevating shadow
  * and highlight while maintaining crisp active press and keyboard accessibility.
+ *
+ * Thông số: {@code magneticStrength} (hệ số kéo theo con trỏ, mặc định 0.2) và {@code maxOffset} (độ lệch tối đa px, mặc định 5).
+ * Nút đặt biến CSS {@code --btn-x}/{@code --btn-y} theo vị trí con trỏ, bỏ qua khi {@code disabled} hoặc người dùng chọn giảm chuyển động.
  */
 export default function MagneticButton({
   children,
@@ -20,6 +23,9 @@ export default function MagneticButton({
 }) {
   const buttonRef = useRef(null);
 
+  /**
+   * Tính độ lệch của nút theo vị trí con trỏ so với tâm nút (giới hạn bởi maxOffset) và ghi vào biến CSS.
+   */
   const handleMouseMove = useCallback(
     (e) => {
       if (disabled) return;
@@ -46,6 +52,9 @@ export default function MagneticButton({
     [disabled, magneticStrength, maxOffset]
   );
 
+  /**
+   * Đưa nút về vị trí gốc khi con trỏ rời đi.
+   */
   const handleMouseLeave = useCallback(() => {
     const btn = buttonRef.current;
     if (!btn) return;

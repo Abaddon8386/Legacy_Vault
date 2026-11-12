@@ -4,7 +4,14 @@
  * Does not expose raw internal enums, ticket IDs, or implementation details.
  */
 
+/**
+ * Từ điển song ngữ (vi/en) cho trang xác nhận người thụ hưởng đã nhận tài sản (BeneficiaryConfirmationPage.jsx).
+ * Truy cập trực tiếp theo khóa ngôn ngữ: beneficiaryConfirmationI18n[lang].
+ */
 export const beneficiaryConfirmationI18n = {
+  /**
+   * Bản dịch tiếng Việt (ngôn ngữ mặc định).
+   */
   vi: {
     pageTitle: 'Xác nhận đã nhận tài sản',
     pageSubtitle: 'Nhân viên thực thi ghi nhận biên nhận và xác nhận việc nhận tài sản/thừa kế của người thụ hưởng theo quy định.',
@@ -43,6 +50,9 @@ export const beneficiaryConfirmationI18n = {
     invalidConfirmationStatus: 'Trạng thái xác nhận không hợp lệ.',
     caseRequired: 'Vui lòng nhập mã hồ sơ hợp lệ.',
   },
+  /**
+   * Bản dịch tiếng Anh.
+   */
   en: {
     pageTitle: 'Asset receipt confirmation',
     pageSubtitle: 'Staff Executor records confirmation receipt and acknowledgement from designated beneficiaries.',

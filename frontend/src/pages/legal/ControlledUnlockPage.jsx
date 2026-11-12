@@ -3,6 +3,19 @@ import { describeUnlock, fetchControlledUnlock } from './controlledUnlockService
 import { trackOwnerSurface } from '../../components/layout/ownerSurfaceMotion.js';
 import '../../components/layout/OwnerSurfaces.css';
 import './ControlledUnlockPage.css';
+/**
+ * Trang "Trạng thái mở khóa kho di sản" (Controlled unlock) dành cho vai trò Legal/Staff, được App.jsx render khi ở chế độ xem trước (preview) hoặc đã đăng nhập.
+ * Cách hoạt động: mỗi khi đổi kịch bản/accessToken, gọi fetchControlledUnlock() trong useEffect (có cờ active để bỏ kết quả cũ),
+ * rồi describeUnlock() chuyển dữ liệu thành mô hình hiển thị (LOCKED / UNLOCKED / UNKNOWN, có phải mô phỏng hay không).
+ * Hiện chưa gọi API backend thật (fetchControlledUnlock luôn báo BACKEND_NOT_READY ngoài chế độ dev preview).
+ *
+ * @param {object} props
+ * @param {boolean} [props.isDevPreview=false] Bật chế độ xem trước với dữ liệu mẫu.
+ * @param {string} [props.accessToken] JWT của phiên đăng nhập; nếu có thì không dùng dữ liệu mẫu.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ giao diện.
+ * @param {(lang: string) => void} [props.onToggleLang] Callback đổi ngôn ngữ.
+ * @returns {JSX.Element} Thẻ main hiển thị trạng thái khóa/mở khóa của kho.
+ */
 export default function ControlledUnlockPage({ isDevPreview = false, accessToken, lang = 'vi', onToggleLang }) {
   const en = lang === 'en';
   const [scenario, setScenario] = useState('locked');

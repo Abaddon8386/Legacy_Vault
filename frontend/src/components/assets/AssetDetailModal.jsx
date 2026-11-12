@@ -25,6 +25,18 @@ import './AssetListTable.css'
  * - Password is immediately cleared from state after submit attempt.
  * - No payload or password stored in browser storage.
  * - Anti double-submit via pendingRef and disabled states.
+ *
+ * Modal xem chi tiết tài sản (đọc thông tin, hiện nội dung bí mật sau khi nhập lại mật khẩu, xem ảnh và tải tài liệu).
+ * Được dùng bởi {@code pages/assets/AssetManagementPage.jsx} (trang quản lý tài sản của chủ hầm VAULT_OWNER).
+ *
+ * Luồng: người dùng bấm "hiện nội dung" -> nhập mật khẩu (hoặc dùng {@code sessionPassword} đã xác minh) -> {@code revealWith} gọi
+ * {@code assetService.revealAsset} = {@code POST /vaults/{vaultId}/assets/{assetId}/reveal}. Lỗi được ánh xạ sang khóa thông báo (REAUTH_FAILED, ACCESS_DENIED, TOO_MANY_ATTEMPTS,
+ * 409 VAULT_NOT_EDITABLE, 404 RESOURCE_NOT_FOUND). 401 thì reset và gọi {@code onNavigateToLogin}. Khi đã mở khóa, hiển thị {@code AssetImageGallery} và {@code AssetDocuments} (chỉ đọc).
+ *
+ * Props: {@code isOpen}, {@code onClose}, {@code asset} (metadata tài sản), {@code t} (chuỗi dịch), {@code lang}, {@code vaultId}, {@code accessToken}, {@code onNavigateToLogin}.
+ * State: {@code isReauthOpen}, {@code password}, {@code showPassword}, {@code isRevealing}, {@code revealedPayload}, {@code revealErrorKey}, {@code sessionPassword}.
+ * Ref: {@code abortRef}, {@code pendingRef} (chống gửi đôi), {@code activeContextRef} (bỏ kết quả của tài sản/phiên cũ).
+ * Effect: ghi nhận ngữ cảnh hiện tại và dọn mật khẩu/nội dung khi đổi tài sản, phiên hoặc unmount.
  */
 export function AssetDetailModal({
   isOpen,
@@ -49,6 +61,9 @@ export function AssetDetailModal({
   const pendingRef = useRef(false)
   const activeContextRef = useRef({ assetId: asset?.id, vaultId, accessToken })
 
+  /**
+   * Hủy request đang chạy và xóa toàn bộ trạng thái nhạy cảm (mật khẩu, nội dung đã giải mã, mật khẩu phiên).
+   */
   const resetRevealState = useCallback(() => {
     abortRef.current?.abort()
     abortRef.current = null
@@ -69,16 +84,25 @@ export function AssetDetailModal({
     }
   }, [asset?.id, vaultId, accessToken, resetRevealState])
 
+  /**
+   * Đóng modal: dọn trạng thái nhạy cảm rồi gọi {@code onClose}.
+   */
   const handleClose = () => {
     resetRevealState()
     onClose()
   }
 
+  /**
+   * Xử lý submit form nhập mật khẩu: chặn submit mặc định rồi gọi {@code revealWith(password)}.
+   */
   const handleRevealSubmit = (e) => {
     e?.preventDefault()
     return revealWith(password)
   }
 
+  /**
+   * Gọi {@code assetService.revealAsset} với mật khẩu đã cho (chống gửi đôi bằng {@code pendingRef}). Thành công và còn đúng ngữ cảnh thì lưu payload và mật khẩu phiên; thất bại thì xóa mật khẩu và đặt khóa lỗi tương ứng.
+   */
   const revealWith = async (submittedPassword) => {
     if (pendingRef.current || isRevealing) return
     if (!submittedPassword) {
@@ -147,6 +171,9 @@ export function AssetDetailModal({
   }
 
   // Called by photos/documents once the user has entered the password there: unlock everything else.
+  /**
+   * Được ảnh/tài liệu gọi khi người dùng đã nhập đúng mật khẩu ở đó: lưu mật khẩu phiên và tự hiện nội dung bí mật nếu tài sản có payload.
+   */
   const handleUnlocked = (verifiedPassword) => {
     if (!verifiedPassword) return
     setSessionPassword(verifiedPassword)
@@ -155,6 +182,9 @@ export function AssetDetailModal({
 
   if (!isOpen || !asset) return null
 
+  /**
+   * Định dạng thời điểm ISO thành chuỗi ngày giờ theo ngôn ngữ (vi-VN hoặc en-US); trả "—" nếu rỗng.
+   */
   function formatDate(isoString) {
     if (!isoString) return '—'
     return new Date(isoString).toLocaleString(lang === 'en' ? 'en-US' : 'vi-VN', {
@@ -459,6 +489,11 @@ export function AssetDetailModal({
   )
 }
 
+/**
+ * Phân tích payload của tài sản CREDENTIAL (chuỗi JSON {@code {username,password}}).
+ * @param {*} value Payload đã giải mã.
+ * @returns {({username:string,password:string}|null)} Null nếu không phải JSON hợp lệ dạng credential (khi đó hiển thị dạng văn bản thô).
+ */
 function readCredentialPayload(value) {
   if (typeof value !== 'string') return null
   try {

@@ -1,3 +1,4 @@
+/** Bảng chuỗi giao diện song ngữ (vi/en) cho trang Thẩm định hồ sơ căn cứ (LegalDossierReviewPage): tiêu đề, lưu ý, cảnh báo phiên bản đã cũ, nhãn hành động và thông báo lỗi. */
 export const legalDossierReviewI18n = {
   vi: {
     pageTitle: 'Thẩm định hồ sơ',

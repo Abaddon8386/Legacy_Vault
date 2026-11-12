@@ -1,6 +1,9 @@
 import EmptyState from './EmptyState.jsx';
 import './VaultRequiredState.css';
 
+/**
+ * Chuỗi song ngữ cho thông báo "cần tạo kho di sản trước" theo từng màn hình (assets, wills, beneficiaries).
+ */
 const COPY = {
   vi: {
     badge: 'CẦN KHỞI TẠO KHO',
@@ -20,7 +23,14 @@ const COPY = {
   },
 };
 
-/** Shared "create a vault first" notice for the assets, wills and beneficiaries screens. */
+/**
+ * Thông báo dùng chung "hãy tạo kho di sản trước" cho các màn hình tài sản, di chúc và người thụ hưởng khi chủ hầm chưa có hầm. Bọc {@code EmptyState}.
+ *
+ * @param {object} props
+ * @param {('assets'|'wills'|'beneficiaries')} [props.kind='assets']
+ * @param {string} [props.lang='vi']
+ * @param {()=>void} props.onNavigateToVault Chuyển tới trang kho di sản.
+ */
 export default function VaultRequiredState({ kind = 'assets', lang = 'vi', onNavigateToVault }) {
   const t = COPY[lang] || COPY.vi;
   return (

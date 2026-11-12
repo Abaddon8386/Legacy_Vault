@@ -2,9 +2,21 @@ import { ApiError } from '../api/http.js';
 
 // Frontend view models, NOT an HTTP contract. A backend adapter must normalize
 // authenticated responses to these shapes before enabling the new workflow.
+/**
+ * Mô hình view-model cho yêu cầu liên kết hồ sơ của người thụ hưởng (không phải hợp đồng HTTP). Dùng bởi caseLinkService.js,
+ * components/layout/AppShell.jsx, pages/beneficiary/CaseLinkWorkspace.jsx và pages/staff/StaffCaseLinkPanel.jsx.
+ *
+ * Các trạng thái hợp lệ của một yêu cầu liên kết.
+ */
 export const REQUEST_STATES = ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'EXPIRED'];
+/**
+ * Kiểm tra giá trị là chuỗi không rỗng.
+ */
 const text = value => typeof value === 'string' && value.trim().length > 0;
 
+/**
+ * Trả true nếu danh sách vai trò thuộc người dùng cá nhân (chủ kho hoặc người thụ hưởng, hoặc chưa có vai trò) và không có vai trò admin/nhân viên/pháp lý.
+ */
 export function isPersonalRecipient(roles = []) {
   const names = roles.map(role => role.replace(/^ROLE_/, ''));
   return !names.some(role => ['ADMIN', 'LEGAL', 'LEGAL_VERIFIER', 'LEGAL_OFFICER', 'STAFF_EXECUTOR'].includes(role)) &&
@@ -30,6 +42,11 @@ function parseOptionalReason(raw) {
   return r.length > 0 ? r : rr.length > 0 ? rr : null;
 }
 
+/**
+ * Kiểm tra và chuẩn hóa một yêu cầu liên kết do backend trả về (id, caseNumber, status, lý do tùy chọn).
+ * Với staff=true còn bắt buộc accountName/accountEmail (accountId có thể null).
+ * @throws {ApiError} INVALID_RESPONSE nếu sai hợp đồng.
+ */
 export function readLinkRequest(raw, { staff = false } = {}) {
   if (!raw || !text(raw.id) || (raw.caseNumber !== null && !text(raw.caseNumber)) || !REQUEST_STATES.includes(raw.status)) throw new ApiError('INVALID_RESPONSE');
   const item = { id: raw.id, caseNumber: raw.caseNumber, status: raw.status };
@@ -42,6 +59,9 @@ export function readLinkRequest(raw, { staff = false } = {}) {
   return item;
 }
 
+/**
+ * Chuẩn hóa một mảng yêu cầu liên kết bằng readLinkRequest và đảm bảo không trùng id. Ném INVALID_RESPONSE nếu không phải mảng hoặc có id trùng.
+ */
 export function readLinkRequests(raw, options) {
   if (!Array.isArray(raw)) throw new ApiError('INVALID_RESPONSE');
   const items = raw.map(item => readLinkRequest(item, options));
@@ -49,12 +69,18 @@ export function readLinkRequests(raw, options) {
   return items;
 }
 
+/**
+ * Nhãn hiển thị (vi/en) của trạng thái yêu cầu liên kết.
+ */
 export function requestStatusLabel(status, lang = 'vi') {
   const vi = { PENDING: 'Chờ nhân viên đối chiếu', APPROVED: 'Đã liên kết', REJECTED: 'Yêu cầu bị từ chối', CANCELLED: 'Đã hủy yêu cầu', EXPIRED: 'Yêu cầu hết hạn' };
   const en = { PENDING: 'Awaiting staff verification', APPROVED: 'Linked', REJECTED: 'Request declined', CANCELLED: 'Request cancelled', EXPIRED: 'Request expired' };
   return (lang === 'en' ? en : vi)[status];
 }
 
+/**
+ * Chuyển lỗi API (code BENEFICIARY_LINK_REQUEST_*, EMAIL_ALREADY_EXISTS, BENEFICIARY_ACCOUNT_ALREADY_LINKED hoặc status 401/403/409/429) thành thông điệp thân thiện theo ngôn ngữ.
+ */
 export function caseLinkError(error, lang = 'vi') {
   const en = lang === 'en';
   const messages = {

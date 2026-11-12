@@ -4,12 +4,18 @@
  * Giới hạn theo cấu hình backend: PDF, JPEG, PNG, tối đa 10 MB.
  */
 
+/**
+ * Các MIME type được chấp nhận cho tệp chứng cứ: PDF, JPEG, PNG (khớp cấu hình backend).
+ */
 export const ALLOWED_EVIDENCE_MIME_TYPES = Object.freeze([
   'application/pdf',
   'image/jpeg',
   'image/png',
 ]);
 
+/**
+ * Các đuôi tệp được chấp nhận; dùng làm phương án dự phòng khi trình duyệt không nhận ra MIME type.
+ */
 export const ALLOWED_EVIDENCE_EXTENSIONS = Object.freeze([
   '.pdf',
   '.jpg',
@@ -17,8 +23,14 @@ export const ALLOWED_EVIDENCE_EXTENSIONS = Object.freeze([
   '.png',
 ]);
 
+/**
+ * Dung lượng tối đa của một tệp chứng cứ: 10 MiB.
+ */
 export const MAX_EVIDENCE_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MiB
 
+/**
+ * Thông điệp song ngữ (vi/en) cho khu vực chọn và tải tệp chứng cứ. Dùng bởi components/common/EvidenceFileUploader.jsx.
+ */
 export const EVIDENCE_UPLOAD_I18N = Object.freeze({
   vi: {
     fileRequired: 'Vui lòng chọn tệp tài liệu số hóa.',
@@ -82,6 +94,9 @@ export const EVIDENCE_UPLOAD_I18N = Object.freeze({
   },
 });
 
+/**
+ * Định dạng số byte thành B, KB (1 chữ số thập phân) hoặc MB (2 chữ số) theo ngôn ngữ; giá trị sai trả "0 B".
+ */
 export function formatFileSize(bytes, lang = 'vi') {
   if (typeof bytes !== 'number' || Number.isNaN(bytes) || bytes < 0) {
     return '0 B';
@@ -96,6 +111,10 @@ export function formatFileSize(bytes, lang = 'vi') {
   return `${(bytes / (1024 * 1024)).toFixed(2)} ${t.mbUnit}`;
 }
 
+/**
+ * Kiểm tra tệp trước khi tải lên: bắt buộc có tệp (FILE_REQUIRED), không rỗng (FILE_EMPTY), MIME hoặc đuôi thuộc PDF/JPEG/PNG (FILE_TYPE_INVALID) và <= 10 MB (FILE_TOO_LARGE).
+ * @returns {{isValid:boolean,errorCode:string|null,errorMessage:string|null,fileInfo:object|null}} fileInfo gồm name, size, type, formattedSize, isPdf, isImage.
+ */
 export function validateEvidenceFile(file, lang = 'vi') {
   const t = EVIDENCE_UPLOAD_I18N[lang] || EVIDENCE_UPLOAD_I18N.vi;
 
@@ -165,6 +184,11 @@ export function validateEvidenceFile(file, lang = 'vi') {
 /**
  * Thực hiện upload file kèm metadata qua XMLHttpRequest để theo dõi tiến trình truyền tải thực tế.
  * Khi upload mạng đạt 100%, chuyển sang trạng thái indeterminate để chờ phản hồi từ server.
+ *
+ * Tải tệp kèm metadata dạng multipart/form-data bằng XMLHttpRequest (để có tiến trình thật) bằng POST tới url được truyền vào, với header Authorization Bearer và Accept-Language.
+ * Form gồm phần "metadata" (JSON) và phần "file". Gọi onProgress/onStatusChange (uploading, rồi processing khi đã gửi xong 100% và chờ server băm SHA-256, rồi success hoặc error). Hỗ trợ hủy bằng AbortSignal.
+ * Được dùng bởi pages/staff/staffLegalDocumentsService.js (tải văn bản căn cứ pháp lý) và pages/staff/staffLiveService.js (tệp đính kèm của hồ sơ tiếp nhận).
+ * @returns {Promise<object>} Phản hồi JSON của server. Lỗi có code: FILE_*, ABORTED, NETWORK_ERROR, INVALID_RESPONSE, PAYLOAD_TOO_LARGE (413), UNSUPPORTED_MEDIA_TYPE (415), SERVER_ERROR hoặc mã từ backend.
  */
 export function uploadEvidenceMultipart({
   url,
@@ -362,8 +386,15 @@ export function uploadEvidenceMultipart({
 }
 
 
+/**
+ * Biểu thức kiểm tra UUID.
+ */
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * Kiểm tra biên nhận tệp đính kèm hồ sơ tiếp nhận do backend trả về: id, uploadedBy là UUID; caseId/subjectId/subjectType khớp bản ghi mong đợi (death-documents ứng với DEATH_DOCUMENT, original-will-intakes ứng với ORIGINAL_WILL); fileName không rỗng; sha256 64 ký tự hex; contentType thuộc PDF/JPEG/PNG; sizeBytes > 0; uploadedAt hợp lệ.
+ * @throws {Error} code INVALID_RECEIPT nếu sai. Dùng bởi pages/staff/staffLiveService.js.
+ */
 export function validateIntakeAttachmentReceipt(receipt, expected = {}) {
   const { caseId, recordId, kind } = expected;
   const expectedSubject = kind === 'death-documents' ? 'DEATH_DOCUMENT' : (kind === 'original-will-intakes' ? 'ORIGINAL_WILL' : expected.subjectType);

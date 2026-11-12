@@ -29,18 +29,47 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
-/** Asset của Vault (assets.md). Thiếu role VAULT_OWNER -> 403; Vault không phải của mình -> 404. */
+/**
+ * Controller REST quản lý Asset (tài sản số dạng TEXT / CREDENTIAL) nằm trong một Vault (assets.md).
+ *
+ * Base path: {@code /api/v1/vaults/{vaultId}/assets}. Yêu cầu role {@code VAULT_OWNER} (thiếu role -> 403);
+ * Vault không phải của Owner đang đăng nhập -> 404 (kiểm tra trong {@link AssetService} qua {@code VaultService}).
+ * Controller chỉ nhận request, validate DTO ({@code @Valid}), lấy id Owner từ {@link CustomUserPrincipal} rồi ủy quyền
+ * toàn bộ nghiệp vụ cho {@link AssetService}.
+ *
+ * <p>Các endpoint: POST tạo, GET danh sách (phân trang), GET chi tiết, POST {@code /reveal} xem nội dung bảo mật,
+ * PATCH cập nhật một phần.
+ */
 @RestController
 @RequestMapping("/api/v1/vaults/{vaultId}/assets")
 @PreAuthorize("hasRole('VAULT_OWNER')")
 public class AssetController {
 
+	/**
+	 * Service xử lý nghiệp vụ Asset (tạo, liệt kê, xem, cập nhật, reveal).
+	 */
 	private final AssetService assetService;
 
+	/**
+	 * Khởi tạo controller với {@link AssetService} do Spring inject.
+	 *
+	 * @param assetService service nghiệp vụ Asset
+	 */
 	public AssetController(AssetService assetService) {
 		this.assetService = assetService;
 	}
 
+	/**
+	 * {@code POST /api/v1/vaults/{vaultId}/assets} - tạo Asset mới trong Vault (role VAULT_OWNER).
+	 *
+	 * Body: {@link CreateAssetRequest} (name, assetType TEXT hoặc CREDENTIAL, description, payload). Gọi
+	 * {@link AssetService#createAsset}, trả 201 Created kèm header {@code Location} trỏ tới Asset mới.
+	 *
+	 * @param vaultId public id của Vault chứa Asset
+	 * @param request body đã được validate
+	 * @param principal Owner đang đăng nhập
+	 * @return 201 với {@link AssetResponse} (không chứa payload)
+	 */
 	@PostMapping
 	public ResponseEntity<AssetResponse> createAsset(@PathVariable UUID vaultId,
 			@Valid @RequestBody CreateAssetRequest request, @AuthenticationPrincipal CustomUserPrincipal principal) {
@@ -49,6 +78,15 @@ public class AssetController {
 		return ResponseEntity.created(location).body(created);
 	}
 
+	/**
+	 * {@code GET /api/v1/vaults/{vaultId}/assets?page=&size=} - liệt kê Asset của Vault, mới nhất trước (role VAULT_OWNER).
+	 *
+	 * @param vaultId public id của Vault
+	 * @param page số trang bắt đầu từ 0 (mặc định 0)
+	 * @param size kích thước trang 1..100 (mặc định 20)
+	 * @param principal Owner đang đăng nhập
+	 * @return {@link PageResponse} các {@link AssetResponse} (không gồm Asset loại DOCUMENT)
+	 */
 	@GetMapping
 	public PageResponse<AssetResponse> listAssets(@PathVariable UUID vaultId,
 			@RequestParam(defaultValue = "0") @Min(0) int page,
@@ -57,6 +95,12 @@ public class AssetController {
 		return assetService.listAssets(vaultId, CustomUserPrincipal.requireUserId(principal), page, size);
 	}
 
+	/**
+	 * {@code GET /api/v1/vaults/{vaultId}/assets/{assetId}} - xem metadata một Asset (role VAULT_OWNER).
+	 * Không trả payload; muốn xem nội dung phải dùng {@link #revealAsset}.
+	 *
+	 * @return {@link AssetResponse}; 404 nếu Vault/Asset không thuộc Owner
+	 */
 	@GetMapping("/{assetId}")
 	public AssetResponse getAsset(@PathVariable UUID vaultId, @PathVariable UUID assetId,
 			@AuthenticationPrincipal CustomUserPrincipal principal) {
@@ -64,8 +108,13 @@ public class AssetController {
 	}
 
 	/**
-	 * Xem nội dung bảo mật sau khi nhập lại mật khẩu (D-API-32). Dùng POST vì mật khẩu nằm trong body, và response
-	 * không được lưu cache.
+	 * {@code POST /api/v1/vaults/{vaultId}/assets/{assetId}/reveal} - xem nội dung bảo mật sau khi nhập lại mật khẩu
+	 * (D-API-32, role VAULT_OWNER). Dùng POST vì mật khẩu nằm trong body, và response được đặt
+	 * {@code Cache-Control: no-store} để không bị lưu cache.
+	 *
+	 * Body: {@link RevealAssetRequest}. Gọi {@link AssetService#revealAsset}; sai mật khẩu -> 403, bị khóa thử -> 429.
+	 *
+	 * @return 200 với {@link AssetSecretResponse} chứa payload đã giải mã
 	 */
 	@PostMapping("/{assetId}/reveal")
 	public ResponseEntity<AssetSecretResponse> revealAsset(@PathVariable UUID vaultId, @PathVariable UUID assetId,
@@ -75,6 +124,13 @@ public class AssetController {
 		return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(secret);
 	}
 
+	/**
+	 * {@code PATCH /api/v1/vaults/{vaultId}/assets/{assetId}} - cập nhật một phần Asset (name, description, payload;
+	 * role VAULT_OWNER). Body {@link UpdateAssetRequest} bắt buộc kèm mật khẩu hiện tại (PS-111). Gọi
+	 * {@link AssetService#updateAsset}.
+	 *
+	 * @return {@link AssetResponse} sau cập nhật
+	 */
 	@PatchMapping("/{assetId}")
 	public AssetResponse updateAsset(@PathVariable UUID vaultId, @PathVariable UUID assetId,
 			@Valid @RequestBody UpdateAssetRequest request, @AuthenticationPrincipal CustomUserPrincipal principal) {

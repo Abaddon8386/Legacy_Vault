@@ -5,6 +5,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+/**
+ * Body của {@code POST /api/v1/auth/register} (PS-9), được {@code AuthService.register} xử lý. Chỉ kiểm tra dữ
+ * liệu đầu vào; việc trùng email và băm mật khẩu do service đảm nhiệm.
+ *
+ * @param fullName họ tên, bắt buộc, tối đa 150 ký tự
+ * @param email    email bắt buộc, đúng định dạng, tối đa 254 ký tự
+ * @param password mật khẩu 8-72 ký tự thỏa {@link com.legacyvault.auth.policy.ValidPassword}
+ * @param phone    số điện thoại tùy chọn (8-15 chữ số, có thể có dấu + ở đầu)
+ */
 public record RegisterRequest(
         // Họ tên không được null, rỗng hoặc chỉ chứa khoảng trắng.
         // Độ dài tối đa là 150 ký tự.

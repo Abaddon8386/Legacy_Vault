@@ -7,6 +7,11 @@ import { Modal } from '../../components/common/Modal.jsx';
 import './ReceivedAssets.css';
 import ZoomableImage from '../../components/common/ZoomableImage.jsx';
 
+/**
+ * Hiển thị nội dung bí mật đã giải mã: nếu là JSON gồm đúng hai trường username/password thì hiện dạng thông tin đăng nhập, JSON khác thì định dạng đẹp, còn lại hiện văn bản thô.
+ *
+ * @param {{text: string, en: boolean}} props Nội dung và cờ tiếng Anh.
+ */
 function ReceivedContent({ text, en }) {
   let credential = null;
   let displayText = text;
@@ -32,6 +37,17 @@ function ReceivedContent({ text, en }) {
   return <pre className="lv-received-content">{displayText || (en ? 'Empty content' : 'Nội dung trống')}</pre>;
 }
 
+/**
+ * Form xác thực lại bằng mật khẩu tài khoản trước khi xem nội dung hoặc ảnh được bảo vệ (kèm nút FirstPasswordButton cho tài khoản chưa có mật khẩu).
+ *
+ * @param {object} props
+ * @param {boolean} props.en Dùng tiếng Anh.
+ * @param {boolean} props.busy Đang xác thực.
+ * @param {string} props.value Mật khẩu đang nhập.
+ * @param {Function} props.onChange Thay đổi mật khẩu.
+ * @param {Function} props.onSubmit Submit form.
+ * @param {boolean} [props.image=false] Dùng nhãn cho ảnh.
+ */
 function DecryptForm({ en, busy, value, onChange, onSubmit, image = false }) {
   const id = useId();
   return (
@@ -52,6 +68,7 @@ function DecryptForm({ en, busy, value, onChange, onSubmit, image = false }) {
   );
 }
 
+/** Cho biết lỗi có phải liên quan đến mật khẩu/xác thực lại (REAUTH_FAILED, PASSWORD_REQUIRED, INVALID_PASSWORD, TOO_MANY_ATTEMPTS hoặc HTTP 429) - khi đó hiện form mật khẩu thay vì lỗi chung. */
 function isPasswordOrReauthError(err) {
   if (!err) return false;
   if (err.code === 'REAUTH_FAILED' || err.code === 'PASSWORD_REQUIRED' || err.code === 'INVALID_PASSWORD') return true;
@@ -59,6 +76,7 @@ function isPasswordOrReauthError(err) {
   return false;
 }
 
+/** Chuyển lỗi API thành thông báo cho người dùng: hủy thiết lập mật khẩu, 429 (quá nhiều lần thử), 403, sai mật khẩu, 401 hết phiên, 404 không tìm thấy, còn lại là lỗi tải dữ liệu. */
 function errorMessage(error, en) {
   if (error?.code === 'PASSWORD_SETUP_CANCELLED') return passwordSetupCancelledMessage(en ? 'en' : 'vi');
   if (error?.status === 429) return en ? 'Too many attempts. Please try again later.' : 'Quá nhiều lần thử. Vui lòng thử lại sau.';
@@ -69,6 +87,18 @@ function errorMessage(error, en) {
   return en ? 'Could not load data. Please retry.' : 'Không thể tải dữ liệu. Vui lòng thử lại.';
 }
 
+/**
+ * Một ảnh đính kèm của tài sản đã nhận. Bấm "Xem ảnh" gọi actions.image(itemId, imageId, {password}) (POST /api/v1/received-assets/{itemId}/images/{imageId}/download) để lấy Blob rồi tạo object URL hiển thị bằng ZoomableImage;
+ * nếu cần mật khẩu thì hiện DecryptForm. Thu hồi object URL khi ẩn hoặc unmount; lỗi khác báo lên cha qua onError.
+ *
+ * @param {object} props
+ * @param {string} props.itemId Id tài sản đã nhận.
+ * @param {{imageId: string, label: string}} props.image Ảnh.
+ * @param {object} props.actions Bộ action tài sản đã nhận.
+ * @param {{accessToken: string, lang: string}} props.options Tùy chọn gọi API.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {(error: Error) => void} props.onError Báo lỗi lên cha.
+ */
 function ReceivedImage({ itemId, image, actions, options, lang, onError }) {
   const en = lang === 'en';
   const [state, setState] = useState({ busy: false, blobUrl: null, error: null });
@@ -151,6 +181,20 @@ function ReceivedImage({ itemId, image, actions, options, lang, onError }) {
   );
 }
 
+/**
+ * Hộp thoại chi tiết một tài sản đã nhận. Tải chi tiết bằng actions.detail (GET /api/v1/received-assets/{itemId} và .../images) và chuẩn hóa bằng readReceivedDetail.
+ * Nút "Xem nội dung" gọi actions.content (POST /api/v1/received-assets/{itemId}/content kèm mật khẩu khi cần) để lấy văn bản bí mật, hiển thị bằng ReceivedContent; ảnh hiển thị qua ReceivedImage.
+ * Lỗi mật khẩu/xác thực lại mở DecryptForm; lỗi khác báo lên cha qua onError.
+ *
+ * @param {object} props
+ * @param {string} props.itemId Id tài sản.
+ * @param {string} props.subjectId Id người nhận (để kiểm tra phản hồi đúng chủ thể).
+ * @param {object} props.actions Bộ action.
+ * @param {string} props.accessToken JWT.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {(error: Error) => void} props.onError Báo lỗi.
+ * @param {() => void} props.onClose Đóng hộp thoại.
+ */
 function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onError, onClose }) {
   const en = lang === 'en';
   const [result, setResult] = useState({ loading: true, data: null, error: null });
@@ -306,6 +350,21 @@ function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onError, on
 }
 
 
+/**
+ * Danh sách tài sản đã nhận theo trang: gọi actions.list({page, size, accessToken}) (GET /api/v1/received-assets?page&size), chuẩn hóa bằng readReceivedPage, hiển thị trạng thái tài khoản
+ * (UNLINKED, AWAITING_HANDOVER, PARTIAL, RECEIVED), phân trang và mở ItemDetail khi chọn một mục. Báo giai đoạn lên cha qua onStageChange; lỗi 401/403/404 từ chi tiết sẽ thay danh sách bằng lỗi.
+ *
+ * @param {object} props
+ * @param {object} props.actions Bộ action.
+ * @param {string} props.subjectId Id người nhận.
+ * @param {string} props.accessToken JWT.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {number} props.page Trang hiện tại (từ 0).
+ * @param {number} props.size Kích thước trang.
+ * @param {(page: number) => void} props.onPage Đổi trang.
+ * @param {(error: Error) => void} props.onError Báo lỗi lên cha.
+ * @param {(stage: (string|null)) => void} [props.onStageChange] Báo giai đoạn nhận tài sản.
+ */
 function AssetPage({ actions, subjectId, accessToken, lang, page, size, onPage, onError, onStageChange }) {
   const en = lang === 'en';
   const [state, setState] = useState({ loading: true, data: null, error: null });
@@ -322,6 +381,7 @@ function AssetPage({ actions, subjectId, accessToken, lang, page, size, onPage, 
   }, [actions, subjectId, accessToken, page, size, retry]);
   const data = state.data;
   useEffect(() => { onStageChange?.(!state.loading && !state.error ? state.data?.accountState : null); }, [state, onStageChange]);
+  /** Xử lý lỗi từ hộp thoại chi tiết: bỏ qua lỗi mật khẩu (đã xử lý trong form); với 401/403/404 đóng chi tiết và hiện lỗi cho cả danh sách; báo lỗi lên cha. */
   const handleDetailError = error => {
     if (isPasswordOrReauthError(error)) return;
     if ([401, 403, 404].includes(error?.status)) {
@@ -391,10 +451,33 @@ function AssetPage({ actions, subjectId, accessToken, lang, page, size, onPage, 
   </>;
 }
 
+/**
+ * Danh sách "Tài sản bạn đã nhận" của người thụ hưởng, dùng trong CaseLinkWorkspace và LegacySharedWithMePage. Vỏ bọc đặt key theo (userId, accessToken) để reset khi đổi tài khoản.
+ *
+ * @param {object} props Truyền xuống ReceivedAssetsContent.
+ * @returns {JSX.Element}
+ */
 export default function ReceivedAssets(props) {
   return <ReceivedAssetsContent key={`${props.userId || 'preview'}:${props.accessToken || 'anonymous'}`} {...props} />;
 }
 
+/**
+ * Chọn nguồn dữ liệu: bộ action thật (createLiveReceivedAssetActions trong services/receivedAssetService.js, gọi các API /api/v1/received-assets) khi có accessToken,
+ * hoặc dữ liệu mẫu (previewReceivedActions) khi ở chế độ xem trước DEV; nếu chưa có nguồn thì hiện thông báo dịch vụ chưa kết nối. Giữ trang hiện tại và render AssetPage (5 mục/trang).
+ *
+ * @param {object} props
+ * @param {object} [props.actions] Bộ action tài sản đã nhận.
+ * @param {string} [props.userId] Id người nhận.
+ * @param {string} [props.accessToken] JWT.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {boolean} [props.isDevPreview=false] Chế độ xem trước.
+ * @param {string} [props.scenario='unlinked'] Kịch bản xem trước.
+ * @param {() => void} [props.onUnauthorized] Gọi khi 401.
+ * @param {(string|number)} [props.refreshKey=0] Ép tải lại.
+ * @param {boolean} [props.hideTitle=false] Ẩn tiêu đề hiển thị (chỉ giữ cho trình đọc màn hình).
+ * @param {Function} [props.onStageChange] Báo giai đoạn nhận tài sản.
+ * @returns {JSX.Element}
+ */
 function ReceivedAssetsContent({ actions, userId, accessToken, lang = 'vi', isDevPreview = false, scenario = 'unlinked', onUnauthorized, refreshKey = 0, hideTitle = false, onStageChange }) {
   const en = lang === 'en';
   const [page, setPage] = useState(0);

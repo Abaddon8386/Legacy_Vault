@@ -2,6 +2,27 @@ import { Plus, Trash2 } from 'lucide-react';
 import { DatePicker } from '../common/DatePicker.jsx';
 import './CourtAllocationEditor.css';
 
+/**
+ * Bộ soạn các dòng phân bổ tài sản theo văn bản (ví dụ quyết định của Tòa án).
+ * Mỗi dòng gồm: tài sản, người nhận (người đã có trong hồ sơ hoặc người mới do Tòa án nêu tên)
+ * và mô tả phần được hưởng. Component hoàn toàn "controlled": không tự giữ state,
+ * mọi thay đổi được báo lên cha qua các callback. Được dùng trong `StaffLegalDocumentsPage.jsx`.
+ *
+ * Với người nhận mới theo Tòa án (`recipientKind === 'court'`) chỉ ghi thông tin theo phiên bản văn bản,
+ * không tạo hoặc liên kết tài khoản. Không gọi API trực tiếp.
+ *
+ * @param {object} props
+ * @param {Array<object>} props.rows danh sách dòng phân bổ (`id`, `assetId`, `beneficiaryId`, `recipientKind`, `courtRecipient`, `description`).
+ * @param {Array<object>} props.assets tài sản có thể chọn (`assetId`, `name`).
+ * @param {Array<object>} props.recipients người nhận đã có trong hồ sơ (`beneficiaryId`, `fullName`).
+ * @param {Function} props.onAdd thêm một dòng phân bổ rỗng.
+ * @param {Function} props.onChange `(index, field, value)` cập nhật một trường của dòng.
+ * @param {Function} props.onRemove `(index)` xóa dòng.
+ * @param {boolean} [props.disabled] khóa toàn bộ biểu mẫu (đang gửi).
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ giao diện.
+ * @param {boolean} [props.allowNewCourtRecipient=true] cho phép chọn "người mới theo văn bản Tòa án".
+ * @returns {JSX.Element} khối biểu mẫu phân bổ.
+ */
 export default function CourtAllocationEditor({ rows, assets, recipients, onAdd, onChange, onRemove, disabled, lang = 'vi', allowNewCourtRecipient = true }) {
   const en = lang === 'en';
   const fields = [

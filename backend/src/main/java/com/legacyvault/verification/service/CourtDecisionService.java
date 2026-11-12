@@ -17,6 +17,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * ST-20 (LV-COURT-001): Legal ghi nhận kết luận về văn bản của Tòa án (VALID, ...) cho một phiên bản hồ sơ căn cứ và xem lịch sử.
+ *
+ * Được gọi bởi {@code CourtDecisionController}, đường dẫn
+ * {@code /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/court-decisions} (vai trò {@code LEGAL_VERIFIER}):
+ * {@code POST} → {@link #record}, {@code GET} → {@link #history}. {@link #record} cũng được
+ * {@link DistributionWorkflowService} gọi khi Legal duyệt tài liệu của nhánh COURT. Ghi bảng {@code court_decisions},
+ * audit {@code COURT_DECISION_RECORDED}.
+ */
 @Service
 public class CourtDecisionService {
     private final LegalBasisCaseAccess access;
@@ -25,6 +34,9 @@ public class CourtDecisionService {
     private final CourtDecisionRepository decisions;
     private final AuditService audit;
 
+    /**
+     * Khởi tạo với bộ khóa ca, tra cứu ca, repository phiên bản hồ sơ, repository quyết định Tòa án và audit.
+     */
     public CourtDecisionService(LegalBasisCaseAccess access, LegalCaseLookupRepository cases,
             LegalBasisDossierVersionRepository versions, CourtDecisionRepository decisions, AuditService audit) {
         this.access = access;
@@ -34,6 +46,20 @@ public class CourtDecisionService {
         this.audit = audit;
     }
 
+    /**
+     * Ghi nhận kết luận Tòa án cho một phiên bản hồ sơ.
+     *
+     * Các bước: kiểm tra request; khóa ca ({@code access.lock}); ca phải còn mở, không ON_HOLD, nhánh COURT, Vault ở
+     * LEGAL_BASIS_VERIFICATION và dossier đã FORWARDED; tìm chứng cứ của phiên bản; phiên bản phải là mới nhất và đạt phiên bản yêu cầu;
+     * chứng cứ phải xem xét được; lưu {@link CourtDecision}; ghi audit.
+     *
+     * @param caseId UUID công khai của ca
+     * @param principal Legal đang đăng nhập
+     * @param request phiên bản, kết quả và lý do (tối đa 1000 ký tự)
+     * @return kết luận vừa ghi
+     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED, BASIS_DOSSIER_INVALID_STATE, RESOURCE_NOT_FOUND,
+     *         BASIS_VERSION_STALE, COURT_EVIDENCE_REQUIRED
+     */
     @Transactional
     public CourtDecisionResponse record(UUID caseId, CustomUserPrincipal principal, CourtDecisionRequest request) {
         Long actor = CustomUserPrincipal.requireUserId(principal);
@@ -64,6 +90,13 @@ public class CourtDecisionService {
                 decision.getResult(), decision.getReason(), principal.publicId(), decision.getReviewedAt().toInstant(ZoneOffset.UTC));
     }
 
+    /**
+     * Lịch sử các kết luận của Tòa án trong ca (endpoint {@code GET .../court-decisions}).
+     *
+     * @param caseId UUID công khai của ca
+     * @return danh sách kết luận
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND nếu ca không tồn tại
+     */
     @Transactional(readOnly = true)
     public List<CourtDecisionResponse> history(UUID caseId) {
         var verificationCase = cases.findByPublicId(caseId)

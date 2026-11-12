@@ -4,14 +4,23 @@ import jakarta.validation.constraints.*;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * Nhóm DTO của API quản trị gói đăng ký ({@code /api/v1/admin/subscriptions}).
+ */
 public class AdminSubscriptionDtos {
 
+    /**
+     * Giới hạn của gói: số Asset, tổng dung lượng lưu trữ (byte) và dung lượng tối đa mỗi file (byte).
+     */
     public record PlanLimitsDto(
         long assetCount,
         long storageBytes,
         long fileBytes
     ) {}
 
+    /**
+     * Tóm tắt một gói cho danh sách admin: tên vi/en, version đang PUBLISHED ({@code activeVersion}, 0 nếu chưa có), giá, mô hình thu phí, trạng thái, có bản nháp không ({@code hasDraft}/{@code draftVersion}), tổng số version và giới hạn.
+     */
     public record PlanSummaryDto(
         String planCode,
         String nameVi,
@@ -26,6 +35,19 @@ public class AdminSubscriptionDtos {
         PlanLimitsDto limits
     ) {}
 
+    /**
+     * Một version của gói (bảng {@code subscription_plan_versions}).
+     *
+     * <ul>
+     * <li>{@code id}, {@code planCode}, {@code version}, {@code status} (DRAFT, PUBLISHED, DEPRECATED)</li>
+     * <li>{@code nameVi}, {@code nameEn}, {@code descriptionVi}, {@code descriptionEn} - nội dung hiển thị</li>
+     * <li>{@code purchasePriceVnd}, {@code billingModel} - giá mua một lần (LIFETIME)</li>
+     * <li>{@code assetLimit}, {@code storageBytesLimit}, {@code fileBytesLimit} - giới hạn</li>
+     * <li>{@code concurrencyToken} - token khóa lạc quan, phải gửi lại khi sửa</li>
+     * <li>{@code changeNotes}, {@code publishedAt}, {@code publishedByUserId}, {@code createdAt}, {@code updatedAt}</li>
+     * <li>{@code legacyMonthlyPriceVnd} - giá tháng cũ, chỉ có với dữ liệu MONTHLY legacy</li>
+     * </ul>
+     */
     public record SubscriptionPlanVersionDto(
         Long id,
         String planCode,
@@ -49,6 +71,9 @@ public class AdminSubscriptionDtos {
         Long legacyMonthlyPriceVnd
     ) {}
 
+    /**
+     * Chi tiết gói: mã, tên, version đang hoạt động và toàn bộ {@link SubscriptionPlanVersionDto}.
+     */
     public record PlanDetailDto(
         String planCode,
         String nameVi,
@@ -57,6 +82,9 @@ public class AdminSubscriptionDtos {
         List<SubscriptionPlanVersionDto> versions
     ) {}
 
+    /**
+     * Body tạo bản nháp: {@code sourceVersionId} (id version nguồn, bắt buộc) và {@code changeNotes} (tối đa 500 ký tự).
+     */
     public record CreateDraftRequest(
         @NotNull(message = "sourceVersionId is required")
         Long sourceVersionId,
@@ -65,6 +93,10 @@ public class AdminSubscriptionDtos {
         String changeNotes
     ) {}
 
+    /**
+     * Body sửa bản nháp. Ràng buộc: tên vi/en bắt buộc (<= 100 ký tự), mô tả <= 500, giá >= 0, {@code billingModel} chỉ {@code LIFETIME},
+     * {@code assetLimit} >= 1, {@code storageBytesLimit} >= 10 MB, {@code fileBytesLimit} đúng 10 MB, {@code concurrencyToken} bắt buộc (khớp token hiện tại), {@code changeNotes} <= 500.
+     */
     public record UpdatePlanVersionRequest(
         @NotBlank(message = "nameVi is required")
         @Size(min = 1, max = 100, message = "nameVi must be between 1 and 100 characters")
@@ -108,6 +140,11 @@ public class AdminSubscriptionDtos {
         String changeNotes
     ) {}
 
+    /**
+     * Kết quả tra cứu tài khoản: định danh (accountId, username, email, role), gói hiệu lực ({@code effectivePlanCode/Name/Status},
+     * {@code entitlementStatus}, {@code effectiveSince/Until}, {@code billingModel}), mức dùng ({@code assetCount}, {@code storageBytes}) so với giới hạn
+     * ({@code assetLimit}, {@code storageBytesLimit}, {@code maxFileBytes}, {@code maxFileBytesLimit}) và thông tin Vault ({@code hasVault}, {@code vaultId}).
+     */
     public record AccountUsageLookupDto(
         String accountId,
         String username,

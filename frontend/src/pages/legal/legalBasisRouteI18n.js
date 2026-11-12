@@ -1,3 +1,4 @@
+/** Bảng chuỗi giao diện song ngữ (vi/en) cho trang Chọn phương án căn cứ pháp lý (LegalBasisRouteSelectionPage): tiêu đề, lưu ý nghiệp vụ, hàng đợi, nhãn lựa chọn Tòa án/Công chứng/Tạm dừng và thông báo lỗi. */
 export const legalBasisRouteI18n = {
   vi: {
     pageTitle: 'Thẩm định căn cứ',

@@ -3,14 +3,34 @@ import FeedbackNotice from '../common/FeedbackNotice.jsx';
 import { readDms } from '../../utils/dmsService.js';
 import DurationSetting from './DurationSetting.jsx';
 
+/**
+ * Các lựa chọn nhanh cho thời gian ân hạn (số ngày).
+ */
 const PRESET_DAYS = [1, 3, 7, 14];
 
+/**
+ * Bọc {@code GraceSettings} với {@code key} theo chủ hầm/token/trạng thái DMS/{@code resetKey} để form được reset khi dữ liệu nguồn đổi.
+ * Dùng trong {@code pages/dms/DMSOverviewPage.jsx}.
+ */
 export default function DmsGraceSettings(props) {
   return <GraceSettings key={`${props.ownerId || ''}:${props.accessToken || ''}:${props.data?.status || ''}:${props.resetKey || 0}`} {...props} />;
 }
+/**
+ * Form cài đặt thời gian ân hạn của Dead Man Switch (DMS) cho chủ hầm. Chỉ ghi được khi là chủ hầm, DMS đang {@code MONITORING} và backend cho phép ({@code actions.policy} có min/max).
+ *
+ * Lưu bằng {@code actions.save({checkIntervalMinutes, gracePeriodMinutes|gracePeriodDays})} = {@code liveDmsGraceActions.save} trong {@code utils/dmsService.js} = {@code PUT /api/v1/dms}.
+ * Sau khi lưu, kiểm tra phản hồi bằng {@code readDms} (thời gian ân hạn và chu kỳ phải khớp) rồi gọi {@code onSaved}. Lỗi 401 gọi {@code onUnauthorized}; 409 báo trạng thái đã đổi.
+ * Hiển thị qua {@code DurationSetting} (preset 1/3/7/14 ngày hoặc tùy chỉnh ngày/giờ/phút).
+ *
+ * Props: {@code data} (cấu hình DMS hiện tại), {@code actions} ({save, policy, durationUnit}), {@code ownerId}, {@code accessToken}, {@code lang}, {@code isOwner}, {@code onSaved}, {@code onUnauthorized}, {@code onBusyChange}, {@code busy}.
+ * State: {@code draft}, {@code dirty}, {@code pending}, {@code error}, {@code saved}, {@code confirmed}.
+ */
 function GraceSettings({ data, actions, ownerId, accessToken, lang = 'vi', isOwner = true, onSaved, onUnauthorized, onBusyChange, busy = false }) {
   const en = lang === 'en';
   const initialMinutes = data?.gracePeriodMinutes ?? (data?.gracePeriodDays ?? 0) * 1440;
+  /**
+   * Tách tổng số phút thành chuỗi ngày/giờ/phút.
+   */
   const split = total => ({ days: String(Math.floor(total / 1440)), hours: String(Math.floor(total % 1440 / 60)), minutes: String(total % 60) });
   const [draft, setDraft] = useState(() => split(initialMinutes));
   const [dirty, setDirty] = useState(false);
@@ -35,6 +55,9 @@ function GraceSettings({ data, actions, ownerId, accessToken, lang = 'vi', isOwn
   const maxText = ready ? (en ? `Maximum: ${maxDays} days.` : `Tối đa ${maxDays} ngày.`) : '';
   useEffect(() => () => { if (request.current) { request.current.abort(); request.current = null; busyCallback.current?.(false); } }, []);
 
+  /**
+   * Gửi lưu thời gian ân hạn (xem mô tả component): chống gửi đôi, báo bận cho cha qua {@code onBusyChange}, kiểm tra phản hồi và cập nhật trạng thái.
+   */
   async function save(event) {
     event.preventDefault();
     if (request.current || busy || !writable || invalid || error) return;

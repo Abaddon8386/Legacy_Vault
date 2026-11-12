@@ -14,6 +14,16 @@ import java.util.List;
  * Metadata Staff nhập khi tiếp nhận một phiên bản văn bản căn cứ (ST-18), gửi cùng file số hóa. Hash, phiên bản, người
  * tiếp nhận và thời điểm do server đặt. Mỗi phiên bản phải kèm {@code allocations} (phạm vi phân bổ theo văn bản, kiểm tra ở
  * service). Tiếp nhận không đồng nghĩa đã duyệt.
+ *
+ * Là phần JSON {@code metadata} của request multipart
+ * {@code POST /api/v1/staff/verification-cases/{caseId}/basis-dossier/versions}.
+ *
+ * Các trường:
+ * - {@code legalBasisType}: NOTARIAL_PARTITION, COURT_JUDGMENT hoặc COURT_DECISION.
+ * - {@code issuingAuthority}, {@code documentNumber}, {@code issueDate}: cơ quan, số và ngày cấp (không ở tương lai).
+ * - {@code notaryAuthority}, {@code notarialDocumentNumber}, {@code notarizedAt}: thông tin công chứng (tùy chọn).
+ * - {@code evidenceReference}, {@code notes}: tham chiếu chứng cứ và ghi chú.
+ * - {@code allocations}: các dòng phân bổ {@link AllocationInput}, tối đa 200.
  */
 public record BasisIntakeMetadata(
         @NotBlank(message = "{validation.NotBlank}")

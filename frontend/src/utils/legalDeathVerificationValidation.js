@@ -1,3 +1,6 @@
+/**
+ * Dùng bởi App.jsx và pages/legal/LegalDeathVerificationPage.jsx.
+ */
 import { isSessionActive } from './session.js';
 import { legalI18n } from '../pages/legal/legalI18n.js';
 
@@ -10,12 +13,18 @@ import { legalI18n } from '../pages/legal/legalI18n.js';
  * - Không tự ý đặt enum audit state hay loại chứng cứ khi chưa có API contract
  */
 
+/**
+ * Ba quyết định thẩm định tử vong: APPROVE (chấp thuận), REJECT (từ chối), REQUEST_MORE_EVIDENCE (yêu cầu bổ sung chứng cứ).
+ */
 export const VERIFICATION_CHOICES = Object.freeze([
   'APPROVE',
   'REJECT',
   'REQUEST_MORE_EVIDENCE',
 ]);
 
+/**
+ * Các khóa lỗi (i18n) của form thẩm định tử vong.
+ */
 export const VERIFICATION_ERROR_KEYS = Object.freeze({
   DECISION_REQUIRED: 'decisionRequired',
   DECISION_INVALID: 'decisionInvalid',
@@ -25,6 +34,8 @@ export const VERIFICATION_ERROR_KEYS = Object.freeze({
 /**
  * Hàm kiểm tra quyền truy cập route Legal Death Verification dùng thật trong ứng dụng
  * Yêu cầu: phiên còn hiệu lực và người dùng có role LEGAL_VERIFIER
+ *
+ * Cho vào màn hình thẩm định tử vong khi session còn hiệu lực (isSessionActive) và có vai trò LEGAL_VERIFIER.
  */
 export function canAccessLegalDeathVerification(session) {
   if (!isSessionActive(session)) {
@@ -36,6 +47,8 @@ export function canAccessLegalDeathVerification(session) {
 /**
  * Kiểm tra tính đầy đủ của biểu mẫu thẩm định cục bộ
  * Trả về mã/key lỗi trung lập về ngôn ngữ để giao diện render theo ngôn ngữ hiện hành
+ *
+ * Kiểm tra form: decision phải thuộc VERIFICATION_CHOICES và reason không rỗng sau trim. Trả {isValid, errors} (khóa lỗi trung lập ngôn ngữ).
  */
 export function validateDeathVerificationForm(data = {}) {
   const errors = {};
@@ -61,6 +74,8 @@ export function validateDeathVerificationForm(data = {}) {
 
 /**
  * Helper dịch mã lỗi sang thông báo theo ngôn ngữ chỉ định
+ *
+ * Đổi khóa lỗi thành thông điệp theo ngôn ngữ từ legalI18n.
  */
 export function getVerificationErrorMessage(errorKey, lang = 'vi') {
   if (!errorKey) return '';
@@ -70,6 +85,8 @@ export function getVerificationErrorMessage(errorKey, lang = 'vi') {
 
 /**
  * Helper chuyển toàn bộ map mã lỗi thành map thông báo đã dịch
+ *
+ * Đổi cả map khóa lỗi thành map thông điệp đã dịch.
  */
 export function formatDeathVerificationErrors(errors = {}, lang = 'vi') {
   const dict = legalI18n[lang] || legalI18n.vi;

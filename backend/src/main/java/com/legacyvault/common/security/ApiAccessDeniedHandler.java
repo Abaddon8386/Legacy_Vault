@@ -12,16 +12,21 @@ import com.legacyvault.common.error.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-/** 403: đã đăng nhập nhưng thiếu quyền -> JSON lỗi chung. */
+/**
+ * 403: đã đăng nhập nhưng thiếu quyền -> JSON lỗi chung ({@code ACCESS_DENIED}). Được đăng ký trong
+ * {@link SecurityConfig} làm {@code accessDeniedHandler}; ghi lỗi qua {@link ApiErrorWriter}.
+ */
 @Component
 public class ApiAccessDeniedHandler implements AccessDeniedHandler {
 
 	private final ApiErrorWriter writer;
 
+	/** Nhận {@link ApiErrorWriter} để ghi JSON lỗi. */
 	public ApiAccessDeniedHandler(ApiErrorWriter writer) {
 		this.writer = writer;
 	}
 
+	/** Ghi phản hồi 403 {@code ACCESS_DENIED} khi Spring Security từ chối quyền truy cập ở tầng filter. */
 	@Override
 	public void handle(HttpServletRequest request, HttpServletResponse response,
 			AccessDeniedException accessDeniedException) throws IOException {

@@ -6,6 +6,19 @@ import { observeLandingReveals } from './landingMotion.js';
 import LandingFooter from './LandingFooter.jsx';
 import './LandingPage.css';
 
+/**
+ * Trang chủ công khai (đường dẫn `/`) giới thiệu LegacyVault: hero, tính năng, cách hoạt động, các gói (`SUBSCRIPTION_PLANS`) và chân trang.
+ * Không gọi API. Ngôn ngữ lấy từ `?lang=` và đổi được ngay trên trang. Nút điều hướng phụ thuộc phiên: đang khôi phục phiên thì hiện "Đang kiểm tra";
+ * phiên hợp lệ với VAULT_OWNER hoặc BENEFICIARY thì hiện nút vào bảng điều khiển; ngược lại hiện Đăng ký/Đăng nhập.
+ * Hiệu ứng reveal được bật bằng `observeLandingReveals` mỗi khi đổi ngôn ngữ.
+ *
+ * @param {object} props
+ * @param {Function} [props.onLogin] Mở trang đăng nhập, nhận lang.
+ * @param {Function} [props.onRegister] Mở trang đăng ký, nhận lang.
+ * @param {Function} [props.onDashboard] Vào bảng điều khiển, nhận lang.
+ * @param {object|null} [props.session] Phiên hiện tại.
+ * @param {boolean} [props.isRestoringSession=false] Đang khôi phục phiên đăng nhập.
+ */
 export default function LandingPage({ onLogin, onRegister, onDashboard, session, isRestoringSession = false }) {
   const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
   const en = lang === 'en';

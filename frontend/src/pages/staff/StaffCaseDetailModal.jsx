@@ -12,6 +12,22 @@ import './StaffCaseDetailModal.css';
  * - Tuyệt đối KHÔNG thêm nút tạo case thủ công, xác nhận tử vong, phê duyệt pháp lý,
  *   unlock, decrypt hay bàn giao di sản. Các hành động tiếp nhận thuộc phạm vi PS-26.
  */
+/**
+ * Hộp thoại chỉ đọc hiển thị thông tin tham chiếu của một hồ sơ xác minh: mã hồ sơ, trạng thái, tên kho,
+ * chủ kho và thời điểm tạo hồ sơ (hoặc kết thúc thời gian chờ nếu là dữ liệu mô phỏng).
+ * Không gọi API; dữ liệu `caseItem` là một dòng của danh sách `GET /api/v1/staff/verification-cases`
+ * do `StaffCaseDashboard.jsx` truyền xuống. Có nút đóng và (tùy chọn) nút chuyển sang xác minh hoặc tiếp nhận hồ sơ.
+ * Chuỗi giao diện lấy từ `getStaffCaseTranslations` (`staffCaseI18n.js`).
+ *
+ * @param {object} props
+ * @param {boolean} props.isOpen hộp thoại đang mở hay không.
+ * @param {Function} props.onClose đóng hộp thoại.
+ * @param {object|null} props.caseItem hồ sơ cần xem; null thì không render.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {Function} [props.onStartIntake] mở trang tiếp nhận hồ sơ (đóng hộp thoại trước).
+ * @param {Function} [props.onStartVerification] mở trang xác minh hồ sơ (đóng hộp thoại trước).
+ * @returns {JSX.Element|null}
+ */
 export default function StaffCaseDetailModal({
   isOpen,
   onClose,
@@ -24,6 +40,7 @@ export default function StaffCaseDetailModal({
 
   if (!caseItem) return null;
 
+  /** Định dạng ISO-8601 thành ngày giờ theo ngôn ngữ; rỗng trả "—", lỗi phân tích trả nguyên chuỗi. */
   const formatDate = (isoString) => {
     if (!isoString) return '—';
     try {
@@ -40,6 +57,7 @@ export default function StaffCaseDetailModal({
     }
   };
 
+  /** Tạo huy hiệu trạng thái hồ sơ (nhãn và màu theo OPEN/IN_PROGRESS/VERIFIED/CLOSED/CANCELLED). */
   const getStatusBadge = (status) => {
     const label = status === 'OPEN' ? (lang === 'en' ? 'Open' : 'Đang mở') : status === 'CANCELLED' ? (lang === 'en' ? 'Cancelled' : 'Đã hủy') : t.statusLabels[status] || status;
     let badgeModifier = 'awaiting';

@@ -14,6 +14,9 @@ import { createSession } from './session.js';
  *     5. DEV Preview simulation works strictly separately under ?preview=true in DEV mode.
  */
 
+/**
+ * Các kịch bản đăng nhập mô phỏng (chỉ DEV preview ?preview=true và test). Dùng bởi pages/auth/LoginPage.jsx.
+ */
 export const PREVIEW_SCENARIOS = [
   { id: 'success', labelVi: 'Mô phỏng đăng nhập thành công (DEV)', labelEn: 'Simulated Login Success (DEV)' },
   { id: 'unauthorized', labelVi: 'HTTP 401: Sai mật khẩu / Email', labelEn: 'HTTP 401: Invalid Credentials' },
@@ -23,6 +26,9 @@ export const PREVIEW_SCENARIOS = [
   { id: 'network_error', labelVi: 'Lỗi kết nối (Network Error / Offline)', labelEn: 'Network Error / Offline' },
 ];
 
+/**
+ * Thông điệp song ngữ (vi/en) cho mọi mã trạng thái/lỗi xác thực (đăng nhập, Google, khóa tài khoản...). Dùng với getAuthMessage.
+ */
 export const authStatusMessages = {
   vi: {
     SIMULATED_SUCCESS: 'Mô phỏng đăng nhập thành công (Chế độ DEV Preview). Hệ thống chưa kích hoạt phiên đăng nhập thực tế.',
@@ -93,6 +99,8 @@ export const authStatusMessages = {
  * @param {string} code
  * @param {string} lang
  * @returns {string}
+ *
+ * Lấy thông điệp theo mã và ngôn ngữ; mã lạ trả INTERNAL_ERROR. Cũng được googleLinkService.js dùng.
  */
 export function getAuthMessage(code, lang = 'vi') {
   const dictionary = authStatusMessages[lang] || authStatusMessages.vi;
@@ -109,6 +117,8 @@ export function getAuthMessage(code, lang = 'vi') {
  * }
  * @param {any} data
  * @returns {boolean}
+ *
+ * Phản hồi đăng nhập hợp lệ khi createSession (session.js) dựng được session từ nó.
  */
 export function isValidLoginResponse(data) {
   try { createSession(data); return true; } catch { return false; }
@@ -129,6 +139,10 @@ export function isValidLoginResponse(data) {
  * @param {Object} payload - { credential: string }
  * @param {Object} options - { lang: 'vi'|'en', signal?: AbortSignal, fetchFn?: Function }
  * @returns {Promise<Object>} resolved login result
+ *
+ * Đăng nhập hoặc đăng ký lần đầu bằng Google: gọi POST /api/v1/auth/google (mong đợi 200) với body {credential} (ID token của Google Identity Services); backend tự quyết định đăng nhập hay tạo tài khoản chủ kho.
+ * Chỉ phản hồi LoginResponse hợp lệ (createSession) mới tạo phiên. Lỗi được che thành mã an toàn: GOOGLE_SIGNIN_UNAVAILABLE (backend chưa sẵn sàng/404), GOOGLE_ACCOUNT_UNAVAILABLE, INVALID_AUTH_RESPONSE; trước đó ném INVALID_GOOGLE_CREDENTIAL (400) nếu thiếu credential.
+ * Dùng bởi components/auth/GoogleSignInButton.jsx.
  */
 export async function authenticateWithGoogle({ credential } = {}, options = {}) {
   const token = typeof credential === 'string' ? credential.trim() : '';
@@ -183,6 +197,10 @@ export async function authenticateWithGoogle({ credential } = {}, options = {}) 
  * @param {Object} credentials - { email, password }
  * @param {Object} options - { scenario: string, isDevPreview: boolean, lang: 'vi'|'en', fetchFn: function, isTest: boolean }
  * @returns {Promise<Object>} resolved login result
+ *
+ * Đăng nhập bằng email và mật khẩu. Ở chế độ mô phỏng (isDevPreview hoặc test và có scenario) trả kết quả giả lập theo kịch bản mà không tạo phiên thật.
+ * Chế độ thật: gọi POST /api/v1/auth/login (mong đợi 200) với {email chữ thường, password}, kiểm tra bằng createSession; phản hồi sai định dạng đổi thành INVALID_AUTH_RESPONSE; thông điệp lỗi lấy từ getAuthMessage. Backend có thể trả INVALID_CREDENTIALS, ACCOUNT_LOCKED, ACCOUNT_LOCKED_BY_ADMIN, TOO_MANY_ATTEMPTS...
+ * Dùng bởi pages/auth/LoginPage.jsx.
  */
 export async function authenticateUser({ email, password: _password }, options = {}) {
   // Void password reference in simulation to prevent secret leakage

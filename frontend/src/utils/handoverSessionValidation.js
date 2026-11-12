@@ -1,3 +1,10 @@
+/**
+ * Kiểm tra điều kiện được mở phiên bàn giao: kho phải ở trạng thái UNLOCKED (VAULT_NOT_UNLOCKED nếu không) và chưa có phiên ACTIVE nào của hồ sơ (DUPLICATE_SESSION_ACTIVE).
+ * @param {string} vaultStatus Trạng thái kho do backend xác nhận.
+ * @param {object|null} existingSession Phiên bàn giao hiện có (nếu có).
+ * @returns {{canOpen:boolean,reasonCode:string,messageVi?:string,messageEn?:string}}
+ * Dùng bởi pages/staff/handoverSessionService.js.
+ */
 export function evaluateSessionOpenPrerequisites(vaultStatus, existingSession = null) {
   if (vaultStatus !== 'UNLOCKED') {
     return {

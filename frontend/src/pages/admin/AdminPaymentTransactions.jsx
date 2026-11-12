@@ -5,10 +5,27 @@ import { adminSubscriptionErrorMessage, formatBytes } from '../../utils/adminSub
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import './AdminPaymentTransactions.css';
 
+/**
+ * Tab "Giao dịch thanh toán" trong trang quản lý gói (ROLE_ADMIN). Bọc `Transactions` với `key` theo accessToken để
+ * state được reset khi đổi phiên đăng nhập. Được `AdminSubscriptionPage` render ở tab giao dịch.
+ *
+ * @param {object} props Gồm `accessToken`, `lang` ('vi'|'en') và `onUnauthorized` (callback khi 401).
+ */
 export default function AdminPaymentTransactions(props) {
   return <Transactions key={props.accessToken || 'anonymous'} {...props} />;
 }
 
+/**
+ * Danh sách giao dịch thanh toán gói đăng ký có lọc và phân trang.
+ *
+ * Cách hoạt động: effect gọi `fetchAdminPayments(filters)` -> `GET /api/v1/admin/subscriptions/transactions`
+ * (tham số query/status/from/to/page/size) và lưu kết quả theo `key` (bộ lọc + revision + ngôn ngữ) để bỏ kết quả cũ.
+ * Nút "Xem" gọi `fetchAdminPayment(id)` -> `GET /api/v1/admin/subscriptions/transactions/{id}` rồi mở dialog chi tiết
+ * (có khóa focus qua `useModalFocus`). Lỗi 401 gọi `onUnauthorized`; 401/403 ở chi tiết đóng dialog và hiện lỗi ở danh sách.
+ *
+ * State: `draft` (giá trị form chưa áp dụng), `filters` (bộ lọc đang dùng + page/size), `revision` (ép tải lại),
+ * `result`, `detail`, `formError` (khoảng thời gian không hợp lệ).
+ */
 function Transactions({accessToken,lang='vi',onUnauthorized}) {
   const en=lang==='en';
   const empty={query:'',status:'',from:'',to:''};
@@ -38,7 +55,14 @@ function Transactions({accessToken,lang='vi',onUnauthorized}) {
     });
     return ()=>{active=false;c.abort();detailController.current?.abort();};
   },[filters,key,accessToken,lang]);
+  /**
+   * Áp dụng bộ lọc/trang mới: đóng dialog chi tiết đang mở và xóa lỗi form.
+   */
   const change=(next)=>{close();setFilters(next);setFormError(false);};
+  /**
+   * Submit form tra cứu: chuyển mốc thời gian sang chuỗi UTC (`...:00Z`), báo lỗi nếu "Từ" không trước "Đến",
+   * ngược lại đặt bộ lọc, về trang 0 và tăng `revision` để tải lại.
+   */
   const submit=e=>{
     e.preventDefault();
     const from=draft.from?`${draft.from}:00Z`:'';
@@ -47,6 +71,10 @@ function Transactions({accessToken,lang='vi',onUnauthorized}) {
     change({...draft,from,to,page:0,size:filters.size});
     setRevision(n=>n+1);
   };
+  /**
+   * Mở chi tiết một giao dịch: hủy request chi tiết trước đó, gọi `GET /api/v1/admin/subscriptions/transactions/{id}`
+   * và lưu kết quả/lỗi vào state `detail`.
+   */
   const view=async id=>{
     detailController.current?.abort();
     const c=new AbortController();detailController.current=c;
@@ -62,12 +90,24 @@ function Transactions({accessToken,lang='vi',onUnauthorized}) {
       }else setDetail({key,id,error});
     }
   };
+  /**
+   * Nhãn trạng thái giao dịch (PENDING, EXPIRED, SUCCEEDED, FAILED) theo ngôn ngữ.
+   */
   const textStatus=status=>({PENDING:en?'Pending':'Đang chờ',EXPIRED:en?'Expired':'Hết hạn',
     SUCCEEDED:en?'Succeeded':'Thành công',FAILED:en?'Failed':'Thất bại'})[status];
+  /**
+   * Chuyển lỗi API thành thông báo: 400 là bộ lọc sai, INVALID_RESPONSE là dữ liệu không hợp lệ, còn lại dùng `adminSubscriptionErrorMessage`.
+   */
   const errorText=error=>error.status===400?(en?'Invalid search filters.':'Bộ lọc tra cứu không hợp lệ.'):
     error.code==='INVALID_RESPONSE'?(en?'Invalid transaction data. Please reload.':'Dữ liệu giao dịch không hợp lệ. Vui lòng tải lại.'):
     adminSubscriptionErrorMessage(error,lang);
+  /**
+   * Định dạng số tiền VND theo locale.
+   */
   const money=n=>new Intl.NumberFormat(en?'en-US':'vi-VN').format(n)+' VND';
+  /**
+   * Định dạng thời điểm theo UTC kèm hậu tố " UTC"; rỗng thì trả "—".
+   */
   const date=value=>value?new Date(value).toLocaleString(en?'en-GB':'vi-VN',{timeZone:'UTC'})+' UTC':'—';
   return <section className="lv-payments" aria-label={en?'Payment transactions':'Giao dịch thanh toán'}>
     <form className="lv-payment-filters lv-surface-card" onSubmit={submit}>

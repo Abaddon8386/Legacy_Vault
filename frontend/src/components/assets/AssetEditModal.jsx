@@ -14,6 +14,9 @@ import { Button } from '../common/Button'
 import { AlertCircle, KeyRound, FileText } from 'lucide-react'
 import './AssetFormModal.css'
 
+/**
+ * Giá trị payload rỗng ban đầu (văn bản, tên đăng nhập, mật khẩu).
+ */
 const EMPTY_PAYLOAD = { text: '', username: '', password: '' }
 
 /**
@@ -22,9 +25,19 @@ const EMPTY_PAYLOAD = { text: '', username: '', password: '' }
  * Flow:
  * - The form starts locked: the owner confirms their password once, which also reveals the current secret content.
  * - After unlocking, the order matches the view screen: name, description, secure content (prefilled and editable),
- *   photos and documents (existing files can be deleted, new ones added).
+ * photos and documents (existing files can be deleted, new ones added).
  * - Saving reuses the verified password, so it is not requested a second time.
  * - The payload is only sent when the owner actually changed it.
+ *
+ * Modal sửa tài sản. Dùng trong {@code pages/assets/AssetManagementPage.jsx}; component cha truyền {@code onSubmit(assetId, patch, {signal})} để thực hiện lưu
+ * (thường gọi {@code assetService.updateAsset} = {@code PATCH /vaults/{v}/assets/{a}}, cùng tải thêm ảnh/tài liệu qua {@code assetImageService} / {@code assetDocumentService}).
+ *
+ * Bước 1 {@code handleUnlock}: xác nhận mật khẩu bằng {@code assetService.revealAsset} ({@code POST .../reveal}) để lấy nội dung hiện tại; 404 nghĩa là tài sản không có nội dung bí mật.
+ * Bước 2 {@code handleSubmit}: validate, chỉ gửi các trường thay đổi cùng {@code password} của phiên; lỗi một phần ({@code error.partial}) được ghi nhận để thử lại không tải trùng.
+ *
+ * Props: {@code isOpen}, {@code onClose}, {@code asset}, {@code onSubmit}, {@code t}, {@code isSubmitting}, {@code errorKey}, {@code authContext} (reset khi đổi phiên), {@code vaultId}, {@code accessToken}, {@code lang}.
+ * State chính: {@code name}, {@code description}, {@code payload}/{@code credentials}, {@code unlocked}, {@code sessionPassword}, {@code images}/{@code documents} (tệp mới), {@code errors}, {@code saving}, {@code partial}.
+ * Effect: tải số lượng ảnh/tài liệu hiện có để áp giới hạn 5 tệp; hủy request khi đóng/đổi tài sản.
  */
 export function AssetEditModal({
   isOpen,
@@ -85,6 +98,10 @@ export function AssetEditModal({
   const busy = isSubmitting || saving
   const canSubmit = typeof onSubmit === 'function'
 
+  /**
+   * Kiểm tra form sửa: tên bắt buộc và <= 150 ký tự, mô tả <= 1000 ký tự. Ghi lỗi vào {@code errors}.
+   * @returns {boolean} true nếu hợp lệ.
+   */
   function validate() {
     const errs = {}
     const trimmedName = name.trim()
@@ -103,6 +120,10 @@ export function AssetEditModal({
     return Object.keys(errs).length === 0
   }
 
+  /**
+   * Gửi form: nếu chưa mở khóa thì chuyển sang {@code handleUnlock}; ngược lại validate, so sánh với giá trị gốc để tạo {@code patchData} (name, description, payload nếu đổi, images, documents),
+   * rồi gọi {@code onSubmit}. Xử lý lỗi PASSWORD_SETUP_CANCELLED, REAUTH_FAILED (khóa lại), TOO_MANY_ATTEMPTS và lỗi lưu từng phần.
+   */
   async function handleSubmit(e) {
     e.preventDefault()
     if (!unlocked) { handleUnlock(); return }
@@ -155,6 +176,9 @@ export function AssetEditModal({
   }
 
   // Step 1: confirm the password once. It also reveals the current secret content for editing.
+  /**
+   * Bước 1: xác nhận mật khẩu và lấy nội dung bí mật hiện tại ({@code POST /vaults/{v}/assets/{a}/reveal}) để điền sẵn vào form; lưu mật khẩu phiên để lần lưu không phải hỏi lại.
+   */
   async function handleUnlock() {
     if (busy || pending.current) return
     if (!password.trim()) { setErrors({ password: 'required' }); return }
@@ -163,6 +187,9 @@ export function AssetEditModal({
     const submittedPassword = password
     setPassword('')
     const options = { lang, accessToken, signal: controller.signal }
+    /**
+     * Hoàn tất mở khóa: dựng ảnh chụp ban đầu của payload (văn bản hoặc username/password), điền vào form và đánh dấu {@code unlocked}.
+     */
     const finishUnlock = (revealed) => {
       let snapshot = EMPTY_PAYLOAD
       if (revealed !== null) {
@@ -205,6 +232,9 @@ export function AssetEditModal({
     }
   }
 
+  /**
+   * Đóng modal và xóa mọi dữ liệu nhạy cảm/đang nhập (bị bỏ qua khi đang lưu).
+   */
   function handleResetAndClose() {
     if (busy) return
     setPayload('')

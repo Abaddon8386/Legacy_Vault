@@ -25,12 +25,33 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * ST-19 (LV-BASIS-001, PS-37): Staff chuyển tiếp (forward) phiên bản mới nhất của hồ sơ căn cứ sang cho Legal.
+ *
+ * Được gọi qua {@link DistributionWorkflowService#forward}, mà controller
+ * {@code StaffBasisIntakeController} phơi ra tại
+ * {@code POST /api/v1/staff/verification-cases/{caseId}/basis-dossier/versions/{version}/forward} (vai trò {@code STAFF_EXECUTOR}).
+ * Ghi bảng {@code legal_basis_dossier_versions} (đánh dấu FORWARDED), {@code legal_basis_dossiers}, trạng thái Vault,
+ * audit {@code LEGAL_BASIS_FORWARDED} và gửi thông báo cho workspace Legal.
+ */
 @Service
 public class BasisForwardService {
+    /**
+     * Dịch vụ ghi thông báo workflow gửi sang Legal.
+     */
     private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
+    /**
+     * Loại thực thể ghi vào audit log.
+     */
     static final String ENTITY_TYPE = "LEGAL_BASIS_DOSSIER";
+    /**
+     * Mã bước quy trình ghi vào audit (ST-19: chuyển tiếp hồ sơ căn cứ).
+     */
     static final String STEP_ID = "ST-19";
+    /**
+     * Mã quy tắc nghiệp vụ ghi vào audit.
+     */
     static final String RULE_ID = "LV-BASIS-001";
 
     private final StaffCaseLockRepository staffCases;
@@ -43,6 +64,10 @@ public class BasisForwardService {
     private final LegalBasisLockedState lockedState;
     private final LegalBasisReviewService reviewService;
 
+    /**
+     * Khởi tạo service với repository ca/Vault/hồ sơ/phiên bản và các thành phần phụ trợ (audit, view, trạng thái đã khóa,
+     * dịch vụ rà soát PS-37, thông báo).
+     */
     public BasisForwardService(
             StaffCaseLockRepository staffCases,
             VerificationCaseRepository caseRepository,
@@ -70,6 +95,21 @@ public class BasisForwardService {
      * ST-19: chuyển phiên bản dossier mới nhất cho Legal.
      *
      * Thứ tự khóa chuẩn: Vault -> VerificationCase -> Dossier.
+     *
+     * <p>ST-19: chuyển tiếp phiên bản dossier mới nhất cho Legal.
+     *
+     * Các bước: (1) tìm ca thuộc Staff (không khóa) để biết Vault; (2) khóa Vault → VerificationCase → Dossier và làm mới
+     * trạng thái; (3) kiểm tra quyền sở hữu, ca còn mở, Vault ở trạng thái tiếp nhận căn cứ, không bị ON_HOLD, hồ sơ đang
+     * PROVIDED; (4) chỉ cho phép chuyển đúng phiên bản mới nhất và không thấp hơn phiên bản yêu cầu; (5) {@code markForwarded}
+     * phiên bản, đánh dấu dossier FORWARDED, chuyển Vault sang xác minh pháp lý; (6) ghi audit {@code LEGAL_BASIS_FORWARDED};
+     * (7) đánh giá lại snapshot PS-37 ({@code evaluateAfterChange}) trong cùng transaction; (8) gửi thông báo cho Legal.
+     *
+     * @param caseId UUID công khai của ca xác minh
+     * @param versionNo số phiên bản cần chuyển tiếp
+     * @param principal Staff đang đăng nhập (phải là người nhận ca)
+     * @return hồ sơ căn cứ sau khi chuyển (kèm thông báo), không kèm lý do phân loại
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND (ca không thuộc Staff hoặc phiên bản không tồn tại),
+     *         BASIS_DOSSIER_INVALID_STATE, BASIS_VERSION_STALE (không phải phiên bản mới nhất hoặc thấp hơn phiên bản yêu cầu)
      */
     @Transactional
     public BasisDossierResponse forward(

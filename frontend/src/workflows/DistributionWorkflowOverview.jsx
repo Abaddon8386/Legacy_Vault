@@ -3,6 +3,9 @@ import { workflowNotificationWarning } from '../utils/workflowNotificationFeedba
 import './DistributionWorkflow.css';
 import { workflowFailure } from '../utils/workflowFeedback.js';
 
+/**
+ * Nhãn kết quả (vi, en) hiển thị sau khi từng action thành công.
+ */
 const outcomes = {
   requestDocuments: ['Đã gửi yêu cầu giấy tờ', 'Documents requested'],
   approveDocuments: ['Đã duyệt căn cứ', 'Documents approved'],
@@ -12,13 +15,24 @@ const outcomes = {
   requestAllocationChanges: ['Đã yêu cầu Staff sửa phân bổ', 'Changes requested'],
 };
 // A request or assessment written as "Label: value" lines shows the label in bold so the key facts stand out.
+/**
+ * Biểu thức nhận dạng dòng dạng "Nhãn: giá trị" để in đậm nhãn.
+ */
 const labelledLine = /^(Giấy tờ cần nộp|Lý do|Documents requested|Reason):\s*(.*)$/;
+/**
+ * Hiển thị văn bản nhiều dòng; dòng có dạng "Nhãn: giá trị" thì nhãn được in đậm.
+ * @param {{text:string}} props
+ */
 function LabelledText({ text }) {
   return String(text).split('\n').map((line, index) => {
     const match = labelledLine.exec(line);
     return <span className="lv-distribution-line" key={index}>{match ? <><strong>{match[1]}:</strong> {match[2]}</> : line}</span>;
   });
 }
+/**
+ * Thông báo phản hồi sau thao tác của quy trình phân chia: thành công (kèm cảnh báo xác nhận thông báo cho bên kia), cảnh báo chờ phiên bản giấy tờ mới khi xung đột ở pha AWAITING_DOCUMENTS, hoặc lỗi lưu.
+ * @param {{workflow:object, workspace:('STAFF'|'LEGAL'), lang?:string}} props {@code workflow} là kết quả của {@code useDistributionWorkflow}.
+ */
 export function DistributionFeedback({ workflow, workspace, lang = 'vi' }) {
   const en = lang === 'en', notice = workflow.receipt;
   const target = workspace === 'LEGAL' ? 'STAFF' : 'LEGAL';
@@ -37,6 +51,11 @@ export function DistributionFeedback({ workflow, workspace, lang = 'vi' }) {
       : (en ? 'The action could not be saved. Your draft is kept.' : 'Chưa lưu được thao tác. Nội dung đang nhập vẫn được giữ lại.')}</p>}
   </>;
 }
+/**
+ * Tổng quan quy trình phân chia hiển thị đầu trang xử lý hồ sơ: cảnh báo tiền đề chưa xong (Staff, kèm liên kết {@code /staff/cases?caseId=...}), chờ Legal yêu cầu giấy tờ, nút làm mới,
+ * lỗi tải, yêu cầu giấy tờ/ý kiến xử lý gần nhất và {@link DistributionFeedback}.
+ * @param {{workflow:object, workspace:('STAFF'|'LEGAL'), lang?:string, showRefresh?:boolean}} props
+ */
 export default function DistributionWorkflowOverview({ workflow, workspace, lang = 'vi', showRefresh = true }) {
   const en = lang === 'en', value = workflow.data;
   const request = value?.phase === 'AWAITING_DOCUMENTS' ? value.request?.reason : null;

@@ -56,7 +56,14 @@ public class LegalBasisDossierController {
         this.distribution = distribution;
     }
 
-    /** ST-21: phê duyệt/từ chối đúng snapshot đã được Legal xem xét. */
+    /**
+     * ST-21: phê duyệt/từ chối đúng snapshot đã được Legal xem xét.
+     *
+     * {@code POST /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/decision}
+     * Body {@link LegalApprovalRequest}; ủy quyền {@code DistributionWorkflowService.decide}.
+     *
+     * @return {@link LegalApprovalResponse}
+     */
     @PostMapping("/decision")
     public ResponseEntity<LegalApprovalResponse> decide(
             @PathVariable UUID caseId,
@@ -65,6 +72,10 @@ public class LegalBasisDossierController {
         return ResponseEntity.ok(distribution.decide(caseId, principal, request));
     }
 
+    /**
+     * {@code POST .../basis-dossier}: Legal phân loại hồ sơ căn cứ lần đầu. Body {@link ClassifyBasisRequest};
+     * gọi {@code BasisClassificationService.classify}. Trả 201 Created kèm {@link BasisDossierResponse}.
+     */
     @PostMapping
     public ResponseEntity<BasisDossierResponse> classify(
             @PathVariable UUID caseId,
@@ -83,6 +94,9 @@ public class LegalBasisDossierController {
 
     /**
      * PS-43: Legal phân loại lại hồ sơ ON_HOLD khi đã có đủ chứng cứ.
+     *
+     * {@code POST .../basis-dossier/reclassification}. Body {@link ClassifyBasisRequest}; gọi
+     * {@code BasisReclassificationService.reclassify}; trả {@link BasisDossierResponse}.
      */
     @PostMapping("/reclassification")
     public BasisDossierResponse reclassify(
@@ -96,6 +110,10 @@ public class LegalBasisDossierController {
     /**
      * ST-20 / PS-37: Ghi nhận Legal đã hoàn thành review hồ sơ căn cứ.
      * Người review được xác định từ principal, không lấy ID từ request.
+     *
+     * {@code POST .../basis-dossier/review}. Body {@link CompleteLegalBasisReviewRequest}; id người review lấy
+     * từ principal (qua {@code requireUserId}); gọi {@code LegalBasisReviewService.recordCompletedReviewByCasePublicId};
+     * trả {@link LegalBasisReviewResponse}.
      */
     @PostMapping("/review")
     public ResponseEntity<LegalBasisReviewResponse> recordReview(
@@ -121,6 +139,10 @@ public class LegalBasisDossierController {
      * Package: com.legacyvault.verification.controller
      * Class: LegalBasisDossierController
      * Vị trí: ngay sau recordReview().
+     *
+     * {@code POST .../basis-dossier/request-supplementation}. Body {@link RecordLegalBasisReviewRequest}
+     * (chỉ dùng {@code reason}); gọi {@code LegalBasisReviewService.requestSupplementationByCasePublicId};
+     * trả {@link LegalBasisReviewResponse}.
      */
     @PostMapping("/request-supplementation")
     public ResponseEntity<LegalBasisReviewResponse> requestSupplementation(
@@ -139,6 +161,10 @@ public class LegalBasisDossierController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * {@code GET .../basis-dossier}: xem hồ sơ căn cứ phía Legal qua {@code BasisDossierViewService.forLegal};
+     * trả {@link BasisDossierResponse}.
+     */
     @GetMapping
     public BasisDossierResponse get(@PathVariable UUID caseId) {
         return views.forLegal(caseId);

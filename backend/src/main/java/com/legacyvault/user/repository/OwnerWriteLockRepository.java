@@ -9,9 +9,18 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
-/** Shared serialization point for Vault creation and all Owner content/quota writers. */
+/**
+ * Điểm tuần tự hóa dùng chung cho việc tạo Vault và mọi thao tác ghi nội dung/hạn mức của Owner (ví dụ {@code VaultService},
+ * {@code OwnerQuotaService}, các repository tài sản): khóa dòng {@code users} của Owner nên các thay đổi phải nhất quán với nhau.
+ */
 public interface OwnerWriteLockRepository extends Repository<User, Long> {
 
+    /**
+     * Khóa bi quan ({@code PESSIMISTIC_WRITE}) dòng của Owner đang {@code ACTIVE} và chưa xóa. Phải gọi trong transaction.
+     *
+     * @param ownerUserId id nội bộ của Owner
+     * @return Owner nếu còn hoạt động, ngược lại rỗng
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
         select u from User u

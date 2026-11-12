@@ -11,12 +11,18 @@ import {
 } from '../../utils/adminService.js';
 import './AdminPages.css';
 
+/**
+ * Khóa i18n của dòng gợi ý quyền hạn cho từng vai trò có thể gán (STAFF_EXECUTOR, LEGAL_VERIFIER, VAULT_OWNER).
+ */
 const ROLE_HINT = {
   STAFF_EXECUTOR: 'roleHintStaff',
   LEGAL_VERIFIER: 'roleHintLegal',
   VAULT_OWNER: 'roleHintOwner',
 };
 
+/**
+ * Ánh xạ trường form -> loại lỗi -> khóa i18n của thông báo lỗi.
+ */
 const FIELD_ERROR = {
   fullName: { required: 'errRequired', tooLong: 'errTooLong' },
   email: { required: 'errRequired', invalid: 'errEmailInvalid', tooLong: 'errEmailInvalid' },
@@ -27,6 +33,12 @@ const FIELD_ERROR = {
 };
 
 /** Field-level problems reported by the server (HTTP 400), mapped onto this form's own error keys. */
+/**
+ * Ánh xạ lỗi `VALIDATION_FAILED` (HTTP 400) do backend trả về, cụ thể là mảng `fieldErrors`, sang mã lỗi của chính form này.
+ *
+ * @param {ApiError} error Lỗi từ `request()`.
+ * @returns {Object<string,string>} Bản đồ trường -> loại lỗi ('required' | 'tooLong' | 'invalid'); rỗng nếu không phải lỗi validate.
+ */
 function serverFieldErrors(error) {
   const mapped = {};
   if (error?.code !== 'VALIDATION_FAILED') return mapped;
@@ -42,6 +54,15 @@ function serverFieldErrors(error) {
 }
 
 /** Maps an API failure to a message; 401/403 are escalated to the page so the session/permission UI reacts. */
+/**
+ * Chuyển lỗi API thành thông báo cho người dùng. Các mã lỗi nghiệp vụ được xử lý: EMAIL_ALREADY_EXISTS, ADMIN_OWNER_HAS_VAULT,
+ * ADMIN_ACCOUNT_PROTECTED, RESOURCE_NOT_FOUND, ADMIN_ACCOUNT_STATE_INVALID, ADMIN_ACCOUNT_IN_HANDOVER; mã khác dùng thông báo chung.
+ *
+ * @param {object} t Bộ chuỗi i18n.
+ * @param {ApiError} error Lỗi từ API.
+ * @param {{onUnauthorized: Function, onDenied: Function}} handlers Gọi khi 401 hoặc 403 `ACCESS_DENIED`.
+ * @returns {string} Thông báo.
+ */
 function failureMessage(t, error, { onUnauthorized, onDenied }) {
   if (error?.status === 401) onUnauthorized?.();
   if (error?.status === 403 && error.code === 'ACCESS_DENIED') onDenied?.();
@@ -56,10 +77,18 @@ function failureMessage(t, error, { onUnauthorized, onDenied }) {
 }
 
 /** Red asterisk for required fields; hidden from assistive tech because the input carries aria-required. */
+/**
+ * Dấu * đỏ đánh dấu trường bắt buộc (ẩn khỏi trình đọc màn hình).
+ */
 function RequiredMark() {
   return <span className="lv-admin-required" aria-hidden="true"> *</span>;
 }
 
+/**
+ * Khung modal dùng chung của các form quản trị: tiêu đề, nút đóng, khóa focus qua `useModalFocus`.
+ *
+ * @param {object} props `titleId`, `title`, `closeLabel`, `onClose`, `wide` (modal rộng), `children`.
+ */
 function ModalShell({ titleId, title, closeLabel, onClose, wide = false, children }) {
   const ref = useModalFocus(true, onClose);
   return (
@@ -75,6 +104,11 @@ function ModalShell({ titleId, title, closeLabel, onClose, wide = false, childre
   );
 }
 
+/**
+ * Ô chọn vai trò từ `ASSIGNABLE_ADMIN_ROLES` (STAFF_EXECUTOR, LEGAL_VERIFIER, VAULT_OWNER).
+ *
+ * @param {object} props `id`, `t`, `lang`, `value`, `onChange(value)`, `describedBy`, `invalid`, `disabled`.
+ */
 function RoleSelect({ id, t, lang, value, onChange, describedBy, invalid, disabled = false }) {
   return (
     <select
@@ -95,6 +129,19 @@ function RoleSelect({ id, t, lang, value, onChange, describedBy, invalid, disabl
   );
 }
 
+/**
+ * Modal "Tạo tài khoản" của admin. Kiểm tra form phía client bằng `validateCreateAdminUserForm`, rồi gọi `createAdminUser`
+ * -> `POST /api/v1/admin/users` (body fullName, email, phone, password, role; mong đợi 201). Lỗi 400 `VALIDATION_FAILED`
+ * được gắn vào từng trường; lỗi khác hiện qua `failureMessage`. Dùng bởi `AdminUsersPage`.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang]
+ * @param {string} props.accessToken JWT admin.
+ * @param {Function} props.onClose Đóng modal.
+ * @param {Function} props.onCreated Nhận tài khoản vừa tạo.
+ * @param {Function} props.onUnauthorized Callback 401.
+ * @param {Function} props.onDenied Callback 403.
+ */
 export function CreateUserModal({ lang = 'vi', accessToken, onClose, onCreated, onUnauthorized, onDenied }) {
   const t = adminI18n[lang] || adminI18n.vi;
   const uid = useId();
@@ -103,6 +150,9 @@ export function CreateUserModal({ lang = 'vi', accessToken, onClose, onCreated, 
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [busy, setBusy] = useState(false);
+  /**
+   * Trả về hàm cập nhật một trường của form và xóa lỗi của trường đó.
+   */
   const set = (key) => (value) => {
     setForm((current) => ({ ...current, [key]: value }));
     setFieldErrors((current) => {
@@ -112,8 +162,14 @@ export function CreateUserModal({ lang = 'vi', accessToken, onClose, onCreated, 
       return next;
     });
   };
+  /**
+   * Lấy thông báo lỗi i18n của một trường (rỗng nếu không có lỗi).
+   */
   const errorText = (field) => fieldErrors[field] ? t[FIELD_ERROR[field][fieldErrors[field]]] : '';
 
+  /**
+   * Submit tạo tài khoản: validate, gọi API, báo `onCreated` khi thành công; chặn gửi trùng bằng cờ `busy`.
+   */
   const submit = async (event) => {
     event.preventDefault();
     if (busy) return;
@@ -133,7 +189,13 @@ export function CreateUserModal({ lang = 'vi', accessToken, onClose, onCreated, 
     }
   };
 
+  /**
+   * Ghép id các phần tử gợi ý/lỗi cho `aria-describedby` của một trường.
+   */
   const describedBy = (key, hasHint) => [hasHint && `${uid}-${key}-hint`, fieldErrors[key] && `${uid}-${key}-error`].filter(Boolean).join(' ') || undefined;
+  /**
+   * Dựng một dòng trường form (nhãn, dấu bắt buộc, input, gợi ý, lỗi) giống form đăng ký công khai.
+   */
   // Same field order and look as the public sign-up form: required fields carry a red asterisk, optional ones none.
   const field = (key, label, input, { required = true, labelHint = null, hint = null } = {}) => (
     <div className="lv-admin-field lv-admin-form-field">
@@ -146,6 +208,9 @@ export function CreateUserModal({ lang = 'vi', accessToken, onClose, onCreated, 
       {fieldErrors[key] && <small id={`${uid}-${key}-error`} className="lv-admin-field-error" role="alert">{errorText(key)}</small>}
     </div>
   );
+  /**
+   * Dựng ô nhập văn bản gắn với state `form` và thuộc tính trợ năng.
+   */
   const textInput = (key, type, extra = {}) => (
     <input
       id={`${uid}-${key}`}
@@ -160,6 +225,9 @@ export function CreateUserModal({ lang = 'vi', accessToken, onClose, onCreated, 
       {...extra}
     />
   );
+  /**
+   * Dựng ô nhập mật khẩu có nút hiện/ẩn mật khẩu.
+   */
   const passwordInput = (key) => (
     <div className="lv-admin-input-wrap">
       {textInput(key, showPassword ? 'text' : 'password', { maxLength: 72, autoComplete: 'new-password', placeholder: '••••••••' })}
@@ -202,6 +270,16 @@ export function CreateUserModal({ lang = 'vi', accessToken, onClose, onCreated, 
   );
 }
 
+/**
+ * Modal đổi vai trò của một tài khoản. Gọi `changeAdminUserRole` -> `PUT /api/v1/admin/users/{id}/role`
+ * với body `{role: "ROLE_<VAI_TRÒ>"}` (mong đợi 200). Dùng bởi `AdminUsersPage`.
+ *
+ * @param {object} props
+ * @param {object} props.user Tài khoản đang sửa (dùng `id`, `roles`).
+ * @param {Function} props.onChanged Nhận tài khoản sau khi đổi.
+ * @param {Function} props.onClose Đóng modal.
+ * Các props còn lại (`lang`, `accessToken`, `onUnauthorized`, `onDenied`) giống `CreateUserModal`.
+ */
 export function ChangeRoleModal({ lang = 'vi', accessToken, user, onClose, onChanged, onUnauthorized, onDenied }) {
   const t = adminI18n[lang] || adminI18n.vi;
   const uid = useId();
@@ -210,6 +288,9 @@ export function ChangeRoleModal({ lang = 'vi', accessToken, user, onClose, onCha
   const [submitError, setSubmitError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  /**
+   * Submit đổi vai trò: yêu cầu đã chọn vai trò rồi gọi API; lỗi hiện qua `failureMessage`.
+   */
   const submit = async (event) => {
     event.preventDefault();
     if (busy) return;
@@ -261,6 +342,9 @@ export function LockUserModal({ lang = 'vi', accessToken, user, lock, onClose, o
   const [submitError, setSubmitError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  /**
+   * Submit khóa/mở khóa: gọi `setAdminUserLocked` (`POST /api/v1/admin/users/{id}/lock` kèm `reason` tùy chọn, hoặc `/unlock`).
+   */
   const submit = async (event) => {
     event.preventDefault();
     if (busy) return;

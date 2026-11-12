@@ -11,6 +11,11 @@ import './OwnerCancelAlert.css';
 /**
  * OwnerCancelAlert — Component FE cho task PS-24 (Owner Cancel Alert)
  *
+ * Nút và hộp thoại xác nhận để chủ hầm hủy cảnh báo DMS (task PS-24). Hiển thị nút khi đủ điều kiện ({@code checkCancelAlertCapability}: đúng trạng thái DMS, là chủ hầm, hoặc cha ghi đè {@code canCancel}).
+ * Khi xác nhận, {@code handleConfirmCancel} kiểm tra lại quyền trước và sau khi gọi {@code executeCancelAlert} (adapter {@code onCancelAlert}, thường {@code POST /vaults/{vaultId}/cancel-alert}),
+ * bỏ kết quả nếu ngữ cảnh đổi trong lúc chờ, rồi chạy {@code onSuccess}/{@code onRefreshRequired}; lỗi sau khi thành công không làm hỏng trạng thái thành công, chỉ hiện cảnh báo tải lại.
+ * Hộp thoại dùng portal, focus trap, Escape, chống bấm đôi (pendingSubmitRef) và hủy request khi unmount. Thông báo lỗi lấy từ {@code getCancelAlertMessage}.
+ *
  * @param {Object} props
  * @param {'vi'|'en'} [props.lang='vi'] - Ngôn ngữ hiển thị
  * @param {string} [props.dmsStatus] - Trạng thái DMS hiện tại (ví dụ 'TRIGGERED')
@@ -82,6 +87,9 @@ export default function OwnerCancelAlert({
   const t = cancelAlertMessages[lang] || cancelAlertMessages.vi;
 
   // Helper quản lý timer an toàn
+  /**
+   * Tạo timer chỉ chạy khi component còn mounted và được dọn khi unmount.
+   */
   const safeSetTimeout = useCallback((fn, delay) => {
     const timerId = setTimeout(() => {
       activeTimersRef.current.delete(timerId);
@@ -113,6 +121,9 @@ export default function OwnerCancelAlert({
     };
   }, []);
 
+  /**
+   * Mở hộp thoại xác nhận nếu đủ điều kiện, xóa lỗi cũ.
+   */
   const handleOpen = () => {
     if (!isEligible) return;
     setActionError(null);
@@ -121,6 +132,9 @@ export default function OwnerCancelAlert({
     setIsOpen(true);
   };
 
+  /**
+   * Đóng hộp thoại (bị chặn khi đang gửi), hủy request, trả focus cho nút kích hoạt.
+   */
   const handleClose = useCallback(() => {
     if (isSubmitting) return; // Chặn đóng khi đang pending request
     if (abortControllerRef.current) {
@@ -180,6 +194,9 @@ export default function OwnerCancelAlert({
     }
   }, [isOpen, safeSetTimeout]);
 
+  /**
+   * Xác nhận hủy cảnh báo: chống gửi đôi, kiểm tra quyền trước/sau await, gọi {@code executeCancelAlert}, rồi thông báo thành công và tự đóng sau 800ms; lỗi được lưu vào {@code actionError} (mã lỗi hoặc status).
+   */
   const handleConfirmCancel = async () => {
     if (pendingSubmitRef.current || isSubmitting || actionSuccess) return; // Chống double-submit
 

@@ -33,11 +33,23 @@ import { formatStaffSession } from '../../utils/caseReference.js';
 import { listLiveSessions, fetchStaffCaseBeneficiaries } from './liveHandoverService.js';
 import { fetchStaffCases } from './staffCaseService.js';
 
+/** Biểu thức chính quy nhận biết UUID (dùng để phân biệt id hồ sơ với số hồ sơ HS-...). */
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Kiểm tra giá trị có phải chuỗi UUID hợp lệ không. */
 const isUuid = (val) => typeof val === 'string' && UUID_REGEX.test(val);
 
+/** Mảng rỗng bất biến dùng làm giá trị mặc định của `initialBeneficiaries` để tránh tạo mảng mới mỗi lần render. */
 const EMPTY_INITIAL_BENEFICIARIES = Object.freeze([]);
 
+/**
+ * Chuyển lỗi khi tải/ghi nhận xác nhận người nhận thành thông báo (vi/en) theo `status`:
+ * 404/`RESOURCE_NOT_FOUND` (không thấy hồ sơ/phiên/người nhận), 403 (không có quyền), 401 (hết phiên),
+ * 409 (hồ sơ hoặc phiên chưa cho phép xác nhận); lỗi có `message` đọc được thì giữ nguyên, còn lại là thông báo chung.
+ *
+ * @param {Error} error lỗi từ lớp service.
+ * @param {'vi'|'en'} lang ngôn ngữ.
+ * @returns {string}
+ */
 function confirmationErrorMessage(error, lang) {
   const en = lang === 'en';
   if (error.status === 404 || error.code === 'RESOURCE_NOT_FOUND') return en
@@ -50,6 +62,15 @@ function confirmationErrorMessage(error, lang) {
   return en ? 'Unable to load confirmation data. Please retry.' : 'Chưa tải được dữ liệu xác nhận. Vui lòng thử lại.';
 }
 
+/**
+ * Chuẩn hóa một người nhận từ nhiều nguồn dữ liệu về dạng thống nhất cho giao diện: `id`/`beneficiaryId`,
+ * `fullName` (thiếu tên thì dùng nhãn "Chưa có thông tin"), `confirmationStatus` (CONFIRMED/PENDING), `deliveryStatus`,
+ * `receiptReference`, `confirmedAt`.
+ *
+ * @param {object} b người nhận gốc.
+ * @param {'vi'|'en'} [lang='vi'] ngôn ngữ.
+ * @returns {object|null} null nếu `b` rỗng.
+ */
 function normalizeBeneficiaryItem(b, lang = 'vi') {
   if (!b) return null;
   const id = b.id || b.beneficiaryId || '';
@@ -80,12 +101,53 @@ function normalizeBeneficiaryItem(b, lang = 'vi') {
   };
 }
 
+/**
+ * Trang "Xác nhận người thụ hưởng" (Staff, đường dẫn `/staff/beneficiary-confirmation`): ghi nhận người nhận đã ký nhận
+ * tài sản kèm biên nhận đã ký. Bọc `BeneficiaryConfirmationPageContext` với `key` theo (người dùng, token, caseId, sessionId)
+ * để đổi ngữ cảnh thì state được tạo lại; caseId/sessionId lấy từ prop hoặc query string.
+ *
+ * @param {object} props xem `BeneficiaryConfirmationPageContext`.
+ */
 export default function BeneficiaryConfirmationPage(props) {
   const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
   const key = JSON.stringify([props.session?.user?.id, props.accessToken || props.session?.accessToken,
     props.caseId || props.caseReference || query.get('caseId'), props.sessionId || query.get('sessionId')]);
   return <BeneficiaryConfirmationPageContext key={key} {...props} />;
 }
+/**
+ * Nội dung trang xác nhận người thụ hưởng sau khi bàn giao tài sản. Luồng chính:
+ * 1. Xác định hồ sơ/phiên từ prop hoặc query (`caseId`, `sessionId`); metadata hồ sơ lấy bằng `useStaffCaseMetadata`.
+ * 2. Nếu hồ sơ đã đóng/lưu trữ (chỉ đọc), tải lịch sử xác nhận, biên nhận và phiên
+ *    (`fetchBeneficiaryConfirmations`, `fetchHandoverReceipts`, `fetchHandoverSession`) và ghép tên người nhận từ biên nhận.
+ * 3. Nếu chưa có phiên, quy đổi số hồ sơ sang UUID (qua `fetchStaffCases`) rồi liệt kê phiên (`listLiveSessions`,
+ *    `GET /api/v1/staff/verification-cases/{caseId}/handover-sessions`) để Staff chọn phiên.
+ * 4. Khi có phiên: tải xác nhận hiện có (`GET .../beneficiary-confirmations`), người nhận (`fetchStaffCaseBeneficiaries`) và
+ *    tài sản (`fetchEligibleAssets` nếu phiên OPEN, ngược lại `fetchHandoverDeliveries`) để biết người nhận nào đã được bàn giao đủ.
+ * 5. Staff chọn người nhận, đính kèm biên nhận đã ký (`EvidenceFileUploader`), tick xác nhận đã đối chiếu rồi
+ *    `handleSubmitConfirmation` gọi `confirmBeneficiary`
+ *    (`POST /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/beneficiaries/{beneficiaryId}/confirmation`).
+ *    Chỉ gửi được khi phiên chưa kết thúc, người nhận chưa xác nhận và đã được bàn giao đủ tài sản.
+ * 6. Biên nhận đã ký xem lại bằng `SignedReceiptViewer`; chọn hồ sơ khác bằng `StaffCaseSelectorModal`.
+ * Lỗi 401 gọi `onUnauthorized`.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {Array<object>} [props.initialBeneficiaries] danh sách người nhận có sẵn (dev/test).
+ * @param {string} [props.caseId] id hồ sơ.
+ * @param {string} [props.sessionId] id phiên bàn giao.
+ * @param {string} [props.caseReference] số hồ sơ hoặc id hồ sơ.
+ * @param {object|null} [props.caseItem] hồ sơ đã biết.
+ * @param {Array<object>} [props.beneficiaries] người nhận do cha cung cấp.
+ * @param {Function} [props.onFetchBeneficiaries] hàm thay thế để tải người nhận.
+ * @param {Function} [props.loadBeneficiaries] hàm thay thế để tải người nhận.
+ * @param {string|null} [props.accessToken] JWT của staff.
+ * @param {object|null} [props.session] phiên đăng nhập (dự phòng lấy token).
+ * @param {boolean} [props.preview=false] chế độ xem trước.
+ * @param {boolean} [props.isDevPreview=false] chế độ dev preview.
+ * @param {Function|null} [props.onCaseChange] báo khi đổi hồ sơ.
+ * @param {Function|null} [props.onUnauthorized] gọi khi API trả 401.
+ * @param {Function|null} [props.onNavigateCases] chuyển tới danh sách hồ sơ.
+ */
 function BeneficiaryConfirmationPageContext({
   lang = 'vi',
   initialBeneficiaries = EMPTY_INITIAL_BENEFICIARIES,
@@ -182,12 +244,14 @@ function BeneficiaryConfirmationPageContext({
     ? caseReference
     : (resolvedCaseUuid || selectedCaseItem?.caseId || propCaseItem?.caseId || displayCaseItem?.caseId || '');
 
+  /** Tải lại danh sách phiên bàn giao bằng cách tăng bộ đếm thử lại. */
   const handleRetryLoadSessions = () => {
     setSessionRetryTrigger((prev) => prev + 1);
   };
 
   const [fetchedKey, setFetchedKey] = useState('');
 
+  /** Chọn một phiên bàn giao: đặt lại danh sách và lựa chọn người nhận, ghi `sessionId` vào URL. */
   const handleSelectSession = (newSessionId) => {
     setSessionId(newSessionId);
     setBeneficiaries([]);
@@ -222,6 +286,7 @@ function BeneficiaryConfirmationPageContext({
 
     const controller = new AbortController();
 
+    /** Xác định UUID hồ sơ (tra qua `fetchStaffCases` nếu mới chỉ có số hồ sơ) rồi tải danh sách phiên bằng `listLiveSessions`. */
     async function loadSessionsForCase() {
       setIsLoadingSessions(true);
       setSessionLoadError('');
@@ -463,6 +528,7 @@ function BeneficiaryConfirmationPageContext({
     };
   }, [caseReference, effectiveCaseId, sessionId, propBeneficiaries, initialBeneficiaries, onFetchBeneficiaries, loadBeneficiaries, effectiveAccessToken, effectiveIsDevPreview, lang, isReadOnlyCase, caseUnassigned, reloadRevision, onUnauthorized, fetchedKey]);
 
+  /** Chọn người nhận cần ghi nhận xác nhận và xóa lỗi/thông báo cũ. */
   const handleBeneficiarySelect = (benId) => {
     setSelectedBeneficiaryId(benId);
     setReceiptReference('');
@@ -471,6 +537,7 @@ function BeneficiaryConfirmationPageContext({
     setActionError(null);
   };
 
+  /** Cập nhật mã biên nhận nhập tay và gỡ lỗi của trường này. */
   const handleReceiptChange = (val) => {
     setReceiptReference(val);
     if (errors.receiptReference) {
@@ -484,6 +551,13 @@ function BeneficiaryConfirmationPageContext({
 
 
   // Submit xác nhận người thụ hưởng
+  /**
+   * Gửi xác nhận người nhận đã ký nhận: kiểm tra điều kiện (không chỉ đọc, đã đính kèm biên nhận và tick xác nhận, chưa
+   * xác nhận trước đó), gọi `confirmBeneficiary` với tệp biên nhận, rồi cập nhật người nhận thành CONFIRMED trong state.
+   * Dùng `AbortController` để chống gửi trùng; lỗi hiển thị qua `confirmationErrorMessage`.
+   *
+   * @param {Event} e sự kiện submit của biểu mẫu.
+   */
   const handleSubmitConfirmation = async (e) => {
     e.preventDefault();
     if (caseUnassigned || isReadOnlyCase || isReadOnlySession || errors.fetch || confirmationController.current || isSubmitting || !selectedBeneficiaryId) return;

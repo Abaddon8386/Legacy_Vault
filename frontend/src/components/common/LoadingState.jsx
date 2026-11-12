@@ -1,5 +1,13 @@
 import './LoadingState.css';
 
+/**
+ * Trạng thái đang tải (spinner + thông điệp) dùng chung.
+ *
+ * @param {object} props
+ * @param {string} [props.lang='vi']
+ * @param {string} [props.message] Thông điệp thay thế mặc định.
+ * @param {boolean} [props.compact=false] Kiểu gọn.
+ */
 export default function LoadingState({ lang = 'vi', message: customMessage, compact = false }) {
   const message = customMessage || (
     lang === 'en'

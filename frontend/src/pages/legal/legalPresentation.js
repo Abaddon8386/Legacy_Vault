@@ -1,3 +1,4 @@
+/** Bảng nhãn trạng thái hồ sơ/kho/kết luận pháp lý: mã trạng thái -> [nhãn tiếng Việt, nhãn tiếng Anh]. Dùng bởi legalStatus(). */
 const labels = {
   ACTIVE: ['Đang hoạt động', 'Active'], HANDOVER_IN_PROGRESS: ['Đang bàn giao tài sản', 'Asset handover in progress'],
   OPEN: ['Đang xử lý', 'In progress'], CLOSED: ['Đã đóng', 'Closed'], CANCELLED: ['Đã hủy xác minh', 'Verification cancelled'], ARCHIVED: ['Đã lưu trữ', 'Archived'],
@@ -7,6 +8,17 @@ const labels = {
   COMPLETED: ['Đã hoàn tất', 'Completed'], ON_HOLD: ['Tạm dừng xử lý', 'On hold'],
   VALID: ['Hợp lệ', 'Valid'], INVALID: ['Không hợp lệ', 'Invalid'], INCONCLUSIVE: ['Chưa đủ cơ sở', 'Inconclusive'],
 };
+/**
+ * Suy ra giai đoạn thực tế của hồ sơ Legal cho các trạng thái kho sớm (DOCUMENT_VERIFICATION, WILL_VERIFICATION),
+ * vì trạng thái kho chỉ đổi khi Legal ghi nhận lần đối chiếu di chúc đầu tiên và khi chọn căn cứ pháp lý nên thường chậm hơn công việc thực tế.
+ * Dựa vào điều kiện tiên quyết do server trả về: chưa duyệt khai tử -> giữ nguyên; chưa khớp di chúc -> AWAITING_WILL_COMPARISON;
+ * phase === 'DOCUMENT_REQUEST_NEEDED' -> AWAITING_DOCUMENT_REQUEST; ngược lại AWAITING_LEGAL_BASIS.
+ *
+ * @param {string} status Trạng thái kho/hồ sơ hiện tại.
+ * @param {{deathApproved?: boolean, willMatched?: boolean}} [prerequisites] Điều kiện tiên quyết từ server.
+ * @param {string} [phase] Pha xử lý hiện tại.
+ * @returns {string} Mã trạng thái hiển thị (có thể là trạng thái gốc).
+ */
 // The vault only changes when Legal records the first will match (to WILL_VERIFICATION) and later picks a basis route, so
 // it lags behind the real work. Derive the real stage from the server's own prerequisites and phase for the early vault states.
 export const legalStageStatus = (status, prerequisites, phase) => {
@@ -14,9 +26,31 @@ export const legalStageStatus = (status, prerequisites, phase) => {
   if (prerequisites.willMatched !== true) return 'AWAITING_WILL_COMPARISON';
   return phase === 'DOCUMENT_REQUEST_NEEDED' ? 'AWAITING_DOCUMENT_REQUEST' : 'AWAITING_LEGAL_BASIS';
 };
+/**
+ * Tạo nhãn dùng chung cho mọi ô chọn "lần tiếp nhận" (giấy tờ khai tử và di chúc bản gốc): số lần, thời điểm nhận, đánh dấu bản mới nhất.
+ *
+ * @param {boolean} en Dùng tiếng Anh nếu true.
+ * @param {number} number Số thứ tự lần nhận.
+ * @param {string} [receivedAt] Thời điểm nhận (ISO), định dạng bởi legalDate.
+ * @param {boolean} [latest] Là lần nhận mới nhất.
+ * @returns {string} Nhãn hiển thị.
+ */
 // One label for every "which receipt" picker (death documents and original wills): number, received time, newest marked.
 export const receiptOptionLabel = (en, number, receivedAt, latest) => `${en ? 'Intake' : 'Lần nhận'} ${number}${receivedAt ? ' · ' + legalDate(receivedAt) : ''}${latest ? (en ? ' · Latest' : ' · Mới nhất') : ''}`;
+/**
+ * Trả về nhãn của một mã trạng thái pháp lý theo ngôn ngữ; mã lạ trả về "Chưa xác định" / "Not yet determined".
+ *
+ * @param {string} value Mã trạng thái.
+ * @param {boolean} [en=false] Dùng tiếng Anh nếu true.
+ * @returns {string} Nhãn hiển thị.
+ */
 export const legalStatus = (value, en = false) => labels[value]?.[en ? 1 : 0] || (en ? 'Not yet determined' : 'Chưa xác định');
+/**
+ * Ánh xạ mã trạng thái sang tông màu huy hiệu: warning (chờ/tạm dừng/chưa đủ cơ sở), neutral (đã đóng/lưu trữ), success (hoàn tất/đã mở khóa/hợp lệ), error (đã hủy/không hợp lệ), mặc định info.
+ *
+ * @param {string} value Mã trạng thái.
+ * @returns {'warning'|'neutral'|'success'|'error'|'info'} Tông màu.
+ */
 export function legalStatusTone(value) {
   if (['ON_HOLD', 'AWAITING_VERIFICATION', 'AWAITING_LEGAL_BASIS', 'AWAITING_WILL_COMPARISON', 'AWAITING_DOCUMENT_REQUEST', 'INCONCLUSIVE'].includes(value)) return 'warning';
   if (['CLOSED', 'ARCHIVED'].includes(value)) return 'neutral';
@@ -24,8 +58,15 @@ export function legalStatusTone(value) {
   if (['CANCELLED', 'INVALID'].includes(value)) return 'error';
   return 'info';
 }
+/**
+ * Cho biết hồ sơ Legal đang ở chế độ chỉ xem: trạng thái case thuộc CLOSED/CANCELLED/ARCHIVED/COMPLETED hoặc trạng thái kho thuộc CLOSED/ARCHIVED/COMPLETED/UNLOCKED/HANDOVER_IN_PROGRESS.
+ *
+ * @param {{caseStatus: string, vaultStatus: string}} context Ngữ cảnh hồ sơ (từ loadLegalContext).
+ * @returns {boolean} true nếu không được thao tác thêm.
+ */
 export const legalReadOnly = context => ['CLOSED', 'CANCELLED', 'ARCHIVED', 'COMPLETED'].includes(context.caseStatus)
   || ['CLOSED', 'ARCHIVED', 'COMPLETED', 'UNLOCKED', 'HANDOVER_IN_PROGRESS'].includes(context.vaultStatus);
+/** Bảng lý do chặn mở khóa/phê duyệt theo mã lỗi backend: mã -> [thông báo vi, thông báo en, bước cần quay lại (approval-review hoặc basis-route-selection)]. */
 const blockers = {
   LEGAL_APPROVAL_REQUIRED: ['Cần chuyên viên pháp lý phê duyệt hồ sơ trước khi mở khóa.', 'A Legal verifier must approve this case before unlocking.', 'approval-review'],
   LEGAL_DECISION_STALE: ['Giấy tờ hoặc thông tin phân chia đã thay đổi. Chuyên viên pháp lý cần thẩm định lại phiên bản hiện tại.', 'Documents or allocations changed. A Legal verifier must review the current version.', 'basis-route-selection'],
@@ -33,10 +74,27 @@ const blockers = {
   COURT_DECISION_REQUIRED: ['Chưa có kết luận hợp lệ cho quyết định tòa án. Chuyên viên pháp lý cần hoàn tất thẩm định.', 'A Legal verifier must complete the court decision assessment.', 'basis-route-selection'],
   BASIS_DOSSIER_INVALID_STATE: ['Hồ sơ pháp lý chưa đủ điều kiện. Kiểm tra giấy tờ và phiên bản đã được nhân viên chuyển thẩm định.', 'Check the documents and the version forwarded by Staff for Legal review.', 'basis-route-selection'],
 };
+/**
+ * Diễn giải mã lỗi chặn của backend thành thông báo thân thiện và bước cần quay lại.
+ *
+ * @param {string} code Mã lỗi (ví dụ LEGAL_APPROVAL_REQUIRED, LEGAL_DECISION_STALE, LEGAL_WORKFLOW_ON_HOLD, COURT_DECISION_REQUIRED, BASIS_DOSSIER_INVALID_STATE).
+ * @param {boolean} en Dùng tiếng Anh nếu true.
+ * @returns {{text: string, step?: string}} Thông báo và bước đề xuất (có thông báo mặc định cho mã lạ).
+ */
 export function legalBlocker(code, en) {
   const value = blockers[code];
   return { text: value?.[en ? 1 : 0] || (en ? 'This step is not available yet. Reload the case. If you still cannot continue, contact the person handling the case.' : 'Chưa thể thực hiện bước này. Hãy tải lại hồ sơ; nếu vẫn không thể tiếp tục, liên hệ người phụ trách hồ sơ.'), step: value?.[2] || null };
 }
+/**
+ * Giải thích vì sao một hành động của Legal đang bị vô hiệu hóa. Chỉ phục vụ hiển thị: các hàm gọi vẫn giữ kiểm tra điều kiện riêng và server vẫn là nơi cấp quyền cuối cùng.
+ * Xét theo bước: 'death-verification' (chưa có giấy tờ khai tử, chưa chọn giấy tờ, đã có quyết định), 'will-document-verification' (chưa có di chúc bản cứng/bản số),
+ * còn lại là bước thẩm định căn cứ (đang tạm dừng, chưa có hồ sơ căn cứ, chưa có/đã cũ phiên bản văn bản Tòa án, Staff chưa chuyển phiên bản).
+ *
+ * @param {string} step Mã bước.
+ * @param {{data?: object, documentId?: string, documentCount?: number, action?: string}} [state] Dữ liệu hồ sơ hiện tại.
+ * @param {boolean} [en=false] Dùng tiếng Anh nếu true.
+ * @returns {string} Thông báo giải thích.
+ */
 // Explain an existing disabled action. This is presentation only: callers retain
 // their current eligibility checks and the server remains the authorization gate.
 export function legalStepBlocker(step, { data, documentId, documentCount = 0, action } = {}, en = false) {
@@ -62,6 +120,12 @@ export function legalStepBlocker(step, { data, documentId, documentCount = 0, ac
   if (latest.forwardStatus !== 'FORWARDED' || data.dossier.status !== 'LEGAL_BASIS_FORWARDED') return say('Nhân viên chưa chuyển phiên bản giấy tờ phân chia hiện tại để thẩm định. Hãy chờ chuyển hồ sơ, không nộp lại quyết định trên bản cũ.', 'Staff have not forwarded the current distribution-document version for assessment. Wait for the handoff; do not submit a decision against an older version.');
   return say('Chưa thể thực hiện bước này. Hãy tải lại hồ sơ và kiểm tra các bước thẩm định trước đó.', 'This step is not available yet. Reload the case and check the earlier review steps.');
 }
+/**
+ * Định dạng ngày/giờ cho giao diện Legal theo múi giờ Asia/Ho_Chi_Minh. Chuỗi chỉ có ngày (YYYY-MM-DD) trả về DD/MM/YYYY; chuỗi thời điểm được coi là UTC nếu thiếu múi giờ và trả về "DD/MM/YYYY, HH:mm".
+ *
+ * @param {string} [value] Chuỗi ngày hoặc thời điểm ISO.
+ * @returns {string} Chuỗi đã định dạng hoặc "—" nếu rỗng/không hợp lệ.
+ */
 export function legalDate(value) {
   if (!value) return '—';
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value.split('-').reverse().join('/');

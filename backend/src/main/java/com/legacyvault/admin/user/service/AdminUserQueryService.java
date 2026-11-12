@@ -23,7 +23,11 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/** Read-only Admin account lookup; never returns persistence identifiers or credentials. */
+/**
+ * Read-only Admin account lookup; never returns persistence identifiers or credentials.
+ * <p>Phục vụ {@code GET /api/v1/admin/users} và {@code /{publicId}}. Gom dữ liệu từ {@code users}, {@code user_roles}
+ * và {@code vaults} theo lô (tránh N+1) rồi quy đổi sang {@link AdminUserResponse}.
+ */
 @Service
 public class AdminUserQueryService {
     private static final Set<String> BUSINESS_ROLES = Set.of("ROLE_VAULT_OWNER", "ROLE_BENEFICIARY", "ROLE_LEGAL_VERIFIER", "ROLE_STAFF_EXECUTOR");
@@ -35,12 +39,22 @@ public class AdminUserQueryService {
     private final UserRoleRepository userRoles;
     private final VaultRepository vaults;
 
+    /** Constructor injection các repository user, user-role và vault. */
     public AdminUserQueryService(UserRepository users, UserRoleRepository userRoles, VaultRepository vaults) {
         this.users = users;
         this.userRoles = userRoles;
         this.vaults = vaults;
     }
 
+    /**
+     * Tìm và phân trang tài khoản.
+     * <ol>
+     *   <li>Chuẩn hoá bộ lọc (trim, in hoa); từ chối tổ hợp sai (ví dụ lọc vaultStatus khi không phải Vault Owner) bằng {@code VALIDATION_FAILED}.</li>
+     *   <li>Nếu {@code query} là UUID đầy đủ thì khớp chính xác publicId; ngược lại tìm theo tên/email.</li>
+     *   <li>Gọi {@code users.searchForAdmin}, sắp xếp mới tạo trước.</li>
+     *   <li>Nạp role của cả trang một lần, vault của các Vault Owner, và tập user đang trong hồ sơ xử lý.</li>
+     * </ol>
+     */
     @Transactional(readOnly = true)
     public PageResponse<AdminUserResponse> listUsers(String query, String role, String status, String vaultStatus, int page, int size) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
@@ -76,6 +90,12 @@ public class AdminUserQueryService {
                 vaultStatusByOwner.get(user.getUserId()), processingIds.contains(user.getUserId())));
     }
 
+    /**
+     * Lấy một tài khoản theo publicId.
+     *
+     * @param role tuỳ chọn; nếu là role nghiệp vụ thì tài khoản đã xoá hoặc không ACTIVE/LOCKED coi như không tồn tại
+     * @throws BusinessException {@code RESOURCE_NOT_FOUND}
+     */
     @Transactional(readOnly = true)
     public AdminUserResponse getUser(UUID publicId, String role) {
         User user = users.findByPublicId(publicId)
@@ -92,6 +112,10 @@ public class AdminUserQueryService {
         return toResponse(user, roles, vaultStatus, processing);
     }
 
+    /**
+     * Quy đổi entity sang DTO: sắp xếp/lọc trùng role, ra trạng thái DELETED nếu xoá mềm, đổi ACTIVE thành IN_PROCESS
+     * khi đang trong hồ sơ, và gom trạng thái vault chi tiết về nhóm NO_VAULT / ACTIVE / ARCHIVED / IN_PROCESS (chỉ cho Vault Owner).
+     */
     private AdminUserResponse toResponse(User user, java.util.List<String> assignedRoles, String vaultStatus, boolean processing) {
         var roles = assignedRoles.stream()
                 .filter(code -> code != null && !code.isBlank())

@@ -38,6 +38,10 @@ public class StaffIntakeAttachmentController {
 		this.service = service;
 	}
 
+	/**
+	 * {@code POST .../death-documents/{recordId}/attachments} (multipart, phần {@code file}): đính kèm file
+	 * vào giấy tờ chứng tử. Trả 201 Created kèm {@link IntakeAttachmentResponse}.
+	 */
 	@PostMapping(path = "/death-documents/{recordId}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<IntakeAttachmentResponse> attachToDeathDocument(@PathVariable UUID caseId,
 			@PathVariable UUID recordId, @RequestPart(name = "file", required = false) MultipartFile file,
@@ -47,18 +51,28 @@ public class StaffIntakeAttachmentController {
 				+ recordId + "/attachments/" + created.id())).body(created);
 	}
 
+	/**
+	 * {@code GET .../death-documents/{recordId}/attachments}: liệt kê file đính kèm.
+	 */
 	@GetMapping("/death-documents/{recordId}/attachments")
 	public List<IntakeAttachmentResponse> listDeathDocumentAttachments(@PathVariable UUID caseId,
 			@PathVariable UUID recordId, @AuthenticationPrincipal CustomUserPrincipal principal) {
 		return service.listForDeathDocument(caseId, recordId, principal);
 	}
 
+	/**
+	 * {@code GET .../death-documents/{recordId}/attachments/{attachmentId}/content}: tải nội dung file.
+	 */
 	@GetMapping("/death-documents/{recordId}/attachments/{attachmentId}/content")
 	public ResponseEntity<byte[]> deathDocumentAttachmentContent(@PathVariable UUID caseId, @PathVariable UUID recordId,
 			@PathVariable UUID attachmentId, @AuthenticationPrincipal CustomUserPrincipal principal) {
 		return IntakeFileResponses.of(service.openDeathDocumentAttachment(caseId, recordId, attachmentId, principal));
 	}
 
+	/**
+	 * {@code POST .../original-will-intakes/{intakeId}/attachments} (multipart, phần {@code file}): đính kèm file
+	 * vào bản di chúc giấy gốc. Trả 201 Created kèm {@link IntakeAttachmentResponse}.
+	 */
 	@PostMapping(path = "/original-will-intakes/{intakeId}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<IntakeAttachmentResponse> attachToOriginalWill(@PathVariable UUID caseId,
 			@PathVariable UUID intakeId, @RequestPart(name = "file", required = false) MultipartFile file,
@@ -68,18 +82,27 @@ public class StaffIntakeAttachmentController {
 				+ intakeId + "/attachments/" + created.id())).body(created);
 	}
 
+	/**
+	 * {@code GET .../original-will-intakes/{intakeId}/attachments}: liệt kê file đính kèm.
+	 */
 	@GetMapping("/original-will-intakes/{intakeId}/attachments")
 	public List<IntakeAttachmentResponse> listOriginalWillAttachments(@PathVariable UUID caseId,
 			@PathVariable UUID intakeId, @AuthenticationPrincipal CustomUserPrincipal principal) {
 		return service.listForOriginalWill(caseId, intakeId, principal);
 	}
 
+	/**
+	 * {@code GET .../original-will-intakes/{intakeId}/attachments/{attachmentId}/content}: tải nội dung file.
+	 */
 	@GetMapping("/original-will-intakes/{intakeId}/attachments/{attachmentId}/content")
 	public ResponseEntity<byte[]> originalWillAttachmentContent(@PathVariable UUID caseId, @PathVariable UUID intakeId,
 			@PathVariable UUID attachmentId, @AuthenticationPrincipal CustomUserPrincipal principal) {
 		return IntakeFileResponses.of(service.openOriginalWillAttachment(caseId, intakeId, attachmentId, principal));
 	}
 
+	/**
+	 * {@code GET .../basis-dossier/versions/{versionNo}/content}: Staff tải lại file của một phiên bản căn cứ.
+	 */
 	@GetMapping("/basis-dossier/versions/{versionNo}/content")
 	public ResponseEntity<byte[]> basisVersionContent(@PathVariable UUID caseId, @PathVariable @Min(1) int versionNo,
 			@AuthenticationPrincipal CustomUserPrincipal principal) {

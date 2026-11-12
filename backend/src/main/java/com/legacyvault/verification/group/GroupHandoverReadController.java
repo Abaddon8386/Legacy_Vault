@@ -15,6 +15,9 @@ import java.util.UUID;
 /**
  * PS-122: read-only endpoints next to the PS-119/120 gate. Every response is {@code no-store}; none of them writes.
  * Mutations stay on {@link GroupHandoverController}.
+ *
+ * Endpoint đọc cho bàn giao theo nhóm: yêu cầu mở lại đang chờ (Legal), lịch sử sự kiện (Staff/Legal) và
+ * trạng thái của người thụ hưởng. Dùng {@link GroupHandoverReadService} và {@link GroupHandoverService#history}.
  */
 @RestController
 public class GroupHandoverReadController {
@@ -27,11 +30,19 @@ public class GroupHandoverReadController {
         this.group = group;
     }
 
+    /**
+     * Bọc {@code body} vào response 200 không cache.
+     */
     private static <T> ResponseEntity<T> noStore(T body) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
     }
 
-    /** Legal: pending Staff reopen requests that can be decided now (oldest first). */
+    /**
+     * Legal: pending Staff reopen requests that can be decided now (oldest first).
+     *
+     * {@code GET /api/v1/legal-verifications/group-handover/reopen-requests?caseId=&caseNumber=&page=0&size=20}
+     * Quyền: {@code ROLE_LEGAL_VERIFIER}. Trả trang {@code PendingRequest}.
+     */
     @GetMapping("/api/v1/legal-verifications/group-handover/reopen-requests")
     @PreAuthorize("hasRole('LEGAL_VERIFIER')")
     public ResponseEntity<?> pending(@RequestParam(required = false) UUID caseId,
@@ -40,7 +51,12 @@ public class GroupHandoverReadController {
         return noStore(reads.pendingForLegal(actor, caseId, caseNumber, page, size));
     }
 
-    /** Staff: event history of the case (newest first). */
+    /**
+     * Staff: event history of the case (newest first).
+     *
+     * {@code GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover/events}
+     * Quyền: {@code ROLE_STAFF_EXECUTOR}. Lịch sử sự kiện phân trang.
+     */
     @GetMapping("/api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover/events")
     @PreAuthorize("hasRole('STAFF_EXECUTOR')")
     public ResponseEntity<?> staffHistory(@PathVariable UUID caseId, @PathVariable UUID sessionId,
@@ -49,7 +65,12 @@ public class GroupHandoverReadController {
         return noStore(group.history(caseId, sessionId, actor, false, page, size));
     }
 
-    /** Legal: event history of the case (newest first). */
+    /**
+     * Legal: event history of the case (newest first).
+     *
+     * {@code GET /api/v1/legal-verifications/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover/events}
+     * Quyền: {@code ROLE_LEGAL_VERIFIER}. Lịch sử sự kiện phân trang.
+     */
     @GetMapping("/api/v1/legal-verifications/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover/events")
     @PreAuthorize("hasRole('LEGAL_VERIFIER')")
     public ResponseEntity<?> legalHistory(@PathVariable UUID caseId, @PathVariable UUID sessionId,
@@ -61,6 +82,9 @@ public class GroupHandoverReadController {
     /**
      * Recipient: own linked cases with the case-wide group status and the account's own approved/delivered counts.
      * The account comes only from the authenticated principal.
+     *
+     * {@code GET /api/v1/beneficiary-handover-status}
+     * Quyền: {@code ROLE_BENEFICIARY}. Trả {@code BeneficiaryStatus} của tài khoản đang đăng nhập.
      */
     @GetMapping("/api/v1/beneficiary-handover-status")
     @PreAuthorize("hasRole('BENEFICIARY')")

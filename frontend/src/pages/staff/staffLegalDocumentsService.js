@@ -10,6 +10,11 @@ import { uploadEvidenceMultipart } from '../../utils/staffEvidenceUpload.js';
 import { isStaffSimulationPermitted } from './staffCasePreview.js';
 import { readStaffBasisVersionContent } from './staffLiveService.js';
 
+/**
+ * Hồ sơ căn cứ pháp lý (dossier) tổng hợp cho dev preview và test: 'case-notarial' (công chứng, đã có phiên bản 1),
+ * 'case-court' (tòa án, tranh chấp, chưa có phiên bản) và 'case-hold' (tạm dừng, chưa xác định tranh chấp).
+ * Dùng bởi fetchBasisDossier() khi chế độ mô phỏng được phép; routeReason luôn null vì Staff không được xem lý do phân loại.
+ */
 export const SYNTHETIC_DOSSIERS = {
   'case-notarial': {
     id: 'dossier-001',
@@ -75,7 +80,15 @@ export const SYNTHETIC_DOSSIERS = {
 };
 
 /**
- * Tải thông tin hồ sơ căn cứ pháp lý của ca (GET /api/v1/staff/verification-cases/{caseId}/basis-dossier)
+ * Tải thông tin hồ sơ căn cứ pháp lý của ca (GET /api/v1/staff/verification-cases/{caseId}/basis-dossier).
+ *
+ * Chế độ mô phỏng trả bản sao SYNTHETIC_DOSSIERS theo caseId (hoặc 'case-not-found' để thử trường hợp chưa có). Chế độ thật dùng fetch (cache no-store, Bearer token):
+ * HTTP 404 nghĩa là Legal chưa tạo dossier nên trả { dossier: null, notFound: true }; lỗi khác ném Error (code mặc định ACCESS_DENIED khi 403, LOAD_DOSSIER_FAILED).
+ * Phản hồi được kiểm tra caseId, mảng versions và validBasisLegalHistory() cho legalHistory; sai thì ném ApiError INVALID_RESPONSE.
+ * Được StaffLegalDocumentsPage và ScopedAssetHandoverPage dùng.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {Object} [options] { accessToken, signal, lang, isDevPreview, isTest }
+ * @returns {Promise<{dossier: Object|null, notFound: boolean, isSimulation: boolean}>}
  */
 export async function fetchBasisDossier(caseId, options = {}) {
   const { accessToken, signal, lang = 'vi' } = options;
@@ -175,7 +188,14 @@ export async function fetchBasisDossier(caseId, options = {}) {
 }
 
 /**
- * Tiếp nhận một phiên bản văn bản căn cứ pháp lý (POST multipart/form-data)
+ * Tiếp nhận một phiên bản văn bản căn cứ pháp lý (POST multipart/form-data tới /api/v1/staff/verification-cases/{caseId}/basis-dossier/versions).
+ * Chế độ thật gọi uploadEvidenceMultipart() (transport PS-98) với metadata và file, báo tiến trình qua onProgress/onStatusChange. Chế độ mô phỏng giả lập tiến trình
+ * (uploading -> processing -> success) và trả về dossier mô phỏng chứa phiên bản mới.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {{metadata: Object, file: File}} payload Siêu dữ liệu văn bản (legalBasisType, issuingAuthority, documentNumber, issueDate, allocations...) và tệp.
+ * @param {Object} [options] { accessToken, signal, lang, onProgress, onStatusChange }
+ * @returns {Promise<Object>} Dossier sau khi tiếp nhận.
+ * @throws {Error} AbortError; CASE_ID_REQUIRED; hoặc lỗi từ bộ tải lên.
  */
 export async function uploadBasisVersion(caseId, { metadata, file }, options = {}) {
   const { accessToken, signal, lang = 'vi', onProgress, onStatusChange } = options;
@@ -272,7 +292,13 @@ export async function uploadBasisVersion(caseId, { metadata, file }, options = {
 }
 
 /**
- * Chuyển phiên bản mới nhất cho Legal thẩm định (POST .../versions/{version}/forward)
+ * Chuyển phiên bản mới nhất cho Legal thẩm định: POST /api/v1/staff/verification-cases/{caseId}/basis-dossier/versions/{version}/forward.
+ * Lỗi HTTP chuyển thành Error có status và code (409 mặc định BASIS_VERSION_STALE, còn lại FORWARD_FAILED). Mô phỏng trả dossier với trạng thái LEGAL_BASIS_FORWARDED.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {number} version Số phiên bản cần chuyển.
+ * @param {Object} [options] { accessToken, signal, lang }
+ * @returns {Promise<Object>} Dossier sau khi chuyển.
+ * @throws {Error} AbortError; INVALID_FORWARD_PARAMS; hoặc lỗi từ backend.
  */
 export async function forwardBasisVersion(caseId, version, options = {}) {
   const { accessToken, signal, lang = 'vi' } = options;
@@ -347,7 +373,13 @@ export async function forwardBasisVersion(caseId, version, options = {}) {
 }
 
 /**
- * Đọc nội dung file số hóa của phiên bản căn cứ pháp lý (GET .../versions/{versionNo}/content - PS-103)
+ * Đọc nội dung file số hóa của phiên bản căn cứ pháp lý (GET /api/v1/staff/verification-cases/{caseId}/basis-dossier/versions/{versionNo}/content - PS-103).
+ * Chế độ thật ủy quyền cho staffLiveService.readStaffBasisVersionContent() (token lấy từ options.accessToken hoặc options.session.accessToken); mô phỏng trả Blob PDF giả.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {number} versionNo Số phiên bản (>= 1).
+ * @param {Object} [options] { accessToken, session, signal, lang }
+ * @returns {Promise<Blob>} Nội dung tệp.
+ * @throws {Error} AbortError; INVALID_CONTENT_PARAMS; hoặc lỗi từ staffLiveService.
  */
 export async function readBasisVersionContent(caseId, versionNo, options = {}) {
   const { signal, lang = 'vi' } = options;
@@ -384,8 +416,13 @@ export async function readBasisVersionContent(caseId, versionNo, options = {}) {
 }
 
 /**
- * Tải danh mục tài sản trước thời điểm mở khóa (PS-118, PR #190)
- * GET /api/v1/staff/verification-cases/{caseId}/assets?page=0&size=100
+ * Tải danh mục tài sản trước thời điểm mở khóa (PS-118, PR #190):
+ * GET /api/v1/staff/verification-cases/{caseId}/assets?page=0&size=100.
+ * Mặc định (fetchAll = true) duyệt tất cả các trang (kích thước trang tối đa 100) và gộp kết quả; mỗi trang được kiểm tra page, size, totalPages, totalElements (sai thì ném INVALID_RESPONSE).
+ * Lỗi HTTP có code mặc định RESOURCE_NOT_FOUND (404) hoặc ASSET_CATALOG_FAILED. Mô phỏng trả 3 tài sản mẫu.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {Object} [options] { accessToken, signal, lang, page = 0, size = 100, fetchAll = true }
+ * @returns {Promise<Object[]>} Danh mục tài sản (assetId, assetType, name...).
  */
 export async function fetchStaffAssetCatalog(caseId, options = {}) {
   const { accessToken, signal, lang = 'vi', page = 0, size = 100, fetchAll = true } = options;
@@ -461,8 +498,12 @@ export async function fetchStaffAssetCatalog(caseId, options = {}) {
 }
 
 /**
- * Tải danh sách người thụ hưởng của ca tại quầy (PS-88, PR #193)
- * GET /api/v1/staff/verification-cases/{caseId}/beneficiaries
+ * Tải danh sách người thụ hưởng của ca tại quầy (PS-88, PR #193):
+ * GET /api/v1/staff/verification-cases/{caseId}/beneficiaries. Phản hồi phải là mảng (nếu không ném INVALID_RESPONSE).
+ * Lỗi HTTP có code mặc định RESOURCE_NOT_FOUND (404) hoặc BENEFICIARIES_FAILED. Mô phỏng trả 2 người thụ hưởng mẫu.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {Object} [options] { accessToken, signal, lang }
+ * @returns {Promise<Object[]>} Danh sách người thụ hưởng (beneficiaryId, fullName, relationship...).
  */
 export async function fetchStaffCaseBeneficiaries(caseId, options = {}) {
   const { accessToken, signal, lang = 'vi' } = options;
@@ -513,7 +554,17 @@ export async function fetchStaffCaseBeneficiaries(caseId, options = {}) {
   return data;
 }
 
-// Keep the saved receipt when forwarding fails; a second upload would create a duplicate version.
+/**
+ * Tiếp nhận văn bản rồi chuyển luôn cho Legal trong một thao tác: gọi upload (mặc định uploadBasisVersion), kiểm tra dossier trả về, lấy số phiên bản lớn nhất rồi gọi forward (mặc định forwardBasisVersion).
+ * Nếu chuyển thất bại thì giữ lại biên nhận đã lưu và trả { dossier: received, error } để không phải tải lên lần hai (tránh tạo phiên bản trùng).
+ * Thành công trả { dossier, error: null } và dossier phải có status LEGAL_BASIS_FORWARDED, phiên bản vừa chuyển có forwardStatus FORWARDED.
+ * @param {string} caseId UUID hồ sơ.
+ * @param {{metadata: Object, file: File}} payload Dữ liệu tải lên.
+ * @param {Object} [options] Tùy chọn truyền cho cả hai bước (kèm signal).
+ * @param {{upload?: Function, forward?: Function}} [transports] Hàm thay thế để test.
+ * @returns {Promise<{dossier: Object, error: Error|null}>}
+ * @throws {DOMException} AbortError khi bị hủy; {ApiError} INVALID_RESPONSE khi dossier sai định dạng.
+ */
 export async function receiveAndForwardBasisVersion(caseId, payload, options = {}, transports = {}) {
   const upload = transports.upload || uploadBasisVersion, forward = transports.forward || forwardBasisVersion;
   const received = await upload(caseId, payload, options);
@@ -533,6 +584,13 @@ export async function receiveAndForwardBasisVersion(caseId, payload, options = {
   }
 }
 
+/**
+ * Chuyển quyết định thẩm định hiện hành của Legal (currentDecision từ backend) sang dạng dùng trên giao diện Staff.
+ * Trả về null nếu không có đối tượng hoặc thiếu id, status, reason; ngược lại trả { id, caseId, documentVersion, decision (= status), reason, documentSha256, allocationSha256 }.
+ * @param {Object} currentDecision Quyết định hiện hành.
+ * @param {string} caseId UUID hồ sơ.
+ * @returns {Object|null}
+ */
 export function mapCurrentBasisDecision(currentDecision, caseId) {
   if (!currentDecision || typeof currentDecision !== 'object') return null;
   if (!currentDecision.id || typeof currentDecision.status !== 'string' || !currentDecision.reason) return null;

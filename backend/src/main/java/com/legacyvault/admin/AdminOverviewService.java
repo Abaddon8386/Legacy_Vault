@@ -9,12 +9,32 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Service tính số liệu cho dashboard Admin bằng SQL thuần (JdbcTemplate) trên các bảng
+ * {@code users}, {@code vaults}, {@code verification_cases}, {@code roles}, {@code user_roles}.
+ * Chỉ Admin được gọi (method security {@code hasRole('ADMIN')}).
+ */
 @Service
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminOverviewService {
     private final JdbcTemplate jdbc;
+    /** @param jdbc JdbcTemplate dùng chạy các câu COUNT/GROUP BY. */
     public AdminOverviewService(JdbcTemplate jdbc) { this.jdbc=jdbc; }
 
+    /**
+     * Thu thập số liệu tổng quan, được {@code AdminOverviewController#overview()} gọi cho {@code GET /api/v1/admin/overview}.
+     * <ol>
+     *   <li>Ghi giờ DB lúc bắt đầu.</li>
+     *   <li>Đếm tài khoản chưa xóa mềm ({@code deleted_at IS NULL}).</li>
+     *   <li>Đếm vault chưa ARCHIVED.</li>
+     *   <li>Đếm hồ sơ xác minh trạng thái OPEN.</li>
+     *   <li>Đếm số tài khoản theo từng role (LEFT JOIN nên role chưa có ai vẫn hiện 0).</li>
+     *   <li>Ghi giờ DB lúc kết thúc.</li>
+     * </ol>
+     * Các phép đếm độc lập nhau nên con số chỉ nhất quán trong khoảng [startedAt, completedAt], không phải snapshot.
+     *
+     * @return {@link AdminOverview} bất biến; {@code consistency} luôn là "READ_COMMITTED_COLLECTION_WINDOW"
+     */
     @Transactional(readOnly=true, timeout=15)
     public AdminOverview overview() {
         Instant startedAt=databaseTime();
@@ -31,7 +51,9 @@ public class AdminOverviewService {
             """,rs->{roles.put(rs.getString("role_code"),rs.getLong("total"));});
         return new AdminOverview(accounts,vaults,cases,Collections.unmodifiableMap(roles),startedAt,databaseTime(),"READ_COMMITTED_COLLECTION_WINDOW");
     }
+    /** Chạy một câu SELECT COUNT và trả về kết quả dạng {@code long}. */
     private long count(String sql) {return jdbc.queryForObject(sql,Long.class);}
+    /** Lấy giờ UTC hiện tại từ SQL Server ({@code SYSUTCDATETIME()}) để mốc thời gian không phụ thuộc đồng hồ app. */
     private Instant databaseTime() {
         return jdbc.queryForObject("SELECT SYSUTCDATETIME()",(rs,n)->rs.getObject(1,java.time.LocalDateTime.class).toInstant(java.time.ZoneOffset.UTC));
     }

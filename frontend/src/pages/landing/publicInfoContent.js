@@ -1,3 +1,8 @@
+/**
+ * Nội dung tĩnh song ngữ (vi/en) của các trang thông tin công khai: `support` (trợ giúp, FAQ, hướng dẫn người thụ hưởng, liên hệ),
+ * `privacy` (bảo mật, quyền truy cập, an toàn tài khoản) và `about`. Mỗi trang có `title`, `intro`, `sections` (đoạn văn, danh sách hỏi đáp, hành động, tham chiếu pháp lý),
+ * `related` (liên kết sang trang liên quan) và có thể có `notice`. Được `PublicInfoPage` và `LandingFooter` sử dụng.
+ */
 export const publicInfoContent = {
   vi: {
     home: 'Trang chủ',

@@ -7,6 +7,31 @@ import LegalHoldControls from './LegalHoldControls.jsx';
 import { legalReadOnly } from './legalPresentation.js';
 import LegalDocumentRequestForm from './LegalDocumentRequestForm.jsx';
 
+/**
+ * Không gian làm việc của Legal ở bước "basis-route-selection" (căn cứ pháp lý / phân chia tài sản), do LegalContextStep render.
+ * Dựa trên workflow phân phối (hook useDistributionWorkflow, workspace LEGAL, API GET/POST /api/v1/legal-verifications/verification-cases/{caseId}/distribution-workflow[/...]) theo pha (phase):
+ * - DOCUMENT_REQUEST_NEEDED: hiển thị LegalDocumentRequestForm, gửi hành động requestDocuments (POST .../request-documents).
+ * - DOCUMENTS_UNDER_REVIEW: xem tệp văn bản (LegalEvidenceFiles kind basis), chọn approveDocuments (.../approve-documents) hoặc requestDocumentSupplementation (.../request-document-supplementation).
+ * - ALLOCATIONS_UNDER_REVIEW: đối chiếu bảng phân bổ, chọn approveAllocations (.../approve-allocations) hoặc requestAllocationChanges (.../request-allocation-changes).
+ * - REJECTED: mở lại bước bổ sung giấy tờ.
+ * Lý do bắt buộc 1-1000 ký tự; mọi hành động bị khóa khi hồ sơ đang ON_HOLD, đang chờ, chỉ xem hoặc không khớp phiên bản văn bản. Nếu hồ sơ ON_HOLD chỉ hiển thị LegalHoldControls (tiếp tục xử lý).
+ *
+ * @param {object} props
+ * @param {object} props.workflow Kết quả useDistributionWorkflow ({data, pending, run, ...}).
+ * @param {object} props.context Ngữ cảnh hồ sơ Legal.
+ * @param {object} props.session Phiên đăng nhập.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {() => void} [props.onComplete] Gọi để tải lại sau khi hoàn tất.
+ * @param {(receipt: object) => void} [props.onSaved] Gọi với biên nhận khi tạm dừng/tiếp tục thành công.
+ * @param {() => void} [props.onUnauthorized] 401.
+ * @param {(error: Error) => void} [props.onDenied] 403.
+ * @param {object} [props.draftState] Bản nháp lý do do cha giữ (có scope).
+ * @param {Function} [props.onDraftStateChange] Cập nhật bản nháp.
+ * @param {object} [props.holdDraft] Bản nháp tạm dừng.
+ * @param {Function} [props.onHoldDraftChange] Cập nhật bản nháp tạm dừng.
+ * @param {(pending: boolean) => void} [props.onPendingChange] Báo trạng thái đang ghi.
+ * @returns {JSX.Element}
+ */
 export default function LegalDistributionWorkspace({ workflow, context, session, lang = 'vi', onComplete, onSaved, onUnauthorized, onDenied, draftState, onDraftStateChange, holdDraft, onHoldDraftChange, onPendingChange }) {
   const en = lang === 'en', data = workflow.data;
   const [localDraft, setLocalDraft] = useState({ scope: '', reason: '' });
@@ -27,6 +52,12 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
   const actions = documents ? [['approveDocuments', en ? 'Accept documents' : 'Duyệt căn cứ'], ['requestDocumentSupplementation', en ? 'Request more documents' : 'Yêu cầu bổ sung giấy tờ']]
       : allocations ? [['approveAllocations', en ? 'Accept allocations' : 'Chấp thuận phân bổ'], ['requestAllocationChanges', en ? 'Request allocation corrections' : 'Yêu cầu sửa phân bổ']]
       : rejected ? [['requestDocumentSupplementation', en ? 'Request document supplementation' : 'Mở bước bổ sung giấy tờ']] : [];
+  /**
+   * Thực hiện một hành động phân phối của Legal qua workflow.run(action, {reason}) nếu hợp lệ (không đang chạy, được phép, lý do 1-1000 ký tự); thành công thì xóa lý do và gọi onComplete.
+   *
+   * @param {string} action Mã hành động (requestDocuments, approveDocuments, ...).
+   * @param {string} value Lý do/nội dung yêu cầu.
+   */
   async function save(action, value) {
     if (operation.current || !can(action) || !value.trim() || value.trim().length > 1000) return;
     operation.current = true;
@@ -35,6 +66,7 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
       if (saved) { setDraft({ scope, reason: '' }); onComplete?.(); }
     } finally { operation.current = false; }
   }
+  /** Xử lý submit form quyết định: lấy hành động từ nút submitter (value) hoặc hành động đầu tiên, rồi gọi save(). */
   function submit(event) {
     event.preventDefault();
     return save(event.nativeEvent?.submitter?.value || actions[0]?.[0], reason);
@@ -87,6 +119,18 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
   </>;
 }
 
+/**
+ * Không gian làm việc cho hai bước cuối: "approval-review" (phê duyệt) và "controlled-unlock" (mở khóa kho). Hiển thị tổng quan workflow (DistributionWorkflowOverview),
+ * nếu hồ sơ ở pha REJECTED và được phép thì hiện form "Mở bước bổ sung giấy tờ" (workflow.run('requestDocumentSupplementation', {reason}) -> POST .../distribution-workflow/request-document-supplement...),
+ * và LegalFinalDecision để quyết định/mở khóa; beforeCommit kiểm tra lại bằng preflightDistributionFinal. LegalFinalDecision bị chỉ-xem nếu distributionFinalReady trả false.
+ *
+ * @param {object} props
+ * @param {object} props.workflow Kết quả useDistributionWorkflow.
+ * @param {object} props.context Ngữ cảnh hồ sơ.
+ * @param {'approval-review'|'controlled-unlock'} props.step Bước.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @returns {JSX.Element}
+ */
 export function LegalDistributionFinalWorkspace({ workflow, context, step, lang, ...props }) {
   const en = lang === 'en';
   const ready = distributionFinalReady(workflow.data, context, step);
@@ -96,6 +140,7 @@ export function LegalDistributionFinalWorkspace({ workflow, context, step, lang,
   const canSupplement = step === 'approval-review' && workflow.data?.phase === 'REJECTED'
     && canUseDistributionAction(workflow.data, 'requestDocumentSupplementation', 'LEGAL');
 
+  /** Gửi yêu cầu bổ sung giấy tờ cho Staff khi hồ sơ bị từ chối: gọi workflow.run('requestDocumentSupplementation', {reason}); thành công thì xóa lý do, gọi onSaved(receipt) và onReload(). */
   async function handleSupplement(event) {
     event.preventDefault();
     if (!suppReason.trim() || suppSubmitting) return;

@@ -19,7 +19,12 @@ import com.legacyvault.common.security.CustomUserPrincipal;
 
 import jakarta.validation.Valid;
 
-/** BE-01: any signed-in account (a Beneficiary role is not required) manages its own link requests. */
+/**
+ * BE-01: any signed-in account (a Beneficiary role is not required) manages its own link requests.
+ *
+ * Controller phía người nhận: gửi, xem và hủy yêu cầu liên kết (BE-01). Đường dẫn gốc {@code /api/v1/beneficiary-link-requests};
+ * yêu cầu đã đăng nhập ({@code isAuthenticated()}). Tài khoản luôn lấy từ {@code CustomUserPrincipal}, không từ body. Phản hồi {@code no-store}.
+ */
 @RestController
 @RequestMapping("/api/v1/beneficiary-link-requests")
 @PreAuthorize("isAuthenticated()")
@@ -27,8 +32,17 @@ public class BeneficiaryLinkRequestController {
 
 	private final BeneficiaryLinkRequestService service;
 
+	/**
+	 * Hàm khởi tạo, nhận {@code BeneficiaryLinkRequestService}.
+	 */
 	public BeneficiaryLinkRequestController(BeneficiaryLinkRequestService service) { this.service = service; }
 
+	/**
+	 * {@code POST /api/v1/beneficiary-link-requests}: gửi yêu cầu liên kết bằng mã hồ sơ.
+	 * @param request {@code BeneficiaryLinkRequestDtos.SubmitRequest} chứa {@code caseCode}
+	 * @param principal tài khoản đang đăng nhập
+	 * @return HTTP 201 kèm Location và {@code MyRequest}
+	 */
 	@PostMapping
 	public ResponseEntity<BeneficiaryLinkRequestDtos.MyRequest> submit(
 			@Valid @RequestBody BeneficiaryLinkRequestDtos.SubmitRequest request,
@@ -38,6 +52,10 @@ public class BeneficiaryLinkRequestController {
 				.cacheControl(CacheControl.noStore()).body(created);
 	}
 
+	/**
+	 * {@code GET /api/v1/beneficiary-link-requests}: liệt kê các yêu cầu của chính tài khoản, mới nhất trước.
+	 * @return HTTP 200 với danh sách {@code MyRequest}
+	 */
 	@GetMapping
 	public ResponseEntity<List<BeneficiaryLinkRequestDtos.MyRequest>> listMine(
 			@AuthenticationPrincipal CustomUserPrincipal principal) {
@@ -45,6 +63,10 @@ public class BeneficiaryLinkRequestController {
 				.body(service.listMine(CustomUserPrincipal.requireUserId(principal)));
 	}
 
+	/**
+	 * {@code POST /api/v1/beneficiary-link-requests/{requestId}/cancel}: hủy yêu cầu đang chờ của chính mình.
+	 * @return HTTP 200 với {@code MyRequest} sau khi hủy
+	 */
 	@PostMapping("/{requestId}/cancel")
 	public ResponseEntity<BeneficiaryLinkRequestDtos.MyRequest> cancel(@PathVariable UUID requestId,
 			@AuthenticationPrincipal CustomUserPrincipal principal) {

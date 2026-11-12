@@ -14,6 +14,8 @@ import java.util.UUID;
  * Điểm kiểm tra "ca thuộc Staff đang đăng nhập" dùng chung cho mọi thao tác ghi nhận của Staff trên một ca
  * (PS-38, PS-39...). Bản có khóa giữ dòng ca tới hết giao dịch để việc ghi nhận không chạy song song với Cancel
  * Alert hủy ca. Ca chưa nhận hoặc của Staff khác đều không tìm thấy (cùng 404, không lộ sự tồn tại).
+ *
+ * Truy vấn bảng {@code verification_cases}; dùng bởi {@code StaffVaultCaseGuard}, {@code HandoverAuthorizationGuard} và các dịch vụ tiếp nhận.
  */
 public interface StaffCaseLockRepository extends Repository<VerificationCase, Long> {
 
@@ -22,6 +24,9 @@ public interface StaffCaseLockRepository extends Repository<VerificationCase, Lo
         select c from VerificationCase c
         where c.vaultId = :vaultId and c.assignedStaffUserId = :staffUserId and c.status = 'OPEN'
         """)
+    /**
+     * Ca OPEN của vault do Staff được giao, khóa ghi bi quan.
+     */
     Optional<VerificationCase> findOpenOwnedByStaffForVaultForUpdate(
             @Param("vaultId") Long vaultId, @Param("staffUserId") Long staffUserId);
 
@@ -29,6 +34,9 @@ public interface StaffCaseLockRepository extends Repository<VerificationCase, Lo
         select c from VerificationCase c
         where c.vaultId = :vaultId and c.assignedStaffUserId = :staffUserId and c.status = 'OPEN'
         """)
+    /**
+     * Như trên nhưng không khóa.
+     */
     Optional<VerificationCase> findOpenOwnedByStaffForVault(
             @Param("vaultId") Long vaultId, @Param("staffUserId") Long staffUserId);
 
@@ -38,6 +46,9 @@ public interface StaffCaseLockRepository extends Repository<VerificationCase, Lo
         where c.publicId = :caseId
           and c.assignedStaffUserId = :staffUserId
         """)
+    /**
+     * Ca theo UUID công khai thuộc Staff, khóa ghi bi quan.
+     */
     Optional<VerificationCase> findOwnedByStaffForUpdate(
             @Param("caseId") UUID caseId,
             @Param("staffUserId") Long staffUserId
@@ -48,6 +59,9 @@ public interface StaffCaseLockRepository extends Repository<VerificationCase, Lo
         where c.publicId = :caseId
           and c.assignedStaffUserId = :staffUserId
         """)
+    /**
+     * Như trên nhưng không khóa.
+     */
     Optional<VerificationCase> findOwnedByStaff(
             @Param("caseId") UUID caseId,
             @Param("staffUserId") Long staffUserId

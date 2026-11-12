@@ -18,6 +18,9 @@ public class InvitationRedeemService {
     private final InvitationRedeemAttemptLimiter limiter;
     private final InvitationRedeemFailureRecorder failures;
 
+    /**
+     * Hàm khởi tạo, Spring tiêm các phụ thuộc.
+     */
     public InvitationRedeemService(UserRepository users, BeneficiaryInvitationService invitations,
             InvitationTokens tokens, InvitationRedeemAttemptLimiter limiter,
             InvitationRedeemFailureRecorder failures) {
@@ -28,6 +31,15 @@ public class InvitationRedeemService {
         this.failures = failures;
     }
 
+    /**
+     * Đổi mã mời. Các bước: khóa dòng tài khoản đang ACTIVE (đồng thời làm mutex cho bộ giới hạn), kiểm tra giới hạn số lần thử,
+     * gọi {@code BeneficiaryInvitationService.redeemBoundAccount}; nếu mã không hợp lệ thì ghi lần thất bại (giao dịch riêng) rồi ném lại lỗi.
+     * Endpoint: {@code POST /api/v1/auth/invitations/redeem}.
+     * @param authenticatedAccountId id tài khoản từ principal
+     * @param code mã mời thô
+     * @return {@code Linked}
+     * @throws com.legacyvault.common.error.BusinessException {@code BENEFICIARY_INVITATION_INVALID}, {@code TOO_MANY_ATTEMPTS} và các lỗi từ {@code redeemBoundAccount}
+     */
     @Transactional
     public InvitationDtos.Linked redeem(Long authenticatedAccountId, String code) {
         User account = users.findActiveAccountForUpdate(authenticatedAccountId)

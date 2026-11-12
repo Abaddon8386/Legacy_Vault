@@ -4,14 +4,18 @@ import { CONTACT_CHANNELS, CONTACT_OUTCOMES, CONTACT_FALLBACKS, fetchCaseContact
 import { workflowFailure } from '../../utils/workflowFeedback.js';
 import './StaffContactPanel.css';
 
+/** Nhãn (vi, en) của kênh liên hệ: điện thoại, email, trực tiếp, khác. */
 const CHANNELS = { PHONE: ['Điện thoại', 'Phone'], EMAIL: ['Email', 'Email'], IN_PERSON: ['Trực tiếp', 'In person'], OTHER: ['Khác', 'Other'] };
+/** Nhãn (vi, en) kết quả một lần liên hệ: đã liên hệ được, chưa phản hồi, sai số/email. */
 const OUTCOMES = {
   CONTACTED: ['Đã liên hệ được', 'Reached'], NO_RESPONSE: ['Chưa phản hồi', 'No response'], INVALID_CONTACT: ['Sai số hoặc email', 'Invalid contact'],
 };
+/** Nhãn (vi, en) trạng thái phương án dự phòng khi không liên hệ được người thi hành. */
 const FALLBACKS = {
   NOT_REQUIRED: ['Chưa cần phương án dự phòng', 'No fallback needed'], REQUIRED: ['Cần phương án dự phòng', 'Fallback required'],
   IN_PROGRESS: ['Đang thực hiện dự phòng', 'Fallback in progress'], COMPLETED: ['Đã xử lý dự phòng', 'Fallback completed'],
 };
+/** Nhãn (vi, en) và lớp CSS của trạng thái liên hệ tổng hợp của một người, suy ra từ lần liên hệ gần nhất. */
 const STATUS = {
   NOT_CONTACTED: ['Chưa liên hệ', 'Not contacted', 'is-waiting'],
   CONTACTED: ['Đã liên hệ', 'Contacted', 'is-done'],
@@ -19,14 +23,35 @@ const STATUS = {
   INVALID_CONTACT: ['Sai thông tin', 'Invalid contact', 'is-bad'],
 };
 
+/** Lấy chữ cái đầu của hai từ cuối trong họ tên để làm avatar. */
 const initials = name => name.trim().split(/\s+/).slice(-2).map(part => part[0]).join('').toUpperCase();
+/** Định dạng thời điểm theo múi giờ Asia/Ho_Chi_Minh (ngày/tháng giờ:phút) theo ngôn ngữ vi hoặc en. */
 const stamp = (value, en) => new Date(value).toLocaleString(en ? 'en-GB' : 'vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
 });
+/** Giá trị khởi tạo của biểu mẫu ghi nhận một lần liên hệ (kênh điện thoại, kết quả đã liên hệ, không cần dự phòng). */
 const blankDraft = { channel: 'PHONE', outcome: 'CONTACTED', fallbackStatus: 'NOT_REQUIRED', note: '' };
+/** Trạng thái liên hệ hiện tại của một người: kết quả của lần liên hệ mới nhất hoặc `NOT_CONTACTED`. */
 const statusOf = person => person.contacts[0]?.outcome || 'NOT_CONTACTED';
 
-/** Who Staff can reach on an assigned case, read from the server, with the log of each contact with the executor. */
+/**
+ * Bảng liên hệ trước khi tiếp nhận hồ sơ: liệt kê những người Staff phải liên hệ trên hồ sơ đã được giao
+ * (người thi hành được chỉ định trước, sau đó là người thụ hưởng), cùng nhật ký các lần liên hệ.
+ * Dữ liệu đọc từ `GET /api/v1/staff/verification-cases/{caseId}/contacts` (`fetchCaseContacts`); chỉ tải khi
+ * `assigned` khác true (hồ sơ chưa được nhận thì không đọc và không coi là lỗi). Với người thi hành (`canRecord`),
+ * Staff mở biểu mẫu để ghi nhận kênh, kết quả, phương án dự phòng và ghi chú (tối đa 500 ký tự) qua
+ * `POST /api/v1/staff/trustees/{trusteeId}/contact-outcomes` (`recordTrusteeContact`, lịch sử chỉ thêm, không sửa).
+ * Nếu mọi người ghi nhận được đều đã thử liên hệ mà không ai phản hồi thì cảnh báo cần chọn phương án dự phòng.
+ * Có nút sao chép số điện thoại/email và nút tải lại. Lỗi 401 gọi `onUnauthorized`. Được dùng trong `StaffLiveCase.jsx`.
+ *
+ * @param {object} props
+ * @param {string} props.caseId id hồ sơ xác minh.
+ * @param {string} props.accessToken JWT của staff.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {Function} [props.onUnauthorized] gọi khi API trả 401.
+ * @param {boolean} [props.assigned=true] hồ sơ đã được giao cho Staff hiện tại hay chưa.
+ * @returns {JSX.Element}
+ */
 export default function StaffContactPanel({ caseId, accessToken, lang = 'vi', onUnauthorized, assigned = true }) {
   const en = lang === 'en';
   const [people, setPeople] = useState(null);
@@ -62,16 +87,20 @@ export default function StaffContactPanel({ caseId, accessToken, lang = 'vi', on
   // Everyone who can be logged was tried and nobody answered: Staff must choose a fallback.
   const nobodyReached = recordable.length > 0 && attempted === recordable.length && reached === 0;
 
+  /** Sao chép giá trị liên hệ vào clipboard và hiện nhãn "Đã chép" trong 1,6 giây. */
   async function copy(value, key) {
     try { await navigator.clipboard.writeText(value); setCopied(key); setTimeout(() => setCopied(current => (current === key ? '' : current)), 1600); } catch { setCopied(''); }
   }
+  /** Mở/đóng biểu mẫu ghi nhận liên hệ của một người; luôn đặt lại bản nháp và lỗi lưu. */
   function toggle(id) { setOpenId(current => (current === id ? null : id)); setDraft(blankDraft); setSaveError(null); }
+  /** Đổi kết quả liên hệ; tự gợi ý phương án dự phòng (đã liên hệ được thì không cần, ngược lại mặc định là cần). */
   function setOutcome(outcome) {
     setDraft(current => ({
       ...current, outcome,
       fallbackStatus: outcome === 'CONTACTED' ? 'NOT_REQUIRED' : current.fallbackStatus === 'NOT_REQUIRED' ? 'REQUIRED' : current.fallbackStatus,
     }));
   }
+  /** Lưu một lần liên hệ với người thi hành (có khóa chống bấm trùng), đóng biểu mẫu và tải lại danh sách khi thành công. */
   async function save(person) {
     if (saveLock.current) return;
     saveLock.current = true; setSaving(true); setSaveError(null);

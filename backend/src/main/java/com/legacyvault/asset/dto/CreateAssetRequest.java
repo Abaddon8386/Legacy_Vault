@@ -7,8 +7,16 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Request tạo Asset (assets.md). {@code assetType} nhận chuỗi để loại sai/FILE trả 400 VALIDATION_FAILED có lỗi theo
+ * Request tạo Asset (assets.md), body của {@code POST /api/v1/vaults/{vaultId}/assets} (và part {@code asset} của
+ * {@code POST .../assets/with-images}). {@code assetType} nhận chuỗi để loại sai/FILE trả 400 VALIDATION_FAILED có lỗi theo
  * trường, thay vì lỗi đọc JSON. Trường thừa ({@code vaultId}, {@code id}, {@code status}...) bị bỏ qua.
+ *
+ * <ul>
+ * <li>{@code name} - bắt buộc, tối đa 150 ký tự</li>
+ * <li>{@code assetType} - bắt buộc, chỉ {@code TEXT} hoặc {@code CREDENTIAL}</li>
+ * <li>{@code description} - tùy chọn, tối đa 1000 ký tự</li>
+ * <li>{@code payload} - bắt buộc, không vượt giới hạn byte UTF-8 ({@link com.legacyvault.asset.validation.PayloadSize}); được mã hóa trước khi lưu</li>
+ * </ul>
  */
 public record CreateAssetRequest(
 		@NotBlank @Size(max = 150) String name,

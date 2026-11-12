@@ -16,9 +16,13 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Verifies that the latest Legal approval still covers the authoritative dossier snapshot.
- * Invalidation is derived from immutable version/scope records and the already audited dossier changes;
- * this read-only gate avoids writing duplicate invalidation events for repeated transition attempts.
+ * Kiểm tra rằng quyết định phê duyệt mới nhất của Legal vẫn còn bao phủ đúng snapshot hồ sơ căn cứ hiện hành.
+ *
+ * <p>Việc vô hiệu hóa được suy ra từ các bản ghi phiên bản/phạm vi bất biến và các thay đổi dossier đã được audit; guard
+ * này chỉ đọc nên không ghi trùng sự kiện vô hiệu hóa khi bị thử chuyển bước nhiều lần. So sánh: dossier còn FRESH,
+ * phiên bản/SHA-256/trạng thái tranh chấp/hash phân bổ lần xem xét cuối khớp phiên bản hiện tại, và quyết định mới nhất
+ * là LEGAL_APPROVED với lý do APPROVE. Dùng bảng lịch sử xem xét ({@code LegalBasisReviewHistory}) và phân bổ phiên
+ * bản; được các luồng mở khóa Vault, phân phối và bàn giao gọi trước khi chuyển trạng thái.
  */
 @Component
 public class LegalApprovalGuard {
@@ -29,19 +33,37 @@ public class LegalApprovalGuard {
     private final LegalBasisReviewHistoryRepository history;
     private final LegalBasisVersionAllocationRepository allocations;
 
+    /**
+     * @param history repository lịch sử xem xét/quyết định hồ sơ căn cứ
+     * @param allocations repository các dòng phân bổ theo phiên bản (để tính hash phạm vi)
+     */
     public LegalApprovalGuard(LegalBasisReviewHistoryRepository history,
             LegalBasisVersionAllocationRepository allocations) {
         this.history = history;
         this.allocations = allocations;
     }
 
+    /**
+     * Yêu cầu có phê duyệt hiện hành hợp lệ; ném lỗi nếu có chặn.
+     *
+     * @param dossier hồ sơ căn cứ
+     * @param currentVersion phiên bản hồ sơ hiện hành
+     * @throws BusinessException {@code LEGAL_DECISION_STALE} khi quyết định đã cũ hoặc {@code LEGAL_APPROVAL_REQUIRED}
+     *         khi chưa có quyết định duyệt
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public void requireCurrentApproval(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion) {
         ErrorCode blocker = currentApprovalBlocker(dossier, currentVersion);
         if (blocker != null) throw new BusinessException(blocker);
     }
 
-    /** Same rules as the write guard, without throwing through a transactional proxy during GET. */
+    /**
+     * Cùng quy tắc với guard ghi nhưng trả về mã lỗi thay vì ném, dùng cho các request GET.
+     *
+     * @param dossier hồ sơ căn cứ
+     * @param currentVersion phiên bản hồ sơ hiện hành
+     * @return {@code LEGAL_DECISION_STALE}, {@code LEGAL_APPROVAL_REQUIRED} hoặc {@code null} nếu không bị chặn
+     */
     public ErrorCode currentApprovalBlocker(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion) {
         String currentAllocationHash = allocationHash(dossier.getLegalBasisDossierId(), currentVersion.version());
         if (!reviewMatches(dossier, currentVersion, currentAllocationHash)) {
@@ -66,11 +88,22 @@ public class LegalApprovalGuard {
         return null;
     }
 
+    /**
+     * Chỉ kiểm tra bước xem xét còn khớp snapshot (chưa xét quyết định duyệt/từ chối).
+     *
+     * @param dossier hồ sơ căn cứ
+     * @param currentVersion phiên bản hồ sơ hiện hành
+     * @return {@code LEGAL_DECISION_STALE} nếu lệch, ngược lại {@code null}
+     */
     public ErrorCode reviewBlocker(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion) {
         String hash = allocationHash(dossier.getLegalBasisDossierId(), currentVersion.version());
         return reviewMatches(dossier, currentVersion, hash) ? null : ErrorCode.LEGAL_DECISION_STALE;
     }
 
+    /**
+     * Kiểm tra dossier có thể xem xét, còn FRESH và các giá trị lần xem xét cuối (phiên bản, SHA-256, tranh chấp, hash
+     * phân bổ) khớp với phiên bản hiện hành.
+     */
     private static boolean reviewMatches(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion, String hash) {
         return dossier.isLegalReviewable()
             && currentVersion.version() >= dossier.getRequiredVersionNo()
@@ -81,6 +114,9 @@ public class LegalApprovalGuard {
             && sameHash(dossier.getLastReviewedAllocationHash(), hash);
     }
 
+    /**
+     * Tính hash phạm vi phân bổ của đúng phiên bản {@code versionNo} trong dossier.
+     */
     private String allocationHash(Long dossierId, int versionNo) {
         List<AllocationRow> rows = allocations.findRowsByDossier(dossierId).stream()
                 .filter(row -> row.versionNo() == versionNo)
@@ -88,6 +124,9 @@ public class LegalApprovalGuard {
         return AllocationScopeHash.hashApprovalRows(rows);
     }
 
+    /**
+     * So sánh hai hash không phân biệt hoa thường; {@code false} nếu một trong hai là null.
+     */
     private static boolean sameHash(String first, String second) {
         return first != null && second != null && first.equalsIgnoreCase(second);
     }

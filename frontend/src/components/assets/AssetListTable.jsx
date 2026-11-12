@@ -18,6 +18,13 @@ import { getAssetTranslations } from '../../pages/assets/assetI18n.js'
  * AssetListTable — PS-5: List assets only (Contract Aligned).
  * Displays contract metadata: name, assetType (TEXT | CREDENTIAL), hasPayload, createdAt.
  * Supports sorting and pagination.
+ *
+ * Bảng danh sách tài sản (dạng bảng trên desktop/tablet): tên, loại, trạng thái nội dung bảo mật, ngày tạo, thao tác xem/sửa; hỗ trợ sắp xếp theo cột và phân trang phía máy chủ.
+ * Được dùng bởi {@code pages/assets/AssetManagementPage.jsx} (trang quản lý tài sản của chủ hầm VAULT_OWNER).
+ * Dữ liệu lấy từ {@code assetService.getAssets} = {@code GET /vaults/{vaultId}/assets?page&size&sort}.
+ *
+ * Props: {@code assets} (trang hiện tại), {@code t}, {@code lang}, {@code query} ({page, size, sort dạng "field,asc|desc"}), {@code totalElements},
+ * {@code onQueryChange(query)} (đổi sắp xếp/trang), {@code onViewAsset(asset)}, {@code onEditAsset(asset)}.
  */
 export function AssetListTable({ assets, t: externalT, lang = 'vi', query, totalElements, onQueryChange, onViewAsset, onEditAsset }) {
   const t = getAssetTranslations(externalT, lang)
@@ -28,11 +35,17 @@ export function AssetListTable({ assets, t: externalT, lang = 'vi', query, total
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
   const startIndex = query.page * pageSize
   const paginatedAssets = assets
+  /**
+   * Đổi sắp xếp theo cột: lặp lại cột đang tăng dần thì chuyển giảm dần, ngược lại tăng dần; quay về trang 0.
+   */
   function handleSort(field) {
     const order = sortField === field && sortOrder === 'asc' ? 'desc' : 'asc'
     onQueryChange({ ...query, page: 0, sort: `${field},${order}` })
   }
 
+  /**
+   * Trả icon, nhãn và class badge cho loại tài sản (CREDENTIAL màu vàng, còn lại TEXT màu xanh).
+   */
   function getTypeMeta(assetType) {
     if (assetType === 'CREDENTIAL') {
       return {
@@ -48,6 +61,9 @@ export function AssetListTable({ assets, t: externalT, lang = 'vi', query, total
     }
   }
 
+  /**
+   * Định dạng ngày (không giờ) theo ngôn ngữ; trả "—" nếu rỗng.
+   */
   function formatDate(isoString) {
     if (!isoString) return '—'
     return new Date(isoString).toLocaleDateString(lang === 'en' ? 'en-US' : 'vi-VN', {
@@ -57,6 +73,9 @@ export function AssetListTable({ assets, t: externalT, lang = 'vi', query, total
     })
   }
 
+  /**
+   * Trả icon sắp xếp: trung tính, tăng hoặc giảm tùy trạng thái cột.
+   */
   function renderSortIcon(field) {
     if (sortField !== field) {
       return <ArrowUpDown size={13} className="lv-sort-icon lv-sort-icon--idle" />

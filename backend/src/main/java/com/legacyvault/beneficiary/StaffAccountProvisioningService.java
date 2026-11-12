@@ -26,6 +26,9 @@ import com.legacyvault.verification.repository.StaffCaseLockRepository;
  * recipient and gets only the personal Owner role; the person later submits a link request and Staff confirms it.
  * An email that already has an account is rejected, never reused or linked. The password is chosen by the person,
  * stored only as a hash and never logged or audited.
+ *
+ * <p>Gọi từ {@code StaffLinkRequestController.createAccount}. Bảng {@code users}, {@code user_roles}. Audit
+ * {@code BENEFICIARY_ACCOUNT_CREATED_UNLINKED}.
  */
 @Service
 public class StaffAccountProvisioningService {
@@ -38,6 +41,9 @@ public class StaffAccountProvisioningService {
 	private final RoleRepository roles;
 	private final UserRoleRepository userRoles;
 
+	/**
+	 * Hàm khởi tạo, Spring tiêm các phụ thuộc.
+	 */
 	public StaffAccountProvisioningService(StaffContextService staff, StaffCaseLockRepository caseLookup,
 			UserRepository users, PasswordEncoder passwordEncoder, AuditService audit,
 			RoleRepository roles, UserRoleRepository userRoles) {
@@ -50,6 +56,13 @@ public class StaffAccountProvisioningService {
 		this.userRoles = userRoles;
 	}
 
+	/**
+	 * Tạo tài khoản chưa liên kết. Các bước: xác thực Staff, tìm case đang mở thuộc Staff, kiểm tra email chưa tồn tại,
+	 * tạo {@code User} ACTIVE với mật khẩu băm, lưu (bắt trùng email), cấp {@code ROLE_VAULT_OWNER}, audit.
+	 * Endpoint: {@code POST /api/v1/staff/verification-cases/{caseId}/accounts}.
+	 * @return {@code CreatedAccount} với {@code linkStatus = UNLINKED}
+	 * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND}, {@code EMAIL_ALREADY_EXISTS}
+	 */
 	@Transactional
 	public BeneficiaryLinkRequestDtos.CreatedAccount createUnlinked(UUID caseId,
 			BeneficiaryLinkRequestDtos.CreateAccountRequest request) {

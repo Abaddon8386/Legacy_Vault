@@ -10,6 +10,9 @@
  *   pending official backend confirmation contract.
  */
 
+/**
+ * Các khóa lỗi (i18n) của form xác nhận người thụ hưởng. Được dùng bởi pages/staff/BeneficiaryConfirmationPage.jsx và App.jsx.
+ */
 export const BENEFICIARY_CONFIRMATION_ERROR_KEYS = {
   BENEFICIARY_REQUIRED: 'beneficiaryRequired',
   RECEIPT_REFERENCE_REQUIRED: 'receiptReferenceRequired',
@@ -18,11 +21,17 @@ export const BENEFICIARY_CONFIRMATION_ERROR_KEYS = {
   CASE_REQUIRED: 'caseRequired',
 };
 
+/**
+ * Trạng thái xác nhận người thụ hưởng ở phía frontend: PENDING (chờ) hoặc CONFIRMED (đã xác nhận).
+ */
 export const BENEFICIARY_CONFIRM_STATUS = {
   PENDING: 'PENDING',
   CONFIRMED: 'CONFIRMED',
 };
 
+/**
+ * Mẫu mã biên nhận do hệ thống sinh ra: BN-<uuid>.
+ */
 const SYSTEM_RECEIPT_REFERENCE = /^BN-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -42,6 +51,8 @@ export function isSystemReceiptReference(reference) {
  *
  * @param {Object|null|undefined} session
  * @returns {boolean}
+ *
+ * Dùng bởi App.jsx: chỉ nhân viên (ROLE_STAFF_EXECUTOR) có session còn hạn mới được vào màn hình xác nhận người thụ hưởng.
  */
 export function canAccessBeneficiaryConfirmation(session) {
   if (!session || !session.accessToken || typeof session.expiresAt !== 'number') {
@@ -71,6 +82,8 @@ export function canAccessBeneficiaryConfirmation(session) {
  * @param {string} [formValues.receiptReference]
  * @param {string} [formValues.currentStatus]
  * @returns {{ isValid: boolean, errors: Object.<string, string> }}
+ *
+ * Dùng bởi BeneficiaryConfirmationPage trước khi gửi xác nhận: bắt buộc có beneficiaryId và receiptReference, và không cho xác nhận lại nếu trạng thái hiện tại đã CONFIRMED.
  */
 export function validateBeneficiaryConfirmationForm(formValues = {}) {
   const errors = {};
@@ -103,6 +116,8 @@ export function validateBeneficiaryConfirmationForm(formValues = {}) {
  * @param {string} deliveryStatus
  * @param {string|null|undefined} currentConfirmationStatus
  * @returns {string|null} - Returns CONFIRMED, PENDING, or null if unknown/missing.
+ *
+ * Xác định trạng thái xác nhận: chỉ trả CONFIRMED hoặc PENDING khi dữ liệu có thật; thiếu dữ liệu trả null (không tự suy ra PENDING). Việc giao tài sản không tự xác nhận người thụ hưởng.
  */
 export function computeBeneficiaryConfirmationStatus(deliveryStatus, currentConfirmationStatus) {
   if (currentConfirmationStatus === BENEFICIARY_CONFIRM_STATUS.CONFIRMED) {

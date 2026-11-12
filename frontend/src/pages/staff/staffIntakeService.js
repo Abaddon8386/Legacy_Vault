@@ -1,6 +1,20 @@
+/**
+ * staffIntakeService.js - Kiểm tra biểu mẫu và ghi nhận hồ sơ tử vong bản cứng do Staff tiếp nhận (PS-26 / PS-38).
+ * Được dùng bởi StaffCaseIntakePage.jsx. Hiện chỉ có chế độ mô phỏng; chế độ thật chưa nối backend (ném BACKEND_NOT_READY).
+ */
 import { getStaffCaseTranslations } from './staffCaseI18n.js';
 import { isStaffSimulationPermitted } from './staffCasePreview.js';
 export { SYNTHETIC_STAFF_CASES, isStaffSimulationPermitted } from './staffCasePreview.js';
+/**
+ * Kiểm tra dữ liệu biểu mẫu tiếp nhận hồ sơ và trả về lỗi theo từng trường (thông báo lấy từ staffCaseI18n.intake.validation).
+ *
+ * Quy tắc: submitterName bắt buộc; documentType bắt buộc và khác 'SELECT'; issuingDate (nếu có) phải là ngày hợp lệ yyyy-MM-dd;
+ * intakeDateTime bắt buộc, định dạng yyyy-MM-ddTHH:mm và ngày hợp lệ; submitterPhone (nếu có) là số di động Việt Nam (+84 hoặc 0 rồi đầu 3,5,7,8,9 và 8 chữ số);
+ * submitterEmail (nếu có) đúng dạng email cơ bản.
+ * @param {Object} [data] Dữ liệu biểu mẫu.
+ * @param {string} [lang='vi'] Ngôn ngữ thông báo lỗi.
+ * @returns {{isValid: boolean, errors: Object}} errors là map tên trường -> thông báo.
+ */
 export function validateIntakeForm(data = {}, lang = 'vi') {
   const t = getStaffCaseTranslations(lang).intake.validation;
   const errors = {};
@@ -45,7 +59,16 @@ export function validateIntakeForm(data = {}, lang = 'vi') {
 }
 
 /**
- * Ghi nhận hồ sơ tử vong bản cứng do Staff tiếp nhận (PS-26 / PS-38)
+ * Ghi nhận hồ sơ tử vong bản cứng do Staff tiếp nhận (PS-26 / PS-38).
+ *
+ * Các bước: kiểm tra signal, caseId, rồi validateIntakeForm(). Chế độ mô phỏng (dev preview hoặc test) trả về biên nhận giả
+ * { success, caseId, receiptNumber (INTAKE-năm-xxxx), recordedAt, isSimulation: true }. Chế độ thật chưa gọi endpoint nào vì contract PS-38 chưa có,
+ * nên ném lỗi BACKEND_NOT_READY (status 503).
+ * @param {string} caseId Mã hồ sơ cần tiếp nhận.
+ * @param {Object} [intakeData] Dữ liệu biểu mẫu tiếp nhận.
+ * @param {Object} [options] { signal, lang, isDevPreview, isTest, accessToken }
+ * @returns {Promise<Object>} Biên nhận mô phỏng.
+ * @throws {Error} AbortError; MISSING_CASE_ID; VALIDATION_FAILED (kèm fieldErrors); BACKEND_NOT_READY (503).
  */
 export async function submitPhysicalIntakeRecord(caseId, intakeData = {}, options = {}) {
   const { signal, lang = 'vi' } = options;
@@ -109,7 +132,15 @@ export async function submitPhysicalIntakeRecord(caseId, intakeData = {}, option
   throw notReadyError;
 }
 
-// Preview receipt view model only; the live PS-38 contract is not connected yet.
+/**
+ * Kiểm tra biên nhận tiếp nhận (chỉ là view model mô phỏng; hợp đồng PS-38 thật chưa được nối).
+ * Chỉ hợp lệ khi chế độ mô phỏng được phép, isSimulation và success đều true, caseId khớp, receiptNumber là chuỗi không rỗng và recordedAt là thời gian UTC (dạng ISO) hợp lệ.
+ * @param {Object} receipt Biên nhận cần kiểm tra.
+ * @param {string} caseId Mã hồ sơ mong đợi.
+ * @param {Object} [options] Tùy chọn cho isStaffSimulationPermitted().
+ * @returns {{success: true, caseId: string, receiptNumber: string, recordedAt: string, isSimulation: true}} Biên nhận đã chuẩn hóa.
+ * @throws {Error} code INVALID_RECEIPT khi không hợp lệ.
+ */
 export function validateIntakeReceipt(receipt, caseId, options = {}) {
   const stamp = receipt?.recordedAt;
   const validStamp = typeof stamp === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(stamp)

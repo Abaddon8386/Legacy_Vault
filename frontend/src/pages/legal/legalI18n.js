@@ -1,3 +1,4 @@
+/** Bảng chuỗi giao diện song ngữ (vi/en) cho các trang Legal xác minh tử vong và di chúc (LegalDeathVerificationPage, LegalWillDocumentVerificationPage): tiêu đề, cảnh báo nghiệp vụ, nhãn form, trạng thái và lỗi. */
 export const legalI18n = {
   vi: {
     // ==========================================

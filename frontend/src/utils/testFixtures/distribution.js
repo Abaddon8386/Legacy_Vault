@@ -1,4 +1,7 @@
 // Test-only contract fixtures. Never loaded by the application.
+/**
+ * Tạo dữ liệu quy trình phân phối mẫu (workflow) cho test hợp đồng từ ngữ cảnh hồ sơ và giai đoạn; suy ra giai đoạn (CLOSED, UNLOCKED, APPROVED, FINAL_APPROVAL) nếu không truyền. Chỉ dùng trong test, ứng dụng không nạp tệp này.
+ */
 export function distributionFixture(context, phase) {
   const latest = context.basisDossier?.versions?.reduce((best, value) => !best || value.version > best.version ? value : best, null);
   const actualPhase = phase || (context.caseStatus !== 'OPEN' ? 'CLOSED' : context.vaultStatus === 'UNLOCKED' ? 'UNLOCKED'

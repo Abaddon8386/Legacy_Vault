@@ -22,13 +22,19 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 /**
  * Cấu hình bảo mật: API stateless, 401/403 trả JSON lỗi chung, phân quyền theo đường dẫn/role.
  * Xác thực Bearer JWT nằm ở {@link JwtAuthenticationFilter}.
+ *
+ * <p>Quy tắc phân quyền: các đường dẫn trong {@code PUBLIC_PATHS} và IPN VNPay công khai; {@code /api/v1/vaults/**},
+ * {@code /api/v1/trustees/**}, {@code /api/v1/dms/**} yêu cầu {@code VAULT_OWNER}; {@code /api/v1/admin/**} yêu cầu
+ * {@code ADMIN}; còn lại cần đăng nhập (kiểm tra role chi tiết bằng {@code @PreAuthorize} ở controller).
  */
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
 
+	/** Filter xác thực JWT được chèn vào chuỗi filter. */
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+	/** Nhận filter JWT. */
 	public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
 	}
@@ -46,6 +52,11 @@ public class SecurityConfig {
 	};
 
 	@Bean
+	/**
+	 * Dựng chuỗi filter bảo mật: tắt CSRF (API stateless dùng Bearer), bật CORS theo
+	 * {@link #corsConfigurationSource}, không tạo session, khai báo luật phân quyền theo đường dẫn, gắn entry point
+	 * 401 / handler 403 JSON và chèn {@link JwtAuthenticationFilter}.
+	 */
 	SecurityFilterChain securityFilterChain(HttpSecurity http, ApiAuthenticationEntryPoint entryPoint,
 			ApiAccessDeniedHandler accessDeniedHandler) throws Exception {
 		http
@@ -79,6 +90,10 @@ public class SecurityConfig {
 	 * Bean giữ lại có chủ đích: xác thực thật do JwtAuthenticationFilter xử lý, không tra cứu người dùng qua UserDetailsService.
 	 */
 	@Bean
+	/**
+	 * Chặn Spring Boot tự sinh tài khoản "user" kèm mật khẩu ngẫu nhiên in ra log.
+	 * Bean giữ lại có chủ đích: xác thực thật do JwtAuthenticationFilter xử lý, không tra cứu người dùng qua UserDetailsService.
+	 */
 	UserDetailsService noUsersYet() {
 		return username -> {
 			throw new UsernameNotFoundException("User lookup is not implemented yet");
@@ -90,6 +105,11 @@ public class SecurityConfig {
 	 * Khi dev dùng Vite proxy thì không cần CORS.
 	 */
 	@Bean
+	/**
+	 * CORS chỉ cho các origin khai báo trong legacyvault.cors.allowed-origins (mặc định rỗng = không origin nào).
+	 * Khi dev dùng Vite proxy thì không cần CORS. Áp dụng cho {@code /api/**}; cho phép các method thông dụng, các header
+	 * Authorization/Content-Type/Accept/Accept-Language và lộ header {@code X-Trace-Id}.
+	 */
 	CorsConfigurationSource corsConfigurationSource(
 			@Value("${legacyvault.cors.allowed-origins:}") List<String> allowedOrigins) {
 		CorsConfiguration config = new CorsConfiguration();
@@ -104,6 +124,7 @@ public class SecurityConfig {
 	}
 
 	@Bean
+	/** Bộ băm mật khẩu BCrypt dùng cho đăng ký, đăng nhập và xác nhận lại mật khẩu. */
 	public PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
 	}

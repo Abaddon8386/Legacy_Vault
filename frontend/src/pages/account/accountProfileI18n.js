@@ -3,6 +3,10 @@
  * Adheres to Henedo style principles: concise, user-friendly, transparent.
  */
 
+/**
+ * Từ điển chuỗi song ngữ (vi/en) của trang xem hồ sơ `AccountProfilePage`: nhãn thông tin cá nhân, vai trò,
+ * thông báo làm mới hồ sơ và liên kết tài khoản Google.
+ */
 export const accountProfileI18n = {
   vi: {
     pageTitle: 'Hồ sơ tài khoản',

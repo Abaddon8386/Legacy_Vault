@@ -1,5 +1,19 @@
 package com.legacyvault.audit;
 
+/**
+ * Danh mục các hành động được ghi vào nhật ký kiểm toán (bảng {@code audit_logs}, cột {@code action}).
+ *
+ * <p>Tên enum được lưu nguyên văn dạng chuỗi và được API admin audit
+ * ({@code GET /api/v1/admin/audit-logs}, xem {@code AdminAuditService}) trả ra cho giao diện, nên mọi giá trị mới
+ * phải được thêm vào whitelist {@code AUDIT_ACTIONS} trong {@code frontend/src/utils/adminService.js} và có nhãn
+ * trong {@code pages/admin/adminPresentation.js}. Các nhóm chính: {@code AUTH_*} (đăng nhập, đăng ký, khôi phục
+ * mật khẩu), {@code BENEFICIARY_*} (người thụ hưởng, lời mời, giám hộ), {@code ASSET_*}/{@code WILL_*} (tài sản,
+ * di chúc), {@code DMS_*} (công tắc người chết), {@code VERIFICATION_*}/{@code LEGAL_*}/{@code DISTRIBUTION_*}
+ * (quy trình xác minh pháp lý và phân chia), {@code HANDOVER_*} (bàn giao), {@code SUBSCRIPTION_*} (gói và thanh
+ * toán), {@code ADMIN_USER_*} (quản trị tài khoản) và {@code REAUTH_FAILED} (nhập sai mật khẩu xác nhận).
+ *
+ * <p>Ghi sự kiện thông qua {@code AuditService.record(new AuditEvent(...))}.
+ */
 public enum AuditAction {
     BENEFICIARY_INVITATION_ISSUED,
     BENEFICIARY_INVITATION_REISSUED,

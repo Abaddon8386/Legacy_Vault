@@ -1,11 +1,21 @@
+/**
+ * Dịch vụ khôi phục mật khẩu (công khai, không cần đăng nhập). Gọi POST /api/v1/auth/password-recovery/requests và /reset. Dùng bởi pages/auth/PasswordRecoveryRoute.jsx.
+ */
 import { API_BASE, ApiError } from '../api/http.js';
 
+/**
+ * Đọc mã khôi phục từ phần hash của URL (#token=...); chỉ chấp nhận đúng một tham số token có định dạng base64url độ dài 43, ngược lại trả null.
+ */
 export function readRecoveryCredential(hash) {
   const params = new URLSearchParams(hash.replace(/^#/, ''));
   const value = params.get('token');
   return params.getAll('token').length === 1 && /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(value || '') ? value : null;
 }
 
+/**
+ * Gửi POST /api/v1/auth/password-recovery/{path} (không gửi cookie, no-store, no-referrer, kèm Accept-Language).
+ * Mong đợi đúng expectedStatus (202 hoặc 204). Lỗi: NETWORK_ERROR, RATE_LIMITED (429), INVALID_RESPONSE, PASSWORD_POLICY (VALIDATION_FAILED có lỗi trường password), hoặc mã lỗi backend / RECOVERY_UNAVAILABLE.
+ */
 async function post(path, body, expectedStatus, { signal, lang = 'vi', fetchFn = globalThis.fetch } = {}) {
   let response;
   try {
@@ -29,7 +39,13 @@ async function post(path, body, expectedStatus, { signal, lang = 'vi', fetchFn =
   if (response.status !== expectedStatus || data?.messageKey !== 'auth.recovery.requestAccepted') throw new ApiError('INVALID_RESPONSE', response.status);
 }
 
+/**
+ * POST /api/v1/auth/password-recovery/requests với {email, locale}; mong đợi 202. Backend luôn trả cùng kết quả để không lộ email có tồn tại hay không.
+ */
 export const requestPasswordRecovery = ({ email }, options = {}) => post('requests', { email, locale: options.lang === 'en' ? 'en' : 'vi' }, 202, options);
+/**
+ * POST /api/v1/auth/password-recovery/reset với {credential, password}; mong đợi 204. Ném RECOVERY_INVALID ngay nếu mã không đúng định dạng.
+ */
 export const resetRecoveredPassword = (credential, { password }, options) => {
   if (!readRecoveryCredential(`#token=${credential || ''}`)) return Promise.reject(new ApiError('RECOVERY_INVALID'));
   return post('reset', { credential, password }, 204, options);

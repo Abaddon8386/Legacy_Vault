@@ -18,11 +18,13 @@
 
 import { getLegalApprovalTranslations } from './legalApprovalI18n.js';
 
+/** Hai quyết định phê duyệt pháp lý hợp lệ (APPROVE, REJECT), dùng bởi LegalApprovalReviewPage và validateApprovalForm. */
 export const LEGAL_APPROVAL_DECISIONS = {
   APPROVE: 'APPROVE',
   REJECT: 'REJECT',
 };
 
+/** Bộ hồ sơ mẫu tổng hợp (synthetic) theo mã dossier-xxx phục vụ kiểm thử và chế độ xem trước DEV của LegalApprovalReviewPage; không phải dữ liệu thật và không dùng ở chế độ live. */
 // Fixture kịch bản phong phú phục vụ kiểm thử và xem trước DEV
 export const SYNTHETIC_APPROVAL_DOSSIERS = {
   'dossier-001': {

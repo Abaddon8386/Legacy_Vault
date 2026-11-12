@@ -9,6 +9,15 @@ import './AssetAttachmentTable.css';
 /**
  * Asset photos as a 2-column table: file name | view/collapse button (plus delete when editable).
  * `sessionPassword` is a password already verified in the parent modal, so no extra prompt is needed.
+ *
+ * Danh sách ảnh của một tài sản dạng bảng 2 cột (tên tệp | nút xem/thu gọn, kèm nút xóa khi được sửa). Dùng trong {@code AssetDetailModal} (chỉ đọc) và {@code AssetEditModal}.
+ *
+ * API gọi qua {@code assetImageService}: {@code GET /vaults/{v}/assets/{a}/images} khi mount, {@code POST .../images/{id}/download} (xem ảnh, cần mật khẩu),
+ * {@code DELETE .../images/{id}}, {@code POST .../images} (thêm ảnh). Ảnh mở ra được hiển thị bằng {@code ZoomableImage} từ object URL (được thu hồi khi unmount).
+ *
+ * Props: {@code vaultId}, {@code assetId}, {@code accessToken}, {@code lang}, {@code onUnauthorized}, {@code readOnly}, {@code allowUpload}, {@code sessionPassword}
+ * (mật khẩu đã xác minh ở modal cha, bỏ qua bước hỏi lại), {@code onUnlocked(password)}, {@code onCountChange(n)}, {@code children}.
+ * State: {@code images}, {@code files} (ảnh chờ tải lên), {@code error}, {@code busy}, {@code password}, {@code selected} (ảnh đang chờ nhập mật khẩu), {@code opened} (map id -> object URL).
  */
 export function AssetImageGallery({ vaultId, assetId, accessToken, lang = 'vi', onUnauthorized, readOnly = false, allowUpload = !readOnly, sessionPassword = '', onUnlocked, onCountChange, children }) {
   const en=lang==='en';

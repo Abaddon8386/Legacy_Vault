@@ -6,6 +6,23 @@ import { validateTrustee } from '../../utils/trusteeValidation.js';
 import { validateBeneficiary } from '../../utils/beneficiaryValidation.js';
 import { updateTrustee, updateBeneficiary } from '../../utils/trusteeBeneficiaryService.js';
 
+/**
+ * Hộp thoại chỉnh sửa một người thi hành bên ngoài (kind 'trustee') hoặc người thụ hưởng (kind 'beneficiary'), mở từ TrusteeBeneficiaryPage.
+ * Kiểm tra bằng validateTrustee / validateBeneficiary; người thụ hưởng dưới 18 tuổi (beneficiaryAge) hiện gợi ý bổ sung người giám hộ. Khi lưu gọi updateTrustee (PUT /api/v1/trustees/{id})
+ * hoặc updateBeneficiary (PUT /api/v1/vaults/{vaultId}/beneficiaries/{id}) rồi onUpdated(result). Giữ nội dung đã nhập khi lỗi; 401 -> onUnauthorized và đóng; có AbortController và khóa chống gửi lặp.
+ *
+ * @param {object} props
+ * @param {object} props.person Đối tượng đang sửa {id, fullName, relationship, phone, email, dateOfBirth, note}.
+ * @param {'trustee'|'beneficiary'} props.kind Loại đối tượng.
+ * @param {string} props.vaultId Id kho.
+ * @param {string} props.accessToken JWT.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {object} props.labels Bộ nhãn của form (fullNameLabel, relationshipLabel, dobLabel, phoneLabel...).
+ * @param {() => void} props.onClose Đóng hộp thoại.
+ * @param {(result: object) => void} props.onUpdated Gọi khi cập nhật thành công.
+ * @param {() => void} [props.onUnauthorized] Gọi khi 401.
+ * @returns {JSX.Element}
+ */
 export default function RelatedPersonEditDialog({ person, kind, vaultId, accessToken, lang, labels, onClose, onUpdated, onUnauthorized }) {
  const isTrustee=kind==='trustee', en=lang==='en';
  const [form,setForm]=useState(()=>({fullName:person.fullName,relationship:person.relationship||'',phone:person.phone||'',email:person.email||'',dateOfBirth:person.dateOfBirth||'',note:person.note??null}));
@@ -18,6 +35,7 @@ export default function RelatedPersonEditDialog({ person, kind, vaultId, accessT
  useEffect(()=>()=>{request.current?.abort();},[]);
  const errors=(isTrustee?validateTrustee:validateBeneficiary)(form,lang);
  const fields=[['fullName',labels.fullNameLabel,'text',150],['relationship',labels.relationshipLabel,'text',100],...(!isTrustee?[['dateOfBirth',labels.dobLabel,'date',undefined]]:[]),['phone',labels.phoneLabel,'tel',20],['email',labels.emailLabel,'email',254]];
+ /** Kiểm tra form (focus vào trường lỗi đầu tiên nếu có), rồi gọi updateTrustee/updateBeneficiary; thành công gọi onUpdated, lỗi 401 gọi onUnauthorized và đóng, lỗi khác hiện thông báo và giữ nội dung đã nhập. */
  async function submit(event){
   event.preventDefault();if(pending.current)return;
   setTouched(Object.fromEntries(fields.map(([key])=>[key,true])));

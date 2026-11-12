@@ -16,17 +16,33 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-/** ROLE_ADMIN-only read API for account search and detail. */
+/**
+ * ROLE_ADMIN-only read API for account search and detail.
+ * <p>Base path {@code /api/v1/admin/users}. Chỉ đọc; dữ liệu do {@link AdminUserQueryService} dựng.
+ * Tham số được kiểm tra bằng Bean Validation (độ dài, regex trạng thái, giới hạn trang).
+ */
 @RestController
 @RequestMapping("/api/v1/admin/users")
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminUserQueryController {
     private final AdminUserQueryService service;
 
+    /** @param service service tra cứu tài khoản (được Spring inject). */
     public AdminUserQueryController(AdminUserQueryService service) {
         this.service = service;
     }
 
+    /**
+     * {@code GET /api/v1/admin/users} - tìm và liệt kê tài khoản có phân trang.
+     *
+     * @param query       từ khoá tìm theo tên/email; nếu là UUID đầy đủ thì tìm đúng tài khoản có publicId đó
+     * @param role        lọc theo role (ví dụ ROLE_VAULT_OWNER)
+     * @param status      PENDING | ACTIVE | LOCKED | IN_PROCESS | DELETED
+     * @param vaultStatus NO_VAULT | ACTIVE | IN_PROCESS | ARCHIVED (chỉ hợp lệ khi lọc role Vault Owner)
+     * @param page        trang từ 0
+     * @param size        1-100, mặc định 20
+     * @return trang {@link AdminUserResponse}, mới tạo trước
+     */
     @GetMapping
     public PageResponse<AdminUserResponse> listUsers(
             @RequestParam(required = false) @Size(max = 100) String query,
@@ -38,6 +54,12 @@ public class AdminUserQueryController {
         return service.listUsers(query, role, status, vaultStatus, page, size);
     }
 
+    /**
+     * {@code GET /api/v1/admin/users/{publicId}} - xem một tài khoản.
+     *
+     * @param role tuỳ chọn; khi là role nghiệp vụ, tài khoản đã xoá hoặc chưa ACTIVE/LOCKED trả 404
+     * @return {@link AdminUserResponse}; 404 {@code RESOURCE_NOT_FOUND} nếu không tồn tại
+     */
     @GetMapping("/{publicId}")
     public AdminUserResponse getUser(@PathVariable UUID publicId,
             @RequestParam(required = false) @Size(max = 50) String role) {

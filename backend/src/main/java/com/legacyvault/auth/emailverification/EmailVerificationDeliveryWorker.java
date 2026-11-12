@@ -5,17 +5,32 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Off by default. Enabling it requires an {@link EmailVerificationMailTransport} bean; none ships yet, so
- * enabling without one fails at startup instead of pretending mail was sent.
+ * Worker nền gửi email xác minh, mặc định tắt (bật bằng {@code legacyvault.auth.email-verification.delivery-enabled=true}).
+ * Cần bean {@link EmailVerificationMailTransport} (cài đặt: {@link ResendEmailVerificationMailTransport}); thiếu thì
+ * lỗi khi khởi động thay vì giả vờ đã gửi.
  */
 @Component
 @ConditionalOnProperty(name="legacyvault.auth.email-verification.delivery-enabled",havingValue="true")
 public class EmailVerificationDeliveryWorker {
+    /**
+     * Dịch vụ quản lý hàng đợi và mã xác minh.
+     */
     private final EmailVerificationService service;
+    /**
+     * Kênh gửi mail thực tế.
+     */
     private final EmailVerificationMailTransport transport;
+    /**
+     * @param service   dịch vụ xác minh
+     * @param transport kênh gửi mail
+     */
     public EmailVerificationDeliveryWorker(EmailVerificationService service,EmailVerificationMailTransport transport) {
         this.service=service; this.transport=transport;
     }
+    /**
+     * Chạy định kỳ (mặc định 5 giây, {@code poll-ms}), tối đa 10 job mỗi lượt: claim -> prepare -> send -> mark
+     * {@code ACCEPTED}; lỗi thì {@code FAILED}. Job đã CLAIMED không tự retry sau sự cố mơ hồ; không đẩy ngoại lệ nhà cung cấp ra log.
+     */
     @Scheduled(fixedDelayString="${legacyvault.auth.email-verification.poll-ms:5000}")
     public void deliver() {
         // Bounded batch; a CLAIMED job is never retried automatically after a crash or ambiguous send.

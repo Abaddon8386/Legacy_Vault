@@ -4,13 +4,20 @@ package com.legacyvault.common.error;
  * Danh mục mã lỗi công khai. {@code name()} là giá trị "code" trong JSON lỗi và là thứ duy nhất
  * FE được phép dùng để phân loại lỗi (không so sánh chuỗi message).
  *
- * <p>Thêm mã mới: thêm một dòng ở đây, thêm message key vi/en vào messages*.properties và cập nhật
- * docs/api-contracts/error-contract.md trong cùng PR.
+ * <p>Thêm mã mới: thêm một dòng ở đây, thêm message key vi/en vào messages*.properties, liệt kê trong
+ * {@code docs/api-contracts/openapi.yaml} (enum {@code ApiError.code}, nếu không {@code SubscriptionContractTest}
+ * sẽ fail) và cập nhật docs/api-contracts/error-contract.md trong cùng PR.
+ *
+ * <p>Mỗi hằng số gồm: mã HTTP status và message key (tra trong {@code messages.properties} / {@code messages_en.properties}).
+ * Các nhóm: xung đột trạng thái nghiệp vụ (409), xác thực/phân quyền (401/403), validation (400/422),
+ * giới hạn tốc độ (429), lỗi hệ thống (500).
  */
 public enum ErrorCode {
+    /** Nhóm bàn giao theo nhóm người thụ hưởng bị chặn (HTTP 409). */
     GROUP_HANDOVER_BLOCKED(409, "error.groupHandover.blocked"),
     GROUP_HANDOVER_STALE(409, "error.groupHandover.stale"),
     BENEFICIARY_GUARDIAN_STALE(409, "error.guardian.stale"),
+    /** Mật khẩu không đạt chính sách độ mạnh (HTTP 400). */
     PASSWORD_POLICY(400, "validation.passwordPolicy"),
     RECOVERY_INVALID(400, "error.auth.recoveryInvalid"),
     RECOVERY_UNAVAILABLE(503, "error.auth.recoveryUnavailable"),
@@ -31,8 +38,10 @@ public enum ErrorCode {
 	HANDOVER_COMPLETION_PENDING(409, "error.handoverCompletion.pending"),
 	HANDOVER_CONFIRMATION_PENDING_DELIVERY(409, "error.handoverConfirmation.pendingDelivery"),
 	HANDOVER_CONFIRMATION_CONFLICT(409, "error.handoverConfirmation.conflict"),
+	/** Dữ liệu request không hợp lệ; kèm danh sách {@code errors} theo trường (HTTP 400). */
 	VALIDATION_FAILED(400, "error.validation.failed"),
 	MALFORMED_REQUEST(400, "error.request.malformed"),
+	/** Chưa đăng nhập hoặc token thiếu/hết hạn/không hợp lệ (HTTP 401). */
 	UNAUTHENTICATED(401, "error.auth.unauthenticated"),
 	INVALID_CREDENTIALS(401, "error.auth.invalidCredentials"),
 	INVALID_GOOGLE_CREDENTIAL(401, "error.auth.googleCredentialInvalid"),
@@ -44,8 +53,11 @@ public enum ErrorCode {
 	PASSWORD_NOT_SET(403, "error.auth.passwordNotSet"),
 	PASSWORD_ALREADY_SET(409, "error.auth.passwordAlreadySet"),
 	ACCOUNT_LOCKED_BY_ADMIN(403, "error.auth.accountLockedByAdmin"),
+	/** Đã đăng nhập nhưng thiếu quyền truy cập (HTTP 403). */
 	ACCESS_DENIED(403, "error.auth.accessDenied"),
+	/** Nhập sai mật khẩu xác nhận khi xem nội dung bảo mật; dùng 403 chứ không phải 401 để FE không coi là hết phiên. */
 	REAUTH_FAILED(403, "error.auth.reauthFailed"),
+	/** Không tìm thấy tài nguyên (HTTP 404). */
 	RESOURCE_NOT_FOUND(404, "error.resource.notFound"),
 	METHOD_NOT_ALLOWED(405, "error.request.methodNotAllowed"),
 	EMAIL_ALREADY_EXISTS(409, "error.auth.emailExists"),
@@ -114,20 +126,27 @@ public enum ErrorCode {
 	ASSET_QUOTA_EXCEEDED(409, "error.subscription.assetQuotaExceeded"),
 	STORAGE_QUOTA_EXCEEDED(409, "error.subscription.storageQuotaExceeded"),
 	UNSUPPORTED_MEDIA_TYPE(415, "error.request.unsupportedMediaType"),
+	/** Thử sai quá số lần cho phép trong cửa sổ thời gian (HTTP 429). */
 	TOO_MANY_ATTEMPTS(429, "error.auth.tooManyAttempts"),
+	/** Lỗi hệ thống không lường trước; chi tiết chỉ nằm trong log theo traceId (HTTP 500). */
 	INTERNAL_ERROR(500, "error.internal");
 
+	/** Mã HTTP trả về cho lỗi này. */
 	private final int status;
+	/** Khóa thông điệp trong {@code messages.properties} (vi) và {@code messages_en.properties} (en). */
 	private final String messageKey;
 
+	/** Gán mã HTTP và khóa thông điệp cho hằng số. */
 	ErrorCode(int status, String messageKey) {
 		this.status = status;
 		this.messageKey = messageKey;
 	}
 
+	/** Trả về mã HTTP của lỗi. */
 	public int status() {
 		return status;
 	}
+	/** Trả về khóa thông điệp i18n của lỗi. */
 	public String messageKey() {
 		return messageKey;
 	}

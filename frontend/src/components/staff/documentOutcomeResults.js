@@ -1,3 +1,10 @@
+/**
+ * Bảng tra kết quả xử lý của Ban Pháp lý (Legal) đối với giấy tờ/phân bổ/di chúc.
+ * Khóa là mã kết quả backend trả về (`result` trong `legalHistory` hoặc `comparison`);
+ * giá trị là bộ ba `[nhãn tiếng Việt, nhãn tiếng Anh, tông màu]` với tông màu thuộc
+ * `positive | negative | warning`. Được dùng bởi `StaffDocumentOutcome.jsx`,
+ * `StaffLegalOutcomeCard.jsx` và hàm `versionOutcomeChip`.
+ */
 export const outcomeResults = {
   MATCH: ['Đối chiếu khớp', 'Comparison matches', 'positive'],
   MISMATCH: ['Đối chiếu không khớp', 'Comparison does not match', 'negative'],
@@ -15,6 +22,10 @@ export const outcomeResults = {
   COURT_INCONCLUSIVE: ['Chưa đủ cơ sở xác nhận căn cứ', 'Court evidence inconclusive', 'warning'],
 };
 
+/**
+ * Nhãn ngắn (vi, en) dùng cho chip hiển thị trên thanh ngữ cảnh hồ sơ.
+ * Nếu mã kết quả không có ở đây thì `versionOutcomeChip` dùng nhãn dài trong `outcomeResults`.
+ */
 const chipLabels = {
   LEGAL_APPROVED: ['Đã phê duyệt', 'Approved'],
   LEGAL_REJECTED: ['Bị từ chối', 'Rejected'],
@@ -26,6 +37,17 @@ const chipLabels = {
   FRESH: ['Đã thẩm định', 'Assessed'],
 };
 
+/**
+ * Tạo dữ liệu chip kết quả thẩm định mới nhất của một phiên bản giấy tờ.
+ * Lấy phần tử đầu của `version.legalHistory` (mới nhất), tra trong `outcomeResults`.
+ * Nếu kết quả đã hết hiệu lực (`currentScope === false` hoặc `version.current === false`)
+ * thì trả chip tông `history` với nhãn "Kết quả cũ" để không bị nhầm với kết quả hiện hành.
+ *
+ * @param {object} version phiên bản giấy tờ có mảng `legalHistory` (dữ liệu từ API staff legal-documents).
+ * @param {boolean} [en=false] true để dùng nhãn tiếng Anh.
+ * @returns {{label: string, tone: string, stale: boolean, resultLabel: string}|null}
+ *   null khi chưa có kết quả hoặc mã kết quả không được biết.
+ */
 export function versionOutcomeChip(version, en = false) {
   const latest = version?.legalHistory?.[0];
   const label = latest && outcomeResults[latest.result];

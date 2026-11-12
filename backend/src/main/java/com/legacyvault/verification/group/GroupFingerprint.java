@@ -12,10 +12,19 @@ import java.util.UUID;
  * PS-119/122: the single definition of the "current scope" fingerprint a group attendance is bound to. Locked writes
  * (PS-120) and the lock-free reads (PS-122) must hash exactly the same inputs, otherwise a read could show READY while
  * delivery is blocked, or the reverse.
+ *
+ * Tiện ích không có trạng thái; dùng bởi {@link GroupHandoverService} (khi ghi) và {@link GroupHandoverReadService} (khi đọc).
  */
 final class GroupFingerprint {
     private GroupFingerprint() { }
 
+    /**
+     * Tính vân tay (hash) của phạm vi hiện tại gồm phiên, Staff được giao, mốc cập nhật của ca và hồ sơ, phiên bản và
+     * SHA-256 của văn bản, hash phạm vi phân bổ, quyết định phê duyệt gần nhất và các dòng phân bổ đã duyệt, bằng
+     * {@code AllocationScopeHash.hashCanonicalValues}.
+     *
+     * @return chuỗi hash; đổi bất kỳ đầu vào nào thì điểm danh cũ không còn hợp lệ
+     */
     static String of(UUID sessionPublicId, Long assignedStaffUserId, LocalDateTime caseUpdatedAt,
             LocalDateTime dossierUpdatedAt, int versionNo, String versionSha256, String scopeHash,
             UUID latestApprovalPublicId, Collection<ReceiptAllocationRow> rows) {

@@ -2,6 +2,9 @@ import { useState, useEffect, useRef, useId, useCallback } from 'react';
 import { formatIsoToDisplay, parseDisplayToIso, isValidCalendarDate } from '../../utils/datePickerHelpers.js';
 import './DatePicker.css';
 
+/**
+ * Icon lịch (SVG).
+ */
 function CalendarIcon({ size = 16, ...props }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -13,6 +16,9 @@ function CalendarIcon({ size = 16, ...props }) {
   );
 }
 
+/**
+ * Icon mũi tên trái (SVG).
+ */
 function ChevronLeft({ size = 16, ...props }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -21,6 +27,9 @@ function ChevronLeft({ size = 16, ...props }) {
   );
 }
 
+/**
+ * Icon mũi tên phải (SVG).
+ */
 function ChevronRight({ size = 16, ...props }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -29,6 +38,9 @@ function ChevronRight({ size = 16, ...props }) {
   );
 }
 
+/**
+ * Icon dấu X xóa (SVG).
+ */
 function XIcon({ size = 14, ...props }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -38,6 +50,10 @@ function XIcon({ size = 14, ...props }) {
   );
 }
 
+/**
+ * Tạo thông báo lỗi song ngữ cho ô ngày: {@code invalid} (không phải ngày thật), {@code min}, {@code max} (kèm ngày giới hạn) hoặc {@code required}.
+ * @returns {string} Chuỗi rỗng nếu không có lỗi.
+ */
 function buildValidationMessage(errorType, { isEn, min, max }) {
   if (errorType === 'invalid') {
     return isEn ? 'Please enter a valid date.' : 'Vui lòng nhập ngày thực tế hợp lệ.';
@@ -64,6 +80,10 @@ function buildValidationMessage(errorType, { isEn, min, max }) {
  * Universal accessible DatePicker component for LegacyVault
  * Supports VI (DD/MM/YYYY) and EN (YYYY-MM-DD) display formats
  * Value contract: always ISO string YYYY-MM-DD (or raw string when invalid/typing, empty string when cleared)
+ *
+ * Props: {@code value} (ISO), {@code onChange}, {@code min}/{@code max} (ISO), {@code disabled}, {@code required}, {@code id}, {@code name}, {@code placeholder}, {@code className}, {@code lang}, {@code aria-label}, {@code aria-invalid}, {@code aria-describedby}.
+ * State: {@code isOpen}, {@code popoverStyle} (vị trí lịch), {@code inputValue} (chuỗi hiển thị), {@code inputError}, {@code navYear}/{@code navMonth} (tháng đang xem), {@code focusedDate}.
+ * Đồng bộ với giá trị từ ngoài (reset form, đổi ngôn ngữ) mà không ghi đè giá trị chính nó vừa phát ra; đặt {@code setCustomValidity} cho validation gốc của trình duyệt.
  */
 export function DatePicker({
   value = '',
@@ -246,12 +266,18 @@ export function DatePicker({
 
   const defaultPlaceholder = isEn ? 'YYYY-MM-DD' : 'DD/MM/YYYY';
 
+  /**
+   * Kiểm tra một ngày ISO có nằm ngoài khoảng {@code min}/{@code max} (bị khóa trong lịch) hay không.
+   */
   const isDateDisabled = useCallback((iso) => {
     if (min && iso < min) return true;
     if (max && iso > max) return true;
     return false;
   }, [min, max]);
 
+  /**
+   * Xử lý gõ vào ô ngày: cập nhật hiển thị, chuyển chuỗi nhập (DD/MM/YYYY hoặc YYYY-MM-DD) sang ISO, kiểm tra ngày thật và khoảng min/max, rồi gọi {@code onChange} với giá trị ISO hoặc chuỗi thô khi sai.
+   */
   const handleInputChange = (e) => {
     const raw = e.target.value;
     setInputValue(raw);
@@ -292,6 +318,9 @@ export function DatePicker({
     }
   };
 
+  /**
+   * Khi rời ô nhập: chuẩn hóa hiển thị theo ngôn ngữ nếu hợp lệ, hoặc cập nhật lỗi (bắt buộc/không hợp lệ).
+   */
   const handleInputBlur = () => {
     const trimmed = inputValue.trim();
     if (!trimmed) {
@@ -327,6 +356,9 @@ export function DatePicker({
     }
   };
 
+  /**
+   * Chọn một ngày từ lịch: cập nhật ô nhập, phát {@code onChange(iso)}, đóng lịch và trả focus.
+   */
   const selectDate = (iso) => {
     if (isDateDisabled(iso)) return;
     setInputError(null);
@@ -337,6 +369,9 @@ export function DatePicker({
     inputRef.current?.focus();
   };
 
+  /**
+   * Chuyển lịch sang tháng trước.
+   */
   const prevMonth = () => {
     if (navMonth === 0) {
       setNavMonth(11);
@@ -346,6 +381,9 @@ export function DatePicker({
     }
   };
 
+  /**
+   * Chuyển lịch sang tháng sau.
+   */
   const nextMonth = () => {
     if (navMonth === 11) {
       setNavMonth(0);
@@ -356,6 +394,9 @@ export function DatePicker({
   };
 
   // Keyboard navigation inside calendar
+  /**
+   * Đặt focus vào một ô ngày trong lịch sau lần render kế tiếp.
+   */
   const focusDayOnNextTick = (selector) => {
     const schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (cb) => setTimeout(cb, 0);
     schedule(() => {
@@ -366,6 +407,9 @@ export function DatePicker({
     });
   };
 
+  /**
+   * Điều hướng bằng bàn phím trong lịch: phím mũi tên đổi ngày, PageUp/PageDown đổi tháng, Home/End về đầu/cuối tuần, Enter/Space chọn ngày, Escape đóng lịch.
+   */
   const handleKeyDownCalendar = (e) => {
     if (!isOpen) {
       if (e.key === 'ArrowDown' && e.altKey) {

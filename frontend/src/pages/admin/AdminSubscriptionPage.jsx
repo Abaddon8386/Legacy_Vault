@@ -18,10 +18,28 @@ import {
   adminSubscriptionErrorMessage,
 } from '../../utils/adminSubscriptionService.js';
 
+/**
+ * Trang quản lý gói đăng ký (ROLE_ADMIN). Bọc `ScopedAdminSubscriptionPage` với `key` theo accessToken để reset state khi đổi phiên.
+ *
+ * @param {object} props Xem `ScopedAdminSubscriptionPage`.
+ */
 export default function AdminSubscriptionPage(props) {
   return <ScopedAdminSubscriptionPage key={props.accessToken || 'anonymous'} {...props} />;
 }
 
+/**
+ * Nội dung trang quản lý gói với 3 tab: danh mục gói và phiên bản, tra cứu tài khoản và mức dùng, giao dịch thanh toán
+ * (`AdminPaymentTransactions`). Dùng các hàm trong `utils/adminSubscriptionService.js`:
+ * `GET /api/v1/admin/subscriptions/plans` (danh sách), `GET .../plans/{code}` (chi tiết), `POST .../plans/{code}/versions` (tạo bản nháp),
+ * `PUT .../plans/{code}/versions/{v}` (sửa bản nháp, có `concurrencyToken`), `POST .../versions/{v}/publish`, `POST .../versions/{v}/deprecate`,
+ * `GET /api/v1/admin/subscriptions/accounts?query=` (tra cứu tài khoản). Giới hạn tệp cố định 10 MB, mô hình thanh toán LIFETIME.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {string} props.accessToken JWT admin.
+ * @param {Function} [props.onUnauthorized] Callback khi 401.
+ * @param {Function} [props.onNavigateHome] Quay về trang tổng quan admin.
+ */
 function ScopedAdminSubscriptionPage({
   lang = 'vi',
   accessToken,
@@ -72,6 +90,9 @@ function ScopedAdminSubscriptionPage({
   const accountController=useRef(null);
   useEffect(()=>()=>accountController.current?.abort(),[activeTab]);
 
+  /**
+   * Bộ chuỗi giao diện song ngữ của trang (chọn theo `lang`).
+   */
   const t = {
     title: en ? 'Subscription Plan Catalog' : 'Quản lý gói sử dụng',
     subtitle: en
@@ -104,6 +125,9 @@ function ScopedAdminSubscriptionPage({
       : 'Cấu hình gói đã bị thay đổi bởi quản trị viên khác. Vui lòng tải lại dữ liệu.',
   };
 
+  /**
+   * Tải lại danh sách gói (`GET /api/v1/admin/subscriptions/plans`); 401 gọi `onUnauthorized`, lỗi khác lưu vào `plansError`.
+   */
   const loadPlans = useCallback(async () => {
     setLoadingPlans(true);
     setPlansError(null);
@@ -150,6 +174,11 @@ function ScopedAdminSubscriptionPage({
     };
   }, [accessToken, lang, onUnauthorized]);
 
+  /**
+   * Chọn một gói và tải chi tiết cùng các phiên bản (`GET /api/v1/admin/subscriptions/plans/{planCode}`).
+   *
+   * @param {string} planCode Mã gói.
+   */
   const openPlanDetail = async (planCode) => {
     setSelectedPlanCode(planCode);
     setLoadingDetail(true);
@@ -169,6 +198,11 @@ function ScopedAdminSubscriptionPage({
     }
   };
 
+  /**
+   * Mở drawer tạo bản nháp mới dựa trên một phiên bản nguồn (version + 1), điền sẵn các trường từ phiên bản đó.
+   *
+   * @param {object} sourceVersion Phiên bản nguồn.
+   */
   const handleStartCreateDraft = (sourceVersion) => {
     if (!sourceVersion) return;
     setSaveError(null);
@@ -193,6 +227,11 @@ function ScopedAdminSubscriptionPage({
     });
   };
 
+  /**
+   * Mở drawer chỉnh sửa một bản nháp hiện có, nạp sẵn dữ liệu và `concurrencyToken` để chống ghi đè đồng thời.
+   *
+   * @param {object} draftVer Phiên bản nháp.
+   */
   const handleStartEditDraft = (draftVer) => {
     setSaveError(null);
     setActionSuccess(null);
@@ -216,6 +255,10 @@ function ScopedAdminSubscriptionPage({
     });
   };
 
+  /**
+   * Lưu drawer: nếu là bản nháp mới thì `POST .../plans/{code}/versions` (sourceVersionId, changeNotes), ngược lại
+   * `PUT .../plans/{code}/versions/{version}` với đầy đủ thông tin gói. Sau đó tải lại chi tiết và danh sách.
+   */
   const handleSaveDraft = async (e) => {
     e.preventDefault();
     if (!editingVersion) return;
@@ -267,6 +310,9 @@ function ScopedAdminSubscriptionPage({
     }
   };
 
+  /**
+   * Công bố một phiên bản (sau khi xác nhận): `POST .../plans/{planCode}/versions/{version}/publish`; phiên bản cũ sẽ bị ngừng áp dụng.
+   */
   const handlePublish = async (planCode, version) => {
     if (!window.confirm(en ? `Publish version ${version} for ${planCode}? Earlier version will be deprecated.` : `Công bố phiên bản ${version} cho gói ${planCode}? Phiên bản trước sẽ tự động ngừng áp dụng.`)) {
       return;
@@ -285,6 +331,9 @@ function ScopedAdminSubscriptionPage({
     }
   };
 
+  /**
+   * Ngừng áp dụng một phiên bản (sau khi xác nhận): `POST .../plans/{planCode}/versions/{version}/deprecate`.
+   */
   const handleDeprecate = async (planCode, version) => {
     if (!window.confirm(en ? `Deprecate version ${version} for ${planCode}? It will no longer be offered for new purchases.` : `Ngừng áp dụng phiên bản ${version} của gói ${planCode}? Phiên bản sẽ không còn khả dụng cho lượt đăng ký mới.`)) {
       return;
@@ -303,6 +352,9 @@ function ScopedAdminSubscriptionPage({
     }
   };
 
+  /**
+   * Tra cứu tài khoản và mức sử dụng theo email/tên/ID: `GET /api/v1/admin/subscriptions/accounts?query=...`; hủy request cũ khi chuyển tab.
+   */
   const handleLookupAccount = async (e) => {
     e.preventDefault();
     const q = accountQuery.trim();

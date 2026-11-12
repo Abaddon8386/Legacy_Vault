@@ -11,6 +11,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.*;
 import java.util.*;
+/**
+ * ST-26 (LV-CLOSE-001): Staff đối soát và xác nhận từng người nhận đã nhận bàn giao tại quầy.
+ *
+ * Được gọi bởi {@code BeneficiaryReconciliationController} (vai trò {@code STAFF_EXECUTOR}), tiền tố
+ * {@code /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}}:
+ * <ul>
+ *   <li>{@code GET /beneficiary-confirmations} → {@link #list}</li>
+ *   <li>{@code POST /beneficiaries/{beneficiaryId}/confirmation} (multipart, qua {@code SignedReceiptService}) → {@link #confirmSigned}</li>
+ * </ul>
+ * Ghi bảng xác nhận người nhận ({@link BeneficiaryConfirmationRecord}), mã hóa file biên nhận có chữ ký bằng AES và ghi audit
+ * {@code BENEFICIARY_HANDOVER_CONFIRMED}.
+ */
 @Service
 public class BeneficiaryReconciliationService {
 private final com.legacyvault.verification.group.GroupHandoverService group;
@@ -19,8 +31,20 @@ private final com.legacyvault.verification.group.GroupHandoverService group;
     private final UserRepository users;
     private final AuditService audit;
     private final com.legacyvault.common.crypto.EncryptionService encryption;
+    /**
+     * Khởi tạo service với bộ truy cập snapshot, repository xác nhận, người dùng, audit, mã hóa và dịch vụ bàn giao nhóm.
+     */
     public BeneficiaryReconciliationService(HandoverCompletionAccess access,BeneficiaryConfirmationRepository confirmations,
             UserRepository users,AuditService audit,com.legacyvault.common.crypto.EncryptionService encryption, com.legacyvault.verification.group.GroupHandoverService group){this.group=group;this.access=access;this.confirmations=confirmations;this.users=users;this.audit=audit;this.encryption=encryption;}
+    /**
+     * Liệt kê trạng thái xác nhận của từng người nhận trong phạm vi bàn giao hiện hành: người đã có bản ghi trả {@code CONFIRMED},
+     * người chưa có trả {@code PENDING}.
+     *
+     * @param caseId UUID công khai của ca
+     * @param sessionId UUID công khai của phiên bàn giao
+     * @param actor Staff đang đăng nhập
+     * @return danh sách trạng thái xác nhận theo người nhận
+     */
     @Transactional
     public List<BeneficiaryConfirmationResponse> list(UUID caseId,UUID sessionId,CustomUserPrincipal actor){
         var snapshot=access.read(caseId,sessionId,actor);
@@ -34,15 +58,38 @@ private final com.legacyvault.verification.group.GroupHandoverService group;
                         new BeneficiaryConfirmationResponse(null,sessionId,id,"PENDING",null,null,null));
                 }).toList();
     }
+    /**
+     * Xác nhận người nhận đã nhận bàn giao (không kèm file chữ ký). Ủy quyền cho {@link #confirmInternal}.
+     *
+     * @param recipientId UUID công khai của người nhận
+     * @param request mã tham chiếu biên nhận
+     */
     @Transactional
     public BeneficiaryConfirmationResponse confirm(UUID caseId,UUID sessionId,UUID recipientId,
             ConfirmBeneficiaryRequest request,CustomUserPrincipal actor){
         return confirmInternal(caseId,sessionId,recipientId,request,actor,null,null);
     }
+    /**
+     * Xác nhận người nhận kèm file biên nhận có chữ ký (bản giấy đã scan) và số tham chiếu giấy. Ủy quyền cho {@link #confirmInternal}.
+     *
+     * @param file file đã kiểm tra (nội dung, tên, loại, SHA-256)
+     * @param paperReference số tham chiếu bản giấy (có thể null)
+     */
     @Transactional
     public BeneficiaryConfirmationResponse confirmSigned(UUID caseId,UUID sessionId,UUID recipientId,ConfirmBeneficiaryRequest request,CustomUserPrincipal actor,com.legacyvault.will.service.WillFile file,String paperReference){
         return confirmInternal(caseId,sessionId,recipientId,request,actor,file,paperReference);
     }
+    /**
+     * Xử lý chung việc xác nhận một người nhận.
+     *
+     * Các bước: kiểm tra mã tham chiếu (không rỗng, tối đa 200 ký tự); khóa snapshot ({@code access.lock}) và kiểm tra bàn giao nhóm sẵn sàng;
+     * người nhận phải có dòng phân bổ và danh tính {@code VERIFIED_AT_COUNTER}; mọi tài sản của người đó phải đã giao;
+     * nếu đã có xác nhận trước đó thì idempotent (cùng tham chiếu và cùng file) hoặc ném lỗi xung đột; ngược lại lưu bản ghi mới
+     * (mã hóa file với AAD là UUID bản ghi) và ghi audit {@code BENEFICIARY_HANDOVER_CONFIRMED}.
+     *
+     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED, HANDOVER_RECIPIENT_NOT_ELIGIBLE,
+     *         HANDOVER_CONFIRMATION_PENDING_DELIVERY, HANDOVER_CONFIRMATION_CONFLICT
+     */
     private BeneficiaryConfirmationResponse confirmInternal(UUID caseId,UUID sessionId,UUID recipientId,ConfirmBeneficiaryRequest request,CustomUserPrincipal actor,com.legacyvault.will.service.WillFile file,String paperReference){
         if(request==null||request.receiptReference()==null||request.receiptReference().isBlank()
                 ||request.receiptReference().length()>200)throw new BusinessException(ErrorCode.VALIDATION_FAILED);
@@ -76,6 +123,11 @@ private final com.legacyvault.verification.group.GroupHandoverService group;
                     "confirmationId",record.getPublicId().toString()),"ST-26","LV-CLOSE-001"));
         return response(record,sessionId,recipientId);
     }
+    /**
+     * Dựng response xác nhận {@code CONFIRMED}, tra UUID công khai của Staff thực hiện từ bảng người dùng.
+     *
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND nếu không thấy người thực hiện
+     */
     private BeneficiaryConfirmationResponse response(BeneficiaryConfirmationRecord c,UUID session,UUID recipient){
         var actor=users.findById(c.getActorId()).orElseThrow(()->new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         return new BeneficiaryConfirmationResponse(c.getPublicId(),session,recipient,"CONFIRMED",

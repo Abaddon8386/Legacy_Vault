@@ -4,8 +4,14 @@
  * Follows approved frontend guard standards without exposing sensitive inputs.
  */
 
+/**
+ * Biểu thức kiểm tra email dùng chung (đăng nhập, khôi phục mật khẩu). Dùng bởi pages/auth/LoginPage.jsx và passwordRecoveryValidation.js.
+ */
 export const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
+/**
+ * Thông điệp lỗi song ngữ cho form đăng nhập.
+ */
 export const loginValidationMessages = {
   vi: {
     emailRequired: 'Vui lòng nhập địa chỉ email.',

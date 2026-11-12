@@ -7,6 +7,9 @@ import GoogleSignInButton from '../../components/auth/GoogleSignInButton.jsx';
 import InvitationEntry from '../../components/invitations/InvitationEntry.jsx';
 import AuthBrand from './AuthBrand.jsx';
 
+/**
+ * Chuỗi giao diện song ngữ (vi/en) của trang đăng ký, gồm cả nội dung điều khoản và chính sách.
+ */
 const i18nContent = {
   vi: {
     title: 'Tạo tài khoản cá nhân',
@@ -84,6 +87,9 @@ const i18nContent = {
   },
 };
 
+/**
+ * Giá trị khởi tạo của form đăng ký (họ tên, email, điện thoại, mật khẩu, xác nhận mật khẩu, đồng ý điều khoản).
+ */
 const initialForm = {
   fullName: '',
   email: '',
@@ -93,6 +99,22 @@ const initialForm = {
   agreeTerms: false,
 };
 
+/**
+ * Trang đăng ký tài khoản chủ kho (đường dẫn `/register`).
+ *
+ * Cách hoạt động: validate bằng `validateRegistration`, rồi gọi `registerUser` -> `POST /api/v1/auth/register` (mong đợi 201);
+ * thành công thì chuyển về trang đăng nhập. Có thể đăng ký bằng Google (`authenticateWithGoogle` -> `POST /api/v1/auth/google`).
+ * Ở `invitationMode` dùng `onRegisterWithInvitation` thay cho `registerUser` để đăng ký kèm lời mời người thụ hưởng.
+ * Có modal xem điều khoản/chính sách (đóng bằng Escape).
+ *
+ * @param {object} props
+ * @param {Function} [props.onNavigateToLogin] Chuyển sang trang đăng nhập.
+ * @param {Function} [props.onAuthenticated] Nhận kết quả khi đăng ký/đăng nhập bằng Google thành công.
+ * @param {Function} [props.onNavigateToInvitations] Mở luồng lời mời.
+ * @param {boolean} [props.invitationMode=false] Đang đăng ký để chấp nhận lời mời.
+ * @param {Function} [props.onCancelInvitation] Hủy luồng lời mời.
+ * @param {Function} [props.onRegisterWithInvitation] Hàm đăng ký kèm lời mời (khi `invitationMode`).
+ */
 export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated, onNavigateToInvitations, invitationMode = false, onCancelInvitation, onRegisterWithInvitation }) {
   const [lang, setLang] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi');
   const [values, setValues] = useState(initialForm);
@@ -108,6 +130,11 @@ export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated,
 
   const t = i18nContent[lang];
 
+  /**
+   * Đăng ký/đăng nhập bằng Google qua `authenticateWithGoogle` (`POST /api/v1/auth/google`); thành công gọi `onAuthenticated`, nếu không có thì chuyển về đăng nhập sau 1 giây.
+   *
+   * @param {{credential: string}} credentialResponse Phản hồi từ Google.
+   */
   const handleGoogleCredential = async (credentialResponse) => {
     if (pendingRef.current || invitationMode) return;
     pendingRef.current = true;
@@ -140,6 +167,9 @@ export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated,
     }
   };
 
+  /**
+   * Hiển thị lỗi từ nút Google (bỏ qua lỗi tải script vì nút tự hiển thị).
+   */
   const handleGoogleError = (err) => {
     if (status === 'submitting') return;
     if (err?.code === 'GOOGLE_SCRIPT_LOAD_ERROR') return;
@@ -159,6 +189,9 @@ export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated,
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [policyModal]);
 
+  /**
+   * Chuyển sang đăng nhập qua `onNavigateToLogin` hoặc `history.pushState('/login')`.
+   */
   const navigateToLogin = () => {
     if (typeof onNavigateToLogin === 'function') {
       onNavigateToLogin();
@@ -168,11 +201,19 @@ export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated,
     }
   };
 
+  /**
+   * Xử lý bấm liên kết "Đăng nhập": chặn hành vi mặc định và điều hướng nội bộ.
+   */
   const handleLoginClick = (e) => {
     e.preventDefault();
     navigateToLogin();
   };
 
+  /**
+   * Đổi ngôn ngữ và dịch lại các lỗi validate đang hiển thị.
+   *
+   * @param {'vi'|'en'} nextLang Ngôn ngữ mới.
+   */
   const handleLanguageChange = (nextLang) => {
     setLang(nextLang);
     const translatedErrors = validateRegistration(values, nextLang);
@@ -183,6 +224,9 @@ export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated,
     ));
   };
 
+  /**
+   * Cập nhật một trường form và xóa lỗi của trường đó.
+   */
   const handleInputChange = (field, value) => {
     setValues((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -194,6 +238,10 @@ export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated,
     }
   };
 
+  /**
+   * Submit đăng ký: validate, rồi gọi `registerUser` (`POST /api/v1/auth/register`) hoặc `onRegisterWithInvitation`; thành công thì xóa form và chuyển sang đăng nhập.
+   * Chặn gửi trùng bằng `pendingRef` và hủy request khi gỡ component.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (pendingRef.current || (invitationMode && typeof onRegisterWithInvitation !== 'function')) return;

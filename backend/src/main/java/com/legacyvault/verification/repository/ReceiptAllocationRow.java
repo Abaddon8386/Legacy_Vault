@@ -6,6 +6,13 @@ import java.util.UUID;
  * Authoritative allocation ids/public ids and approval state used to compose an immutable receipt.
  * BE-02: {@code recipientLinkedUserId} / {@code recipientSource} let the delivery step require a linked official account
  * (LV-HANDOVER-001) without reading the Owner configured list. The user id is internal and never leaves the service layer.
+ *
+ * Nguồn từ {@code LegalBasisVersionAllocationRepository.findReceiptRowsByDossier}; dùng bởi
+ * {@code HandoverReceiptService}, {@code AllocationScopeHash}, {@link com.legacyvault.verification.group.GroupHandoverService}.
+ *
+ * Các trường: {@code versionNo}, {@code allocationId}, {@code assetId} (khóa nội bộ), {@code assetPublicId},
+ * {@code beneficiaryId}, {@code beneficiaryPublicId}, trạng thái xác minh danh tính, {@code status}, {@code description},
+ * {@code assetName}, {@code beneficiaryName}, {@code recipientLinkedUserId}, {@code recipientSource}.
  */
 public record ReceiptAllocationRow(
         int versionNo,
@@ -22,7 +29,11 @@ public record ReceiptAllocationRow(
         Long recipientLinkedUserId,
         String recipientSource
 ) {
-    /** Fixture value meaning "a linked account exists" when a test does not care which one. */
+    /**
+     * Fixture value meaning "a linked account exists" when a test does not care which one.
+     *
+     * Giá trị mặc định cho test.
+     */
     public static final long FIXTURE_LINKED_USER_ID = 1L;
 
     public ReceiptAllocationRow(int versionNo, Long allocationId, Long assetId, UUID assetPublicId,
@@ -41,6 +52,9 @@ public record ReceiptAllocationRow(
                 beneficiaryIdentityVerificationStatus, status, description, null, null);
     }
 
+    /**
+     * True khi người nhận đã liên kết tài khoản chính thức.
+     */
     public boolean accountLinked() {
         return recipientLinkedUserId != null;
     }

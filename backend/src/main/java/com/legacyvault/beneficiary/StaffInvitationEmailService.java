@@ -21,7 +21,12 @@ import com.legacyvault.verification.service.StaffVaultCaseGuard;
 
 import jakarta.persistence.EntityManager;
 
-/** PS-106: Staff-confirmed address + existing PS-86 token lifecycle + encrypted transactional outbox. */
+/**
+ * PS-106: Staff-confirmed address + existing PS-86 token lifecycle + encrypted transactional outbox.
+ *
+ * <p>Gọi từ {@code StaffInvitationEmailController}. Bảng: {@code verification_cases}, {@code beneficiaries}, {@code beneficiary_counter_attestations},
+ * {@code beneficiary_invitations}, {@code beneficiary_invitation_mail_outbox}. Audit {@code BENEFICIARY_INVITATION_EMAIL_QUEUED}.
+ */
 @Service
 public class StaffInvitationEmailService {
     private final VerificationCaseRepository cases;
@@ -39,6 +44,9 @@ public class StaffInvitationEmailService {
     private final AuditService audit;
     private final EntityManager entities;
 
+    /**
+     * Hàm khởi tạo, Spring tiêm các phụ thuộc.
+     */
     public StaffInvitationEmailService(VerificationCaseRepository cases, StaffCaseLockRepository caseLocks,
             BeneficiaryRepository beneficiaries, BeneficiaryCounterAttestationRepository attestations,
             BeneficiaryInvitationRepository invitations, StaffContextService staff, StaffVaultCaseGuard caseGuard,
@@ -61,6 +69,14 @@ public class StaffInvitationEmailService {
         this.entities = entities;
     }
 
+    /**
+     * Xếp email mời. Các bước: xác thực Staff và case, khóa Vault rồi Case, kiểm tra bước pháp lý {@code HANDOVER} qua {@code LegalWorkflowGuard},
+     * kiểm tra người thụ hưởng đã xác minh tại quầy và chưa có tài khoản, kiểm tra phạm vi bàn giao ({@code HandoverScopeResolver}), lấy chứng thực mới nhất
+     * và email đã xác nhận, trả kết quả cũ nếu yêu cầu lặp, cấp mã gắn email ({@code issueBoundForStaff}), đưa vào outbox và audit.
+     * @param expectedGeneration thế hệ mã Staff đang thấy (0 nếu chưa có mã)
+     * @return {@code Queued}, {@code transportStatus} luôn {@code DISABLED}
+     * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND}, {@code BENEFICIARY_IDENTITY_NOT_VERIFIED}, {@code BENEFICIARY_ACCOUNT_ALREADY_LINKED}, {@code BENEFICIARY_INVITATION_COUNTER_EMAIL_REQUIRED} và các lỗi từ guard pháp lý hoặc thế hệ mã
+     */
     @Transactional
     public InvitationEmailDtos.Queued request(UUID caseId, UUID beneficiaryId, int expectedGeneration) {
         User actor = staff.requireStaff();
@@ -111,10 +127,16 @@ public class StaffInvitationEmailService {
         return queued(outbox);
     }
 
+    /**
+     * Chuyển dòng outbox sang DTO {@code Queued}.
+     */
     private static InvitationEmailDtos.Queued queued(BeneficiaryInvitationOutbox row) {
         return new InvitationEmailDtos.Queued(row.getPublicId(), row.getInvitationPublicId(),
                 row.getInvitationGeneration(), row.getTransportStatus(), "DISABLED");
     }
 
+    /**
+     * Tạo lỗi {@code RESOURCE_NOT_FOUND}.
+     */
     private static BusinessException notFound() { return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND); }
 }

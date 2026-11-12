@@ -3,6 +3,25 @@ import { readUser } from '../../api/contracts.js';
 import { invitationErrorKey, invitationMessages } from '../../components/invitations/invitationMessages.js';
 import '../../components/invitations/Invitations.css';
 
+/**
+ * Form nhập mã mời của người thụ hưởng (trang /invitations, App.jsx render InvitationPage).
+ * Quy trình submit: gọi onAcceptInvitation({code}) để chấp nhận lời mời (chỉ một lần, đánh dấu accepted), sau đó onRefreshAccount() để lấy lại thông tin tài khoản và kiểm tra
+ * cùng id, có thêm vai trò BENEFICIARY và giữ nguyên các vai trò cũ (nếu không ném 'ROLE_NOT_CONFIRMED'); cuối cùng gọi onConfirmed rồi hiển thị thành công.
+ * Khi chưa đăng nhập, cho chọn đăng nhập/đăng ký (onAuthenticate) kèm mã. Nếu hai callback chưa được cung cấp thì hiện thông báo "chưa khả dụng". Dùng AbortController và ref chống gửi lặp.
+ *
+ * @param {object} props
+ * @param {object} [props.user] Người dùng đăng nhập (undefined nếu chưa).
+ * @param {string} [props.initialCode=''] Mã mời điền sẵn.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {(lang: string) => void} [props.onToggleLang] Đổi ngôn ngữ.
+ * @param {(kind: 'login'|'register', code: string) => void} [props.onAuthenticate] Chuyển sang đăng nhập/đăng ký.
+ * @param {() => void} [props.onClearCode] Xóa mã mời đang lưu ở App sau khi chấp nhận.
+ * @param {Function} [props.onAcceptInvitation] Chấp nhận lời mời ({code}, {signal}).
+ * @param {Function} [props.onRefreshAccount] Tải lại tài khoản.
+ * @param {Function} [props.onConfirmed] Gọi khi đã xác nhận vai trò.
+ * @param {() => void} [props.onContinue] Tiếp tục sau khi thành công.
+ * @returns {JSX.Element}
+ */
 function InvitationForm({ user, initialCode = '', lang = 'vi', onToggleLang, onAuthenticate, onClearCode,
   onAcceptInvitation, onRefreshAccount, onConfirmed, onContinue }) {
   const t = invitationMessages[lang] || invitationMessages.vi;
@@ -13,10 +32,12 @@ function InvitationForm({ user, initialCode = '', lang = 'vi', onToggleLang, onA
   const busy = phase === 'pending';
   const available = typeof onAcceptInvitation === 'function' && typeof onRefreshAccount === 'function';
   useEffect(() => { inputRef.current?.focus(); return () => request.current?.abort(); }, []);
+  /** Chuyển sang đăng nhập hoặc đăng ký giữ lại mã mời; nếu chưa nhập mã thì báo bắt buộc và focus ô nhập. */
   function authenticate(kind) {
     if (!code.trim()) { setRequired(true); inputRef.current?.focus(); return; }
     onAuthenticate?.(kind, code);
   }
+  /** Xử lý submit form: chấp nhận lời mời, làm mới tài khoản và kiểm tra vai trò BENEFICIARY (xem InvitationForm); lỗi được ánh xạ sang khóa thông báo bằng invitationErrorKey (hoặc 'rolePending' nếu đã chấp nhận). */
   async function submit(event) {
     event.preventDefault();
     if (pending.current || !user || !available) return;
@@ -72,6 +93,12 @@ function InvitationForm({ user, initialCode = '', lang = 'vi', onToggleLang, onA
     </section>
   </main>;
 }
+/**
+ * Trang chấp nhận lời mời làm người thụ hưởng; bọc InvitationForm bằng key theo id người dùng để reset form khi đổi tài khoản.
+ *
+ * @param {object} props Truyền xuống InvitationForm.
+ * @returns {JSX.Element}
+ */
 export default function InvitationPage(props) {
   return <InvitationForm key={props.user?.id || 'anonymous'} {...props} />;
 }

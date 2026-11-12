@@ -35,6 +35,14 @@ import java.util.stream.Collectors;
 
 /**
  * Đọc hồ sơ căn cứ của một ca. Legal xem được mọi ca; Staff chỉ xem ca mình đã nhận (ca khác là 404). Không có nội dung file.
+ *
+ * <p>Dựng {@link BasisDossierResponse} (hồ sơ căn cứ + các phiên bản + phạm vi phân bổ + lịch sử quyết định của Legal).
+ *
+ * Được dùng bởi: {@code GET /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier} (Legal, {@link #forLegal}),
+ * {@code GET /api/v1/staff/verification-cases/{caseId}/basis-dossier} (Staff, {@link #forStaff}) và bởi các service ghi
+ * (phân loại, tiếp nhận, chuyển tiếp) để trả trạng thái mới sau khi ghi. Chỉ đọc; đọc các bảng
+ * {@code legal_basis_dossiers}, {@code legal_basis_dossier_versions}, phân bổ theo phiên bản, lịch sử rà soát, sự kiện
+ * distribution workflow và quyết định của Tòa án.
  */
 @Service
 public class BasisDossierViewService {
@@ -50,6 +58,9 @@ public class BasisDossierViewService {
     private final com.legacyvault.verification.repository.DistributionWorkflowEventRepository workflowEvents;
     private final com.legacyvault.verification.repository.CourtDecisionRepository courtDecisions;
 
+    /**
+     * Khởi tạo với các repository cần để dựng view (ca, hồ sơ, phiên bản, phân bổ, người dùng, lịch sử rà soát, sự kiện workflow, quyết định Tòa án).
+     */
     public BasisDossierViewService(LegalCaseLookupRepository caseLookup, StaffCaseLockRepository staffCases,
             LegalBasisDossierRepository dossiers, LegalBasisDossierVersionRepository versions,
             LegalBasisVersionAllocationRepository allocations, UserRepository users, ObjectMapper objectMapper,
@@ -68,6 +79,13 @@ public class BasisDossierViewService {
         this.courtDecisions = courtDecisions;
     }
 
+    /**
+     * Xem hồ sơ căn cứ dưới góc nhìn Legal: xem được mọi ca và thấy cả lý do phân loại.
+     *
+     * @param caseId UUID công khai của ca
+     * @return hồ sơ căn cứ đầy đủ
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND nếu ca hoặc hồ sơ không tồn tại
+     */
     @Transactional(readOnly = true)
     public BasisDossierResponse forLegal(UUID caseId) {
         VerificationCase verificationCase = caseLookup.findByPublicId(caseId)
@@ -75,6 +93,14 @@ public class BasisDossierViewService {
         return view(verificationCase, true);
     }
 
+    /**
+     * Xem hồ sơ căn cứ dưới góc nhìn Staff: chỉ ca do chính Staff nhận, không trả lý do phân loại.
+     *
+     * @param caseId UUID công khai của ca
+     * @param principal Staff đang đăng nhập
+     * @return hồ sơ căn cứ (ẩn lý do)
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND nếu ca không thuộc Staff hoặc không có hồ sơ
+     */
     @Transactional(readOnly = true)
     public BasisDossierResponse forStaff(UUID caseId, CustomUserPrincipal principal) {
         Long staffUserId = CustomUserPrincipal.requireUserId(principal);
@@ -83,7 +109,17 @@ public class BasisDossierViewService {
         return view(verificationCase, false);
     }
 
-    /** Dựng response từ hồ sơ và danh sách phiên bản đã có (dùng sau khi ghi để trả trạng thái mới). */
+    /**
+     * Dựng response từ hồ sơ và danh sách phiên bản đã có (dùng sau khi ghi để trả trạng thái mới).
+     *
+     * <p>Gộp dữ liệu thành response: nạp hồ sơ, các phiên bản (mới nhất trước), người tạo (UUID công khai), phạm vi phân bổ
+     * theo từng phiên bản, lịch sử quyết định của Legal ({@link #legalHistory}) và quyết định hiện hành ({@link #currentDecision}).
+     *
+     * @param verificationCase ca đã được kiểm tra quyền truy cập
+     * @param includeReason {@code true} để kèm lý do phân loại (chỉ Legal)
+     * @return {@link BasisDossierResponse}
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND nếu ca chưa có hồ sơ căn cứ
+     */
     @Transactional(readOnly = true)
     public BasisDossierResponse view(VerificationCase verificationCase, boolean includeReason) {
         LegalBasisDossier dossier = dossiers.findByVerificationCaseId(verificationCase.getVerificationCaseId())
@@ -125,6 +161,14 @@ public class BasisDossierViewService {
                 items, dossier.getRequiredVersionNo(), null, decision);
     }
 
+    /**
+     * Gom lịch sử quyết định của Legal áp lên đúng một phiên bản (khớp số phiên bản và SHA-256): kết quả rà soát
+     * (LEGAL_APPROVED, LEGAL_REJECTED, FRESH, REVIEW_REQUIRED), sự kiện distribution workflow (duyệt/yêu cầu bổ sung tài liệu, duyệt/yêu cầu
+     * sửa phân bổ) và quyết định của Tòa án. Mỗi mục có cờ {@code current} cho biết còn hiệu lực với phạm vi hiện tại hay không.
+     * Bỏ qua các dấu hiệu tự động của hệ thống (không có người rà soát). Kết quả sắp xếp mới nhất trước.
+     *
+     * @return danh sách bất biến các mục lịch sử
+     */
     private List<BasisVersionResponse.LegalHistory> legalHistory(BasisVersionRow version, int currentVersion,
             LegalBasisDossier dossier, List<AllocationRow> allocationRows,
             List<com.legacyvault.verification.entity.LegalBasisReviewHistory> reviews,
@@ -159,10 +203,20 @@ public class BasisDossierViewService {
         return List.copyOf(result);
     }
 
+    /**
+     * So sánh hai chuỗi hash không phân biệt hoa thường; null được coi là không khớp.
+     */
     private static boolean sameHash(String left, String right) {
         return left != null && right != null && left.equalsIgnoreCase(right);
     }
 
+    /**
+     * Tìm quyết định cuối cùng của Legal còn hiệu lực: chỉ khi hồ sơ đã FORWARDED, phiên bản mới nhất đã chuyển tiếp và đạt
+     * phiên bản yêu cầu, và quyết định (LEGAL_APPROVED/LEGAL_REJECTED) khớp phiên bản, SHA-256, trạng thái tranh chấp
+     * và hash phân bổ hiện tại. Nếu không khớp trả {@code null}.
+     *
+     * @return quyết định hiện hành hoặc {@code null}
+     */
     private CurrentBasisDecision currentDecision(LegalBasisDossier dossier, List<BasisVersionRow> rows) {
         if (rows.isEmpty() || !LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())) return null;
         BasisVersionRow latest = rows.get(0);
@@ -179,6 +233,12 @@ public class BasisDossierViewService {
                 latest.versionNo(), latest.sha256Hash(), allocationHash);
     }
 
+    /**
+     * Đọc trường {@code evidenceReference} từ JSON metadata chứng cứ của phiên bản.
+     *
+     * @param evidenceMetadata chuỗi JSON (có thể null)
+     * @return mã tham chiếu chứng cứ hoặc {@code null} nếu thiếu hoặc JSON hỏng
+     */
     private String evidenceReferenceOf(String evidenceMetadata) {
         if (evidenceMetadata == null) {
             return null;

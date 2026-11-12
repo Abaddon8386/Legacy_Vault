@@ -28,8 +28,41 @@ import './StaffCaseDashboard.css';
  * StaffCaseDashboard — Bảng điều hành tiếp nhận & xử lý hồ sơ xác minh cho Staff (PS-25 & PS-26)
  * Tuân thủ phong cách các màn Owner đã được duyệt (Gói sử dụng, Giám sát, Kho, Tài sản, Di chúc).
  */
+/** Nạp sẵn (eager) hai trang quy trình `StaffCaseIntakePage` và `StaffCaseVerificationPage` làm giá trị mặc định cho `IntakePage`/`VerificationPage`. */
 const workflowPages = import.meta.glob(['./StaffCaseIntakePage.jsx', './StaffCaseVerificationPage.jsx'], { eager: true, import: 'default' });
 
+/**
+ * Bảng điều hành hồ sơ xác minh dành cho Staff (đường dẫn `/staff/cases`): danh sách hồ sơ có lọc theo trạng thái,
+ * phân trang, làm mới, xem chi tiết và đi vào quy trình xử lý.
+ * - Tải danh sách bằng `loadCases` (mặc định `fetchStaffCases` = `GET /api/v1/staff/verification-cases?page&size&status`),
+ *   hủy request cũ khi đổi tham số; lỗi 401 xử lý qua `useStaffSessionExpiry` (gọi `onUnauthorized`).
+ * - Chế độ mô phỏng (`isDevPreview`, dữ liệu `SYNTHETIC_STAFF_CASES`) khi `isStaffSimulationPermitted`.
+ * - Nếu có `caseId` (từ prop hoặc query string) và không mô phỏng thì hiển thị `StaffLiveCase` (không gian làm việc của hồ sơ thật).
+ * - Có thể chuyển sang `IntakePage` (`StaffCaseIntakePage`, tiếp nhận hồ sơ) hoặc `VerificationPage`
+ *   (`StaffCaseVerificationPage`, xác minh) và mở `StaffCaseDetailModal` để xem thông tin tham chiếu.
+ *
+ * @param {object} props
+ * @param {string|null} [props.accessToken] JWT của staff.
+ * @param {boolean} [props.isDevPreview=false] bật dữ liệu mô phỏng.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {number} [props.onRefreshTrigger=0] thay đổi giá trị này để buộc tải lại danh sách.
+ * @param {Function} [props.onNavigateToLogin] về trang đăng nhập.
+ * @param {Function} [props.onUnauthorized] gọi khi phiên hết hạn (mặc định là `onNavigateToLogin`).
+ * @param {Function} [props.loadCases] hàm tải danh sách (có thể thay thế khi test).
+ * @param {Function} [props.onSubmitRecord] callback gửi biên bản tiếp nhận cho `IntakePage`.
+ * @param {Function} [props.onSubmitVerification] callback gửi kết quả xác minh cho `VerificationPage`.
+ * @param {Function} [props.loadBeneficiaries] hàm tải người thụ hưởng cho trang xác minh.
+ * @param {Function} [props.loadHistory] hàm tải lịch sử cho trang xác minh.
+ * @param {React.ComponentType} [props.VerificationPage] component trang xác minh.
+ * @param {React.ComponentType} [props.IntakePage] component trang tiếp nhận.
+ * @param {object|null} [props.initialIntakeCase] hồ sơ mở sẵn ở trang tiếp nhận.
+ * @param {object|null} [props.initialVerifyCase] hồ sơ mở sẵn ở trang xác minh.
+ * @param {Function} [props.onSelectIntakeCase] báo hồ sơ được chọn để tiếp nhận.
+ * @param {Function} [props.onSelectVerifyCase] báo hồ sơ được chọn để xác minh.
+ * @param {string|null} [props.caseId] id hồ sơ đang làm việc (đồng bộ với query `caseId`).
+ * @param {Function} [props.onSelectCase] báo cho App hồ sơ đang chọn.
+ * @returns {JSX.Element}
+ */
 export default function StaffCaseDashboard({
   accessToken = null,
   isDevPreview = false,
@@ -84,6 +117,7 @@ export default function StaffCaseDashboard({
     }
   }
 
+  /** Chọn một hồ sơ để làm việc: đặt `caseId` vào state và query string (history.replaceState) rồi báo `onSelectCase`. */
   const openLiveCase = (id, caseItem = null) => {
     setLiveCaseId(id);
     const url = new URL(window.location.href);
@@ -145,6 +179,7 @@ export default function StaffCaseDashboard({
     let active = true;
     const controller = new AbortController();
 
+    /** Gọi `loadCases` theo trang/kích thước/lọc hiện tại và cập nhật danh sách, tổng số; lỗi được báo qua `notifySessionExpiry` và state `error`. */
     async function load() {
       try {
         const result = await loadCases({
@@ -187,28 +222,33 @@ export default function StaffCaseDashboard({
   }, [page, size, statusFilter, retry, onRefreshTrigger, accessToken, isDevPreview, lang, scopeKey, loadCases, notifySessionExpiry]);
 
   // Handlers for filter and pagination
+  /** Đổi bộ lọc trạng thái và quay về trang đầu. */
   const handleStatusFilterChange = (newStatus) => {
     setIsLoading(true);
     setStatusFilter(newStatus);
     setPage(0); // Luôn quay về trang đầu khi đổi bộ lọc
   };
 
+  /** Đổi số dòng mỗi trang và quay về trang đầu. */
   const handleSizeChange = (newSize) => {
     setIsLoading(true);
     setSize(newSize);
     setPage(0); // Luôn quay về trang đầu khi đổi số dòng
   };
 
+  /** Tải lại danh sách (hiển thị trạng thái đang làm mới). */
   const handleRefresh = () => {
     setIsRefreshing(true);
     setRetry((r) => r + 1);
   };
 
+  /** Thử tải lại danh sách sau khi lỗi. */
   const handleRetry = () => {
     setIsLoading(true);
     setRetry((r) => r + 1);
   };
 
+  /** Định dạng ISO-8601 thành ngày giờ theo ngôn ngữ; rỗng trả "—", lỗi phân tích trả nguyên chuỗi. */
   const formatDate = (isoString) => {
     if (!isoString) return '—';
     try {
@@ -226,6 +266,7 @@ export default function StaffCaseDashboard({
     }
   };
 
+  /** Tạo huy hiệu trạng thái hồ sơ (OPEN/IN_PROGRESS/VERIFIED/CLOSED/CANCELLED) với nhãn theo ngôn ngữ. */
   const renderStatusBadge = (status) => {
     const label = status === 'OPEN' ? (lang === 'en' ? 'Open' : 'Đang mở') : status === 'CLOSED' ? (lang === 'en' ? 'Closed' : 'Đã đóng') : status === 'CANCELLED' ? (lang === 'en' ? 'Cancelled' : 'Đã hủy') : t.statusLabels[status] || status;
     let badgeClass = 'lv-staff-status-badge--awaiting';

@@ -19,20 +19,51 @@ import com.legacyvault.verification.entity.VerificationCase;
 import com.legacyvault.verification.repository.VerificationCaseRepository;
 import com.legacyvault.verification.service.StaffVaultCaseGuard;
 
-/** Staff-only read of the contact details of the Trustee and Beneficiaries of an assigned OPEN case; every read is audited. */
+/**
+ * Staff đọc thông tin liên hệ của Trustee và Beneficiary trên hồ sơ OPEN được giao; mỗi lần đọc đều được audit
+ * ({@code CASE_CONTACTS_VIEWED}). Được {@code CaseContactController} gọi; dùng bảng {@code verification_cases}, {@code trustees},
+ * {@code beneficiaries}, {@code trustee_contact_records}.
+ */
 @Service
 public class CaseContactService {
 
+	/**
+	 * Trạng thái Trustee đang có hiệu lực.
+	 */
 	static final String APPOINTED = "APPOINTED";
 
+	/**
+	 * Truy vấn hồ sơ xác minh.
+	 */
 	private final VerificationCaseRepository cases;
+	/**
+	 * Kiểm tra hồ sơ OPEN của Vault được giao cho Staff.
+	 */
 	private final StaffVaultCaseGuard guard;
+	/**
+	 * Truy vấn Trustee.
+	 */
 	private final TrusteeRepository trustees;
+	/**
+	 * Truy vấn Beneficiary.
+	 */
 	private final BeneficiaryRepository beneficiaries;
+	/**
+	 * Lịch sử liên hệ Trustee.
+	 */
 	private final TrusteeContactRecordRepository records;
+	/**
+	 * Lấy Staff đang đăng nhập.
+	 */
 	private final StaffContextService staff;
+	/**
+	 * Ghi audit.
+	 */
 	private final AuditService audit;
 
+	/**
+	 * Khởi tạo service với các phụ thuộc do Spring inject.
+	 */
 	public CaseContactService(VerificationCaseRepository cases, StaffVaultCaseGuard guard, TrusteeRepository trustees,
 			BeneficiaryRepository beneficiaries, TrusteeContactRecordRepository records, StaffContextService staff,
 			AuditService audit) {
@@ -45,6 +76,17 @@ public class CaseContactService {
 		this.audit = audit;
 	}
 
+	/**
+	 * Liệt kê người cần liên lạc ({@code GET /api/v1/staff/verification-cases/{caseId}/contacts}).
+	 *
+	 * Các bước: lấy Staff -> tìm hồ sơ do Staff này phụ trách -> {@code guard.requireOpenForRead} (cùng điều kiện với mọi thao tác ghi của Staff) ->
+	 * đọc Trustee APPOINTED kèm lịch sử liên hệ (canRecord=true) và Beneficiary của Vault (canRecord=false) -> audit {@code CASE_CONTACTS_VIEWED}
+	 * (bước ST-10, rule LV-EXT-001).
+	 *
+	 * @param caseId public id hồ sơ
+	 * @return {@link CaseContactDtos.Response}
+	 * @throws com.legacyvault.common.exception.BusinessException RESOURCE_NOT_FOUND nếu hồ sơ không thuộc Staff; lỗi từ guard nếu hồ sơ không OPEN
+	 */
 	@Transactional
 	public CaseContactDtos.Response list(UUID caseId) {
 		User actor = staff.requireStaff();

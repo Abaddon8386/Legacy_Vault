@@ -15,6 +15,7 @@ import './TrusteeBeneficiaryPage.css';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import BeneficiaryInvitationCode from '../../components/invitations/BeneficiaryInvitationCode.jsx';
 
+/** Bảng chuỗi giao diện song ngữ (vi/en) của trang: nhãn nút, form, thông báo, tab, trạng thái. Được bổ sung thêm bằng Object.assign bên dưới. */
 const i18n = {
   vi: {
     brandName: 'LegacyVault',
@@ -158,9 +159,34 @@ const i18n = {
 
 Object.assign(i18n.vi,{updatedSuccess:'Cập nhật thông tin thành công.',pageDesc:'Khai báo người thi hành bên ngoài tùy chọn và người thụ hưởng cho kho di sản.',trusteeNotice:'Người thi hành bên ngoài là tùy chọn và không cần tài khoản. Người này không được mở khóa hay xem nội dung bảo mật, và việc chỉ định không tự thêm họ vào danh sách người thụ hưởng.',beneficiaryNotice:'Người thụ hưởng không cần tạo tài khoản.',appointedStatus:'Đã chỉ định',skippedSuccessTrustee:'Đã đánh dấu bỏ qua Người thi hành bên ngoài.'});
 Object.assign(i18n.en,{updatedSuccess:'Information updated successfully.',pageDesc:'Record an optional external executor and beneficiaries for your heritage vault.',trusteeNotice:'The external executor is optional and does not need an account. They cannot unlock or view secure content, and appointment does not add them as a beneficiary.',beneficiaryNotice:'Beneficiaries do not need an account.',appointedStatus:'Appointed',skippedSuccessTrustee:'External Executor skipped.'});
+/** Giá trị khởi tạo (rỗng) cho form người thi hành bên ngoài. */
 const emptyTrustee={fullName:'',phone:'',email:'',relationship:''};
+/** Giá trị khởi tạo (rỗng) cho form người thụ hưởng. */
 const emptyBeneficiary={fullName:'',relationship:'',dateOfBirth:'',phone:'',email:''};
+/**
+ * Ánh xạ mã lỗi backend (ví dụ TRUSTEE_ALREADY_EXISTS, VAULT_NOT_EDITABLE) sang thông báo an toàn cho người dùng theo ngôn ngữ.
+ *
+ * @param {string} code Mã lỗi.
+ * @param {'vi'|'en'} lang Ngôn ngữ.
+ */
 const safeError=(code,lang)=>({TRUSTEE_ALREADY_EXISTS:lang==='en'?'A trustee is already appointed.':'Kho đã có người thi hành bên ngoài.',VAULT_NOT_EDITABLE:lang==='en'?'This vault cannot be edited now.':'Kho hiện không cho phép chỉnh sửa.',VALIDATION_FAILED:lang==='en'?'Please check the form.':'Vui lòng kiểm tra thông tin.',ACCESS_DENIED:lang==='en'?'You do not have access to this vault.':'Bạn không có quyền truy cập kho này.',RESOURCE_NOT_FOUND:lang==='en'?'No accessible vault was found.':'Không tìm thấy kho thuộc quyền truy cập.'}[code] || (lang==='en'?'Unable to load or save records. Please retry.':'Không thể tải hoặc lưu thông tin. Vui lòng thử lại.'));
+/**
+ * Trang quản lý người thi hành bên ngoài (tối đa một) và danh sách người thụ hưởng của kho, gồm hai tab (beneficiaries / trustee), form thêm bằng hộp thoại, sửa (RelatedPersonEditDialog),
+ * người giám hộ (GuardianPanel), mã mời (BeneficiaryInvitationCode) và trạng thái sẵn sàng cấu hình. TrusteeBeneficiaryRoute render component này.
+ * Tải dữ liệu song song bằng trusteeBeneficiaryService: getTrustees (GET /api/v1/trustees?vaultId=), getBeneficiaries (GET /api/v1/vaults/{vaultId}/beneficiaries?page&size=20) và
+ * checkConfigurationReadiness (GET /api/v1/vaults/{vaultId}/configuration-check). Thêm mới: createTrustee (POST /api/v1/trustees) và createBeneficiary (POST /api/v1/vaults/{vaultId}/beneficiaries).
+ * Dùng AbortController và id yêu cầu để bỏ kết quả cũ; 401 -> onUnauthorized; 403/404 xóa dữ liệu hiển thị. Ở chế độ xem trước DEV (không token) dùng dữ liệu mẫu, không gọi API.
+ *
+ * @param {object} props
+ * @param {string} props.vaultId Id kho.
+ * @param {string} props.accessToken JWT.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {() => void} [props.onUnauthorized] 401.
+ * @param {*} [props.onRefreshTrigger=0] Giá trị đổi để ép tải lại.
+ * @param {boolean} [props.isDevPreview=false] Cho phép dữ liệu mẫu.
+ * @param {Function} [props.onLoadInvitation] Hàm tải mã mời cho người thụ hưởng.
+ * @returns {JSX.Element}
+ */
 export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',onUnauthorized,onRefreshTrigger=0,isDevPreview=false,onLoadInvitation}) {
  const t=i18n[lang]||i18n.vi;
  const [trustees,setTrustees]=useState([]),[beneficiaries,setBeneficiaries]=useState([]);
@@ -191,16 +217,19 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
  const prevAuthRef = useRef(isAuthenticated);
  const fetchRequestId = useRef(0);
 
+ /** Mở hộp thoại thêm người thụ hưởng (dialog.showModal) và ghi nhớ phần tử đang focus để trả focus khi đóng. */
  const openBeneficiaryDialog = () => {
    lastActiveElementRef.current = typeof document !== 'undefined' ? document.activeElement : null;
    beneficiaryDialog.current?.showModal();
    // native showModal auto-focuses first focusable element
  };
+ /** Mở hộp thoại thêm người thi hành bên ngoài và ghi nhớ phần tử đang focus. */
  const openTrusteeDialog = () => {
    lastActiveElementRef.current = typeof document !== 'undefined' ? document.activeElement : null;
    trusteeDialog.current?.showModal();
    // native showModal auto-focuses first focusable element
  };
+ /** Đóng hộp thoại được tham chiếu và trả focus về phần tử trước đó. */
  const closeDialog = (ref) => {
    ref.current?.close();
    lastActiveElementRef.current?.focus();
@@ -296,6 +325,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
   };
  },[vaultId,accessToken,pageIndex,retry,onRefreshTrigger,onUnauthorized,isDevPreviewActive,isAuthenticated]);
 
+  /** Chuyển tab (beneficiaries / trustee): đóng hộp thoại, xóa cảnh báo và lỗi form. */
   const handleTabSwitch = (tab) => {
     if (activeTab === tab) return;
     trusteeDialog.current?.close();
@@ -305,6 +335,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
     setTrusteeErrors({});
     setActiveTab(tab);
   };
+  /** Điều hướng tab bằng bàn phím: mũi tên, Home, End, Enter/Space; chuyển tab và focus nút tab tương ứng. */
   const handleTabKeyDown = (event, currentTab) => {
     let target = null;
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
@@ -329,8 +360,17 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
       else if (target === 'trustee') trusteeTabRef.current?.focus();
     }
   };
+  /** Bỏ qua việc chỉ định người thi hành bên ngoài (tùy chọn): đánh dấu isSkipped, xóa form và hiện thông báo. */
   const handleSkipTrustee=()=>{if(pending.current)return;setIsSkipped(true);setTrusteeForm(emptyTrustee);setTrusteeErrors({});setAlert({type:'success',key:'skippedSuccessTrustee'})};
+ /** Hủy trạng thái bỏ qua để nhập lại người thi hành bên ngoài. */
  const handleUnskipTrustee=()=>setIsSkipped(false);
+ /**
+  * Lưu mới một người thi hành bên ngoài hoặc người thụ hưởng. Kiểm tra form (focus trường lỗi đầu tiên); ở chế độ xem trước thêm bản ghi mẫu vào state,
+  * còn không thì gọi createTrustee/createBeneficiary. Thành công: đóng hộp thoại, đặt lại form, hiện thông báo và tải lại danh sách. Lỗi 401 -> onUnauthorized; 403/404 xóa dữ liệu; lỗi khác hiện mã lỗi.
+  *
+  * @param {Event} event Sự kiện submit.
+  * @param {'trustee'|'beneficiary'} kind Loại đối tượng.
+  */
  async function save(event,kind){
   event.preventDefault();if(pending.current)return;
   const isTrustee=kind==='trustee',data=isTrustee?trusteeForm:beneficiaryForm;
@@ -395,6 +435,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
    setAlert({type:'error',code:error.code||'SAVE_ERROR'});
   }finally{pending.current=false;if(alive.current)(isTrustee?setIsSubmittingTrustee:setIsSubmittingBeneficiary)(false);}
  }
+ /** Handler submit của form người thi hành bên ngoài (gọi save kind 'trustee') và form người thụ hưởng (kind 'beneficiary'). */
  const handleTrusteeSubmit=event=>save(event,'trustee'),handleBeneficiarySubmit=event=>save(event,'beneficiary');
  const localizedTrusteeErrors=validateTrustee(trusteeForm,lang),localizedBeneficiaryErrors=validateBeneficiary(beneficiaryForm,lang);
  if(loading || (!loadError && !readiness))return <div className="lv-tb-page"><div className="lv-tb-skeleton" role="status" aria-live="polite" aria-busy="true"><span>{lang==='en'?'Loading records…':'Đang tải thông tin…'}</span><div aria-hidden="true"/><div aria-hidden="true"/></div></div>;

@@ -1,7 +1,20 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
-/** Username + password inputs for CREDENTIAL assets; the password has an eye button to show or hide it. */
+/**
+ * Cặp ô nhập "tên đăng nhập" và "mật khẩu" cho tài sản loại CREDENTIAL; ô mật khẩu có nút con mắt để hiện/ẩn.
+ * Dùng trong {@code AssetFormModal} (tạo mới) và {@code AssetEditModal} (sửa). Không gọi API.
+ *
+ * @param {object} props
+ * @param {string} props.idPrefix Tiền tố id để gắn label với input.
+ * @param {string} props.username Giá trị tên đăng nhập.
+ * @param {string} props.password Giá trị mật khẩu.
+ * @param {(field:('username'|'password'), value:string)=>void} props.onChange Gọi khi người dùng gõ.
+ * @param {boolean} props.disabled Khóa các ô nhập.
+ * @param {{credentialUsernameLabel:string, credentialPasswordLabel:string}} props.labels Nhãn đã dịch.
+ * @param {string} [props.lang='vi'] Ngôn ngữ giao diện.
+ * State nội bộ: {@code visible} (đang hiện mật khẩu hay không).
+ */
 export function AssetCredentialFields({ idPrefix, username, password, onChange, disabled, labels, lang = 'vi' }) {
   const [visible, setVisible] = useState(false);
   const toggleLabel = visible

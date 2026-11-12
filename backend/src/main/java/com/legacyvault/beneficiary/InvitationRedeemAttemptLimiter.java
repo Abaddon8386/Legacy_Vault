@@ -7,16 +7,31 @@ import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 
 /** SQL Server backed sliding-window checks. The caller holds the target User row lock, serializing
- * attempts for that account across application instances. */
+ * attempts for that account across application instances.
+ *
+ * <p>Đếm các lần đổi mã thất bại trong bảng {@code dbo.invitation_redeem_failures} theo cửa sổ trượt 15 phút, giới hạn 5 lần trên mỗi tài khoản
+ * và 5 lần trên mỗi cặp tài khoản và mã. Gọi từ {@code InvitationRedeemService.redeem}.
+ */
 @Service
 public class InvitationRedeemAttemptLimiter {
+    /**
+     * Số lần thất bại tối đa trong 15 phút.
+     */
     private static final int LIMIT = 5;
     private final JdbcTemplate jdbc;
 
+    /**
+     * Hàm khởi tạo, nhận {@code JdbcTemplate}.
+     */
     public InvitationRedeemAttemptLimiter(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
 
+    /**
+     * Kiểm tra tài khoản (và cặp tài khoản, mã nếu có hash) chưa vượt giới hạn.
+     * @param invitationCodeHash hash mã mời, có thể null nếu mã sai định dạng
+     * @throws com.legacyvault.common.error.BusinessException {@code TOO_MANY_ATTEMPTS}
+     */
     public void requireAllowed(Long accountId, String invitationCodeHash) {
         Long accountFailures = jdbc.queryForObject("""
                 SELECT COUNT_BIG(*) FROM dbo.invitation_redeem_failures

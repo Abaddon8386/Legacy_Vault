@@ -10,13 +10,22 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 
 public final class CounterIdentityAttestationDtos {
+    /**
+     * Lớp tiện ích, không cho khởi tạo.
+     */
     private CounterIdentityAttestationDtos() { }
 
     /**
      * PS-140: {@code evidenceReference} is optional. Absent, empty and whitespace-only values mean "no reference" and
      * are stored as NULL; a client that still sends a reference keeps it (trimmed, at most 200 characters).
+     *
+     * Body của {@code POST .../identity-attestations}: {@code evidenceReference} (tùy chọn, tối đa 200) và {@code confirmedEmail}
+     * (tùy chọn, email Staff xác nhận để gửi mã mời).
      */
     public record Request(@Size(max = 200) String evidenceReference,
+            /**
+             * @return mã tham chiếu đã cắt khoảng trắng, hoặc null nếu trống.
+             */
             @Email @Size(max = 254) String confirmedEmail) {
         public String normalizedEvidenceReference() {
             if (evidenceReference == null) return null;
@@ -24,13 +33,22 @@ public final class CounterIdentityAttestationDtos {
             return trimmed.isEmpty() ? null : trimmed;
         }
 
+        /**
+         * @return email đã chuẩn hóa bằng {@code EmailNormalizer}.
+         */
         public String normalizedConfirmedEmail() {
             return EmailNormalizer.normalize(confirmedEmail);
         }
     }
 
+    /**
+     * Kết quả chứng thực: {@code attestationId}, {@code caseId}, {@code beneficiaryId}, {@code recordedBy} (mã công khai của Staff) và {@code recordedAt} (UTC).
+     */
     public record Response(UUID attestationId, UUID caseId, UUID beneficiaryId, UUID recordedBy,
             Instant recordedAt) {
+        /**
+         * Dựng {@code Response} từ bản ghi chứng thực và Staff thực hiện.
+         */
         static Response from(BeneficiaryCounterAttestation attestation, User actor) {
             return new Response(attestation.getPublicId(), attestation.getVerificationCase().getPublicId(),
                     attestation.getBeneficiary().getPublicId(), actor.getPublicId(),

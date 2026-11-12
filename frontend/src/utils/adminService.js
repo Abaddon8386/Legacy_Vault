@@ -11,14 +11,38 @@
 import { ApiError, request } from '../api/http.js';
 import { isUuid } from '../api/contracts.js';
 
+/**
+ * Danh sách (whitelist) các hành động nhật ký kiểm toán mà frontend chấp nhận. Phải khớp với enum AuditAction của backend; thêm AuditAction mới thì phải bổ sung ở đây.
+ */
 const AUDIT_ACTIONS = new Set(['BENEFICIARY_INVITATION_EMAIL_QUEUED', 'AUTH_RECOVERY_ISSUED', 'AUTH_PASSWORD_RESET', 'AUTH_EMAIL_VERIFICATION_ISSUED', 'AUTH_EMAIL_VERIFIED', 'AUTH_EMAIL_CHANGED', 'AUTH_PASSWORD_CHANGED', 'ASSET_DOCUMENT_ADDED', 'ASSET_DOCUMENT_OPENED', 'ASSET_DOCUMENT_REMOVED', 'RECEIVED_ASSET_OPENED', 'RECEIVED_ASSET_IMAGE_OPENED', 'BENEFICIARY_COUNTER_ATTESTED', 'DISTRIBUTION_DOCUMENTS_REQUESTED', 'DISTRIBUTION_DOCUMENTS_APPROVED', 'DISTRIBUTION_DOCUMENT_SUPPLEMENTATION_REQUESTED', 'DISTRIBUTION_ALLOCATIONS_SUBMITTED', 'DISTRIBUTION_ALLOCATIONS_APPROVED', 'DISTRIBUTION_ALLOCATION_CHANGES_REQUESTED', 'BENEFICIARY_ACCOUNT_CREATED_UNLINKED', 'BENEFICIARY_LINK_REQUESTED', 'BENEFICIARY_LINK_REQUEST_CANCELLED', 'BENEFICIARY_LINK_REQUEST_APPROVED', 'BENEFICIARY_LINK_REQUEST_REJECTED', 'BENEFICIARY_GUARDIAN_RECORDED', 'HANDOVER_GROUP_CHANGED', 'BENEFICIARY_GUARDIAN_REVOKED', 'AUTH_PROFILE_UPDATED', 'INTAKE_ATTACHMENT_UPLOADED', 'EVIDENCE_FILE_READ', 'BENEFICIARY_INVITATION_ISSUED', 'BENEFICIARY_INVITATION_REISSUED', 'BENEFICIARY_INVITATION_REVOKED', 'BENEFICIARY_INVITATION_CONSUMED', 'AUTH_GOOGLE_IDENTITY_LINKED', 'AUTH_PASSWORD_SET', 'SUBSCRIPTION_PAYMENT_CREATED', 'SUBSCRIPTION_PAYMENT_SUCCEEDED', 'SUBSCRIPTION_PAYMENT_FAILED', 'VAULT_HANDOVER_ARCHIVED', 'BENEFICIARY_HANDOVER_CONFIRMED', 'AUTH_REGISTERED', 'AUTH_LOGIN_SUCCEEDED', 'AUTH_LOGIN_FAILED', 'SUBSCRIPTION_UPGRADED', 'SUBSCRIPTION_PLAN_DRAFT_CREATED', 'SUBSCRIPTION_PLAN_DRAFT_UPDATED', 'SUBSCRIPTION_PLAN_PUBLISHED', 'SUBSCRIPTION_PLAN_DEPRECATED', 'VAULT_CREATED', 'VAULT_ALERT_CANCELLED', 'ASSET_IMAGE_ADDED', 'ASSET_IMAGE_OPENED', 'ASSET_IMAGE_REMOVED', 'ASSET_CREATED', 'ASSET_UPDATED', 'ASSET_REVEALED', 'WILL_UPLOADED', 'WILL_VERSION_ADDED', 'WILL_FILE_OPENED', 'REAUTH_FAILED', 'TRUSTEE_APPOINTED', 'TRUSTEE_UPDATED', 'TRUSTEE_REVOKED', 'TRUSTEE_CONTACT_RECORDED', 'CASE_CONTACTS_VIEWED', 'BENEFICIARY_ADDED', 'BENEFICIARY_UPDATED', 'BENEFICIARY_IDENTITY_VERIFIED', 'DMS_CONFIGURED', 'DMS_CHECKED_IN', 'DMS_TRIGGERED', 'DMS_GRACE_PERIOD_EXCEEDED', 'VERIFICATION_CASE_CREATED', 'VERIFICATION_CASE_CLAIMED', 'DEATH_DOCUMENT_RECORDED', 'ORIGINAL_WILL_RECEIVED', 'LEGAL_DEATH_DOCUMENT_DECIDED', 'WILL_COMPARISON_RECORDED', 'LEGAL_BASIS_CLASSIFIED', 'LEGAL_BASIS_RECEIVED', 'LEGAL_BASIS_FORWARDED', 'LEGAL_BASIS_RECLASSIFIED', 'COURT_DECISION_RECORDED', 'LEGAL_BASIS_HELD', 'LEGAL_BASIS_REVIEW_REQUIRED', 'LEGAL_BASIS_REVIEW_RECORDED', 'LEGAL_BASIS_DECIDED', 'LEGAL_VAULT_UNLOCKED', 'HANDOVER_SESSION_OPENED', 'HANDOVER_SESSION_COMPLETED', 'HANDOVER_SESSION_CANCELLED', 'HANDOVER_RECEIPT_STAFF_CONFIRMED', 'HANDOVER_ASSET_DELIVERED', 'BENEFICIARY_ACCOUNT_LINKED', 'BENEFICIARY_ACCOUNT_CREATED', 'ADMIN_USER_CREATED', 'ADMIN_USER_ROLE_CHANGED', 'ADMIN_USER_LOCKED', 'ADMIN_USER_UNLOCKED', 'LEGACY_EVENT']);
+/**
+ * Các vai trò có thể xuất hiện trong bộ lọc/nhật ký kiểm toán (không có tiền tố ROLE_).
+ */
 const AUDIT_ROLES = ['VAULT_OWNER', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'BENEFICIARY', 'ADMIN'];
+/**
+ * Định dạng số hồ sơ hợp lệ: HS-YYYY-NNNNNN.
+ */
 const CASE_NUMBER = /^HS-[0-9]{4}-[0-9]{6}$/;
+/**
+ * Whitelist loại thực thể (entityType) của nhật ký kiểm toán mà frontend chấp nhận.
+ */
 const AUDIT_ENTITIES = new Set(['USER', 'VAULT', 'ASSET', 'ASSET_VERSION', 'ASSET_IMAGE', 'WILL', 'TRUSTEE', 'BENEFICIARY', 'DMS_CONFIG', 'VERIFICATION_CASE', 'DEATH_DOCUMENT_RECORD', 'LEGAL_VERIFICATION', 'WILL_COMPARISON', 'ORIGINAL_WILL_INTAKE', 'LEGAL_BASIS_DOSSIER', 'LEGAL_BASIS_VERSION', 'COURT_DECISION', 'HANDOVER_SESSION', 'HANDOVER_ITEM', 'HANDOVER_RECEIPT', 'BENEFICIARY_INVITATION', 'SUBSCRIPTION', 'SUBSCRIPTION_PLAN', 'SUBSCRIPTION_PAYMENT', 'OTHER']);
 
+/**
+ * Các vai trò hợp lệ của tài khoản (dạng không có tiền tố ROLE_).
+ */
 const VALID_ROLES = ['VAULT_OWNER', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'ADMIN', 'BENEFICIARY'];
+/**
+ * Các vai trò xử lý hồ sơ (người thụ hưởng, nhân viên, người xác minh pháp lý): trạng thái tài khoản của họ có thể là IN_PROCESS.
+ */
 export const PROCESSING_ACCOUNT_ROLES = ['BENEFICIARY', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER'];
+/**
+ * Các trạng thái kho (vault) mà admin có thể lọc cho chủ kho.
+ */
 export const ADMIN_VAULT_STATUSES = ['NO_VAULT', 'ACTIVE', 'IN_PROCESS', 'ARCHIVED'];
+/**
+ * Bảng ánh xạ mọi tên vai trò (có hoặc không có tiền tố ROLE_) về tên chuẩn không tiền tố.
+ */
 const ROLE_ALIASES = new Map(
   VALID_ROLES.flatMap((role) => [
     [role, role],
@@ -37,6 +61,10 @@ export function normalizeAdminRole(role) {
   return ROLE_ALIASES.get(role.trim()) || role.trim();
 }
 
+/**
+ * Trả về danh sách trạng thái tài khoản hợp lệ ứng với một vai trò đang lọc
+ * (chủ kho: ACTIVE/LOCKED; vai trò xử lý hồ sơ: thêm IN_PROCESS); null nếu không giới hạn.
+ */
 function roleAccountStatuses(role) {
   const normalized = normalizeAdminRole(role);
   return normalized === 'VAULT_OWNER' ? ['ACTIVE', 'LOCKED']
@@ -155,6 +183,9 @@ export function validateAdminAuditLog(raw) {
  * @param {string} accessToken
  * @param {Object} [options]
  * @returns {Promise<Object>}
+ *
+ * Gọi GET /api/v1/admin/overview (ROLE_ADMIN) lấy số liệu tổng quan hệ thống, rồi chuẩn hóa bằng validateAdminOverview.
+ * Dùng bởi trang tổng quan của admin (pages/admin).
  */
 export async function fetchAdminOverview(accessToken, options = {}) {
   return validateAdminOverview(await request('/admin/overview', { ...options, accessToken, expectedStatus: 200 }));
@@ -166,6 +197,12 @@ export async function fetchAdminOverview(accessToken, options = {}) {
  * @param {string} accessToken
  * @param {Object} [params]
  * @returns {Promise<Object>}
+ *
+ * Gọi GET /api/v1/admin/users?query=&role=&status=&vaultStatus=&page=&size= (ROLE_ADMIN) lấy danh sách tài khoản.
+ * Kiểm tra bộ lọc (page bắt đầu từ 1 ở UI, gửi page-1 cho backend; vaultStatus chỉ dùng với VAULT_OWNER), kiểm tra tính nhất quán phân trang,
+ * chuẩn hóa từng người dùng, loại trùng id.
+ * @returns {Promise<{items:object[],total:number,page:number,pageSize:number}>}
+ * @throws {ApiError} VALIDATION_FAILED (400) nếu bộ lọc sai; INVALID_USERS_RESPONSE (500) nếu phản hồi sai.
  */
 export async function fetchAdminUsers(
   accessToken,
@@ -205,6 +242,13 @@ export async function fetchAdminUsers(
   };
 }
 
+/**
+ * Gọi GET /api/v1/admin/users/{id}[?role=ROLE_X] (ROLE_ADMIN) lấy chi tiết một tài khoản.
+ * @param {string} accessToken Token truy cập.
+ * @param {string} id UUID công khai của tài khoản.
+ * @param {object} options Gồm role (tùy chọn, để kiểm tra trạng thái theo vai trò) và các tùy chọn request().
+ * @throws {ApiError} VALIDATION_FAILED, INVALID_USER_RECORD.
+ */
 export async function fetchAdminUserDetail(accessToken, id, { role = '', ...options } = {}) {
   if (!isUuid(id) || (role && !VALID_ROLES.includes(normalizeAdminRole(role)))) throw new ApiError('VALIDATION_FAILED', 400);
   const query = role ? `?${new URLSearchParams({ role: `ROLE_${normalizeAdminRole(role)}` })}` : '';
@@ -263,6 +307,10 @@ export function validateCreateAdminUserForm({ fullName = '', email = '', phone =
 /**
  * Creates an ACTIVE account with exactly one role (Staff, Legal or Vault Owner).
  * The password is only sent in the request body and is never returned or retained.
+ *
+ * Gọi POST /api/v1/admin/users (ROLE_ADMIN, mong đợi HTTP 201) để tạo tài khoản ACTIVE với đúng một vai trò.
+ * Body: fullName, email, phone, password, role (dạng ROLE_X). Kiểm tra form trước bằng validateCreateAdminUserForm.
+ * @throws {ApiError} VALIDATION_FAILED nếu form sai (các lỗi nghiệp vụ như trùng email do backend trả về).
  */
 export async function createAdminUser(accessToken, { fullName, email, phone = '', password, role, ...options } = {}) {
   if (Object.keys(validateCreateAdminUserForm({ fullName, email, phone, password, role })).length) {
@@ -289,6 +337,12 @@ export async function changeAdminUserRole(accessToken, id, role, options = {}) {
  * @param {string} accessToken
  * @param {Object} [params]
  * @returns {Promise<Object>}
+ *
+ * Gọi GET /api/v1/admin/audit-logs (ROLE_ADMIN) lấy nhật ký kiểm toán có phân trang.
+ * Tham số lọc: action, actorRole/actorKind (suy ra từ actorType), actorId, vaultId, caseNumber, from/to (ngày YYYY-MM-DD đổi thành mốc ISO UTC;
+ * ngày kết thúc cộng thêm 1 ngày để thành cận trên loại trừ), page-1, size.
+ * @returns {Promise<{items:object[],total:number,page:number,pageSize:number}>}
+ * @throws {ApiError} VALIDATION_FAILED (400); INVALID_AUDIT_LOGS_RESPONSE (500).
  */
 export async function fetchAdminAuditLogs(accessToken,
   { action = '', actorType = '', actorId = '', vaultId = '', caseNumber = '', fromDate = '', toDate = '', page = 1, pageSize = 20, ...options } = {}) {
@@ -329,6 +383,10 @@ export async function fetchAdminAuditLogs(accessToken,
   return { items, total: raw.totalElements, page: raw.page + 1, pageSize: raw.size };
 }
 
+/**
+ * Gọi GET /api/v1/admin/audit-logs/{id} (ROLE_ADMIN) lấy chi tiết một sự kiện kiểm toán kèm traceId.
+ * @throws {ApiError} VALIDATION_FAILED nếu id không phải UUID; INVALID_AUDIT_RECORD nếu phản hồi sai.
+ */
 export async function fetchAdminAuditDetail(accessToken, id, options = {}) {
   if (!isUuid(id)) throw new ApiError('VALIDATION_FAILED', 400);
   const raw = await request(`/admin/audit-logs/${id}`, { ...options, accessToken, expectedStatus: 200 });
@@ -341,6 +399,10 @@ export async function fetchAdminAuditDetail(accessToken, id, options = {}) {
 /**
  * Locks or unlocks an account. Locking also ends the account's sessions on the server; the optional reason is only
  * sent when locking and is kept in the audit trail.
+ *
+ * Khóa hoặc mở khóa tài khoản: POST /api/v1/admin/users/{id}/lock hoặc /unlock (ROLE_ADMIN).
+ * Khi khóa có thể gửi kèm body {reason}. Trả về người dùng đã chuẩn hóa.
+ * @throws {ApiError} VALIDATION_FAILED (id/locked/reason sai), INVALID_USER_RECORD.
  */
 export async function setAdminUserLocked(accessToken, id, locked, { reason = '', ...options } = {}) {
   if (!isUuid(id) || typeof locked !== 'boolean' || typeof reason !== 'string' || reason.trim().length > 255) {

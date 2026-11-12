@@ -1,13 +1,28 @@
+/**
+ * Tạo hướng dẫn "việc cần làm tiếp theo" cho các thanh tiến trình của nhân viên, chuyên viên pháp lý và người thụ hưởng. Chỉ để trình bày; không bao giờ coi việc đã xem một màn hình là bằng chứng hoàn tất. Dùng bởi pages/legal/LegalLiveWorkflow.jsx và LegalFinalDecision.jsx.
+ */
 import { evaluateCompletionProgress } from './completionProgressValidation.js';
 
+/**
+ * Nhãn (vi, en) của từng bước trong các thanh hướng dẫn.
+ */
 const words = {
   intake: ['Tiếp nhận', 'Intake'], legal: ['Thẩm định pháp lý', 'Legal review'],
   handover: ['Bàn giao', 'Handover'], confirmation: ['Xác nhận đã nhận', 'Confirm receipt'], archive: ['Đóng và lưu trữ', 'Close and archive'],
   account: ['Tài khoản', 'Account'], request: ['Gửi mã hồ sơ', 'Submit case number'], link: ['Staff đối chiếu', 'Staff verification'], assets: ['Tài sản đã nhận', 'Received assets'],
   death: ['Giấy tờ khai tử', 'Death documents'], will: ['Đối chiếu di chúc', 'Compare will'], basis: ['Thẩm định căn cứ', 'Basis assessment'], review: ['Thẩm định phân bổ', 'Review allocation'], approval: ['Phê duyệt', 'Approval'], unlock: ['Mở khóa', 'Unlock'],
 };
+/**
+ * Chọn chuỗi vi hoặc en theo ngôn ngữ.
+ */
 const text = (vi, en, lang) => lang === 'en' ? en : vi;
+/**
+ * Tạo một phần tử bước {id, state, label, href}.
+ */
 const step = (id, state, lang, href) => ({ id, state, label: words[id][lang === 'en' ? 1 : 0], href });
+/**
+ * Dựng URL giao diện của một bước: path kèm query lang, caseId, sessionId và preview=true khi ở chế độ xem trước.
+ */
 export function workflowUrl(path, { caseId, sessionId, lang = 'vi', preview = false } = {}) {
   const params = new URLSearchParams({ lang });
   if (caseId) params.set('caseId', caseId);
@@ -17,6 +32,10 @@ export function workflowUrl(path, { caseId, sessionId, lang = 'vi', preview = fa
 }
 
 // Presentation only. A visited screen is never evidence that a step is complete.
+/**
+ * Tính hướng dẫn cho nhân viên với các bước intake, legal, handover, confirmation, archive. Dựa vào trạng thái hồ sơ/kho (caseStatus, vaultStatus), kết quả quy trình phân phối (distributionWorkflow.phase), phiên bàn giao, số tài sản đã giao và số người đã xác nhận (qua evaluateCompletionProgress).
+ * Trả {current, steps, message, next}: mỗi bước có state (waiting, action, done, blocked) và liên kết; message mô tả việc cần làm; next là bước nên chuyển tới.
+ */
 export function staffGuidance({ current = 'intake', caseId, sessionId, caseStatus, vaultStatus, loading, error,
   forwarded, distributionWorkflow, legalApproved = false, sessionStatus, assets, beneficiaries, confirmationReady = false, intakeDestinationNeeded = false, hasReceipts = false, canArchive = false, lang = 'vi', preview = false } = {}) {
   const urls = { intake: '/staff/legal-documents', legal: '/staff/legal-documents', handover: sessionId ? '/staff/asset-handover' : '/staff/handover', confirmation: '/staff/beneficiary-confirmation', archive: '/staff/close-and-archive' };
@@ -91,6 +110,9 @@ export function staffGuidance({ current = 'intake', caseId, sessionId, caseStatu
   return { current, steps, message, next: next && (next !== current || intakeDestinationNeeded) ? { ...steps.find(item => item.id === next), label: text('Đến bước ', 'Go to ', lang) + words[next][lang === 'en' ? 1 : 0].toLowerCase() } : undefined };
 }
 
+/**
+ * Trả lý do vì sao thao tác (action) của chuyên viên pháp lý đang bị chặn: hồ sơ không còn mở, đang tạm dừng, hoặc blockedReason từ capabilities (COURT_DECISION_REQUIRED, LEGAL_DECISION_STALE, LEGAL_APPROVAL_REQUIRED, BASIS_DOSSIER_INVALID_STATE...).
+ */
 export function legalBlockedReason(context, action, lang = 'vi') {
   if (!context) return text('Chọn hồ sơ và tải lại trạng thái.', 'Select a case and reload its status.', lang);
   if (context.caseStatus !== 'OPEN') return text('Hồ sơ không còn mở; chỉ xem lịch sử.', 'The case is no longer open; history is read-only.', lang);
@@ -106,6 +128,9 @@ export function legalBlockedReason(context, action, lang = 'vi') {
   return reasons[code]?.[lang === 'en' ? 1 : 0] || text('Chưa thể thực hiện bước này. Tải lại hồ sơ và kiểm tra các bước thẩm định trước đó.', 'This step is not available yet. Reload the case and check the earlier review steps.', lang);
 }
 
+/**
+ * Tính hướng dẫn cho chuyên viên pháp lý với các bước death, will, basis, approval, unlock từ trạng thái kho, phase của quy trình phân phối và kết quả đối chiếu di chúc; trả {current, steps, message, next}.
+ */
 export function legalGuidance({ context, current, caseId, lang = 'vi', loading = false, error = false } = {}) {
   const ids = ['death', 'will', 'basis', 'approval', 'unlock'];
   const routes = ['death-verification', 'will-document-verification', 'basis-route-selection', 'approval-review', 'controlled-unlock'];
@@ -143,6 +168,9 @@ export function legalGuidance({ context, current, caseId, lang = 'vi', loading =
   return { current: ids[index], steps, message, next: next && next !== ids[index] ? { ...steps.find(item => item.id === next), label: text('Đến bước ', 'Go to ', lang) + words[next][lang === 'en' ? 1 : 0].toLowerCase() } : undefined };
 }
 
+/**
+ * Tính hướng dẫn cho người thụ hưởng với các bước account, request, link, assets dựa trên danh sách yêu cầu liên kết, giai đoạn bàn giao (stage) và khả năng gửi yêu cầu; trả {current, message, steps}.
+ */
 export function beneficiaryGuidance({ requests = [], stage, ready, loading, error, eligible, lang = 'vi' } = {}) {
   const pending = requests.some(r => r.status === 'PENDING');
   const approved = requests.some(r => r.status === 'APPROVED');

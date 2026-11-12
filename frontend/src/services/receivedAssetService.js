@@ -2,7 +2,13 @@ import { request, ApiError, API_BASE } from '../api/http.js';
 import { passwordRequest, passwordFetch } from '../api/passwordRequest.js';
 import { isUuid } from '../api/contracts.js';
 
+/**
+ * Ném {@code INVALID_RESPONSE} khi phản hồi sai hợp đồng.
+ */
 const invalid = () => { throw new ApiError('INVALID_RESPONSE'); };
+/**
+ * Xác thực một mục tài sản đã nhận (itemId/assetId/vaultId UUID, tên, vaultName, status DELIVERED hoặc VERIFIED_BY_BENEFICIARY, deliveredAt).
+ */
 function validateItem(item) {
   if (!item || !isUuid(item.itemId) || !isUuid(item.assetId) || !isUuid(item.vaultId)
     || typeof item.name !== 'string' || !item.name.trim() || typeof item.vaultName !== 'string'
@@ -10,7 +16,15 @@ function validateItem(item) {
     || typeof item.deliveredAt !== 'string' || !Number.isFinite(Date.parse(item.deliveredAt))) invalid();
 }
 
+/**
+ * Tạo bộ action gọi API tài sản đã nhận dành cho người thừa hưởng (vai trò BENEFICIARY), dùng ở trang "tài sản đã nhận".
+ * @param {object} [globalDefaults] Giá trị mặc định cho mọi lời gọi (userId, accessToken, lang, ...).
+ * @returns {{list:Function, detail:Function, content:Function, image:Function}}
+ */
 export function createLiveReceivedAssetActions(globalDefaults = {}) {
+  /**
+   * Lấy id người dùng từ options hoặc mặc định; ném {@code UNAUTHENTICATED} (401) nếu thiếu/không hợp lệ.
+   */
   const resolveSubjectId = (opts = {}) => {
     const subjectId = opts.userId || globalDefaults.userId;
     if (!subjectId || !isUuid(subjectId)) {
@@ -20,6 +34,10 @@ export function createLiveReceivedAssetActions(globalDefaults = {}) {
   };
 
   return {
+    /**
+     * Danh sách tài sản đã nhận: {@code GET /received-assets?page&size} (mặc định size 20). Kiểm tra phân trang rồi chuẩn hóa từng mục;
+     * {@code accountState} là RECEIVED nếu có mục, ngược lại AWAITING_HANDOVER.
+     */
     async list(options = {}) {
       const opts = { ...globalDefaults, ...options };
       const subjectId = resolveSubjectId(opts);
@@ -67,6 +85,9 @@ export function createLiveReceivedAssetActions(globalDefaults = {}) {
       };
     },
 
+    /**
+     * Chi tiết một tài sản đã nhận: gọi song song {@code GET /received-assets/{itemId}} và {@code GET /received-assets/{itemId}/images}.
+     */
     async detail(itemId, options = {}) {
       if (!isUuid(itemId)) throw new ApiError('VALIDATION_FAILED', 400);
       const opts = { ...globalDefaults, ...options };
@@ -104,6 +125,10 @@ export function createLiveReceivedAssetActions(globalDefaults = {}) {
       };
     },
 
+    /**
+     * Xem nội dung bí mật sau khi xác nhận mật khẩu: {@code POST /received-assets/{itemId}/content} với {@code {password}} (qua {@code passwordRequest}).
+     * @throws {ApiError} {@code REAUTH_FAILED} (403) khi thiếu mật khẩu.
+     */
     async content(itemId, options = {}) {
       if (!isUuid(itemId)) throw new ApiError('VALIDATION_FAILED', 400);
       const opts = { ...globalDefaults, ...options };
@@ -130,6 +155,11 @@ export function createLiveReceivedAssetActions(globalDefaults = {}) {
       };
     },
 
+    /**
+     * Tải ảnh tài sản đã nhận: {@code POST /received-assets/{itemId}/images/{imageId}/download} với {@code {password}} (qua {@code passwordFetch}).
+     * @returns {Promise<Blob>} Ảnh JPEG/PNG.
+     * @throws {ApiError} {@code ACCESS_DENIED}, {@code TOO_MANY_ATTEMPTS}, {@code DOWNLOAD_FAILED}, {@code REAUTH_FAILED}.
+     */
     async image(itemId, imageId, options = {}) {
       if (!isUuid(itemId) || !isUuid(imageId)) throw new ApiError('VALIDATION_FAILED', 400);
       const opts = { ...globalDefaults, ...options };

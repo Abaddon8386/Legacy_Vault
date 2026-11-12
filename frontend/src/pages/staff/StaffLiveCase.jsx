@@ -22,6 +22,7 @@ import { staffStage } from '../../utils/staffStage.js';
 import './StaffLiveCase.css';
 import { WillComparisonOutcome } from '../../components/staff/StaffDocumentOutcome.jsx';
 
+/** Nhãn (vi, en) của các trường biểu mẫu/bảng chi tiết giấy tờ tiếp nhận. */
 const labels = {
   documentType: ['Loại giấy tờ', 'Document type'], issuingAuthority: ['Cơ quan cấp', 'Issuing authority'],
   documentNumber: ['Số giấy tờ', 'Document number'], issuedDate: ['Ngày cấp', 'Issued date'],
@@ -29,12 +30,24 @@ const labels = {
   deliveredByName: ['Họ tên người nộp', 'Delivered by'], deliveredByRelationship: ['Mối quan hệ', 'Relationship'],
   conditionNotes: ['Tình trạng bản gốc', 'Original condition'],
 };
+/** Các trường bắt buộc khi tiếp nhận giấy tờ (giấy tờ tử vong và di chúc gốc). */
 const requiredFields = ['documentType', 'issuingAuthority', 'documentNumber', 'issuedDate', 'deliveredByName', 'conditionNotes'];
+/** Các trường hiển thị/nhập cho từng nhóm giấy tờ; khóa cũng là đoạn đường dẫn con của API: `death-documents`, `original-will-intakes`. */
 const fields = {
   'death-documents': ['documentType', 'issuingAuthority', 'documentNumber', 'issuedDate', 'evidenceReference', 'notes'],
   'original-will-intakes': ['deliveredByName', 'deliveredByRelationship', 'evidenceReference', 'conditionNotes'],
 };
 
+/**
+ * Chuyển mã lỗi hoặc thông báo tải tệp thành câu hướng dẫn (vi/en) cho màn tiếp nhận giấy tờ.
+ * Nhận biết các lỗi tệp (`fileRequired`, `fileEmpty`, `fileTypeInvalid`, `fileTooLarge`) và các mã như
+ * `VERIFICATION_CASE_NOT_CLAIMABLE`, `RESOURCE_NOT_FOUND`, `ACCESS_DENIED`, `UNAUTHENTICATED`, `VALIDATION_FAILED`,
+ * `CASE_CONFLICT`, `NETWORK_ERROR`.
+ *
+ * @param {string|{code: string}} value mã lỗi hoặc đối tượng lỗi.
+ * @param {boolean} en true cho tiếng Anh.
+ * @returns {string}
+ */
 function intakeFeedback(value, en) {
   const code = typeof value === 'string' ? value : value?.code;
   for (const key of ['fileRequired', 'fileEmpty', 'fileTypeInvalid', 'fileTooLarge']) {
@@ -53,11 +66,22 @@ function intakeFeedback(value, en) {
 }
 
 // en-GB gives "26/10/2026, 15:33"; vi-VN would put the time first.
+/** Định dạng thời điểm kiểu en-GB (dd/mm/yyyy, hh:mm) để giờ nằm sau ngày ở cả hai ngôn ngữ. */
 const formatDateTime = value => new Intl.DateTimeFormat('en-GB', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(value));
+/** Các nhóm giấy tờ Staff tiếp nhận: `[mã nhóm/đường dẫn API, nhãn vi, nhãn en]`. */
 const documentKinds = [['death-documents', 'Giấy tờ tử vong', 'Death documents'], ['original-will-intakes', 'Di chúc gốc', 'Original will']];
 
+/** Nhãn (vi, en) của loại giấy tờ tử vong: giấy chứng tử, trích lục khai tử. */
 const documentTypes = { DEATH_CERTIFICATE: ['Giấy chứng tử', 'Death certificate'], DEATH_REGISTRATION_EXTRACT: ['Trích lục khai tử', 'Death registration extract'] };
 
+/**
+ * Bảng chi tiết chỉ đọc của một bản ghi giấy tờ đã tiếp nhận (các trường theo nhóm, cùng thời điểm tiếp nhận `receivedAt`).
+ *
+ * @param {object} props
+ * @param {object} props.item bản ghi từ backend.
+ * @param {'death-documents'|'original-will-intakes'} props.kind nhóm giấy tờ.
+ * @param {boolean} props.en tiếng Anh.
+ */
 function DocumentDetails({ item, kind, en }) {
   const display = key => {
     if (key === 'documentType') return documentTypes[item[key]]?.[en ? 1 : 0];
@@ -72,6 +96,15 @@ function DocumentDetails({ item, kind, en }) {
   </table>;
 }
 
+/**
+ * Hiển thị kết quả kiểm tra của Ban Pháp lý đối với giấy tờ tử vong.
+ * `decision === undefined`: chưa có dữ liệu; `null`: đang chờ Legal; ngược lại hiện kết quả
+ * (`APPROVED`, `REJECTED`, `NEEDS_CORRECTION`) cùng lý do và thời điểm quyết định.
+ *
+ * @param {object} props
+ * @param {object|null|undefined} props.decision `{result, reason, decidedAt}`.
+ * @param {boolean} props.en tiếng Anh.
+ */
 export function DeathDocumentDecision({ decision, en }) {
   if (decision === undefined) return <p className="lv-intake-decision-unavailable">{en ? 'Legal decision data is unavailable. Refresh the documents.' : 'Chưa có dữ liệu kết quả pháp lý. Vui lòng cập nhật giấy tờ.'}</p>;
   const status = decision?.result || 'PENDING';
@@ -88,15 +121,45 @@ export function DeathDocumentDecision({ decision, en }) {
   </div>;
 }
 
+/**
+ * Không gian làm việc "tiếp nhận hồ sơ" của Staff cho một hồ sơ xác minh thật (đường dẫn `/staff/cases?caseId=...`).
+ * Bọc `ScopedStaffLiveCase` với `key` theo (caseId, accessToken) để đổi hồ sơ/token thì tạo lại state.
+ * Được dùng bởi `StaffCaseDashboard.jsx`.
+ *
+ * @param {object} props xem `ScopedStaffLiveCase`.
+ */
 export default function StaffLiveCase(props) {
   return <ScopedStaffLiveCase key={`${props.caseId}:${props.accessToken}`} {...props} />;
 }
 
+/**
+ * Thân của màn tiếp nhận hồ sơ. Chức năng:
+ * - Tải chi tiết hồ sơ (`loadStaffCase`: `GET /api/v1/staff/verification-cases/{caseId}`) và nhận xử lý hồ sơ
+ *   (`claimStaffCase`: `POST .../{caseId}/claim`) khi hồ sơ chưa được giao.
+ * - Hai nhóm giấy tờ tiếp nhận: giấy tờ tử vong (`death-documents`) và di chúc gốc (`original-will-intakes`);
+ *   đọc danh sách và ghi bản ghi mới qua `staffDocuments` (`GET`/`POST .../{caseId}/{kind}`), tự làm mới khi cửa sổ lấy focus,
+ *   khi tab hiển thị lại và mỗi 30 giây.
+ * - Tệp đính kèm cho từng bản ghi: liệt kê (`staffDocumentAttachments`), tải lên (`uploadStaffDocumentAttachment`, multipart),
+ *   xem nội dung (`readStaffDocumentAttachmentContent`) qua `EvidencePreviewModal`.
+ * - Tab "Liên hệ" hiển thị `StaffContactPanel`; trạng thái workflow phân phối từ `useDistributionWorkflow` (vai trò STAFF)
+ *   cho thanh ngữ cảnh `StaffCaseContextBar`.
+ * - Mọi thao tác ghi đi qua `run()` có khóa chống chạy trùng; thành công thì gọi `publishStaffWorkflowChange` để thông báo
+ *   cho Ban Pháp lý. Lỗi 401 gọi `onUnauthorized`; 401/403/404 khóa khả năng ghi (`writeReady=false`).
+ * Hồ sơ đã đóng (`status !== 'OPEN'`) thì không cho nhận hoặc thêm giấy tờ.
+ *
+ * @param {object} props
+ * @param {string} props.caseId id hồ sơ xác minh (UUID).
+ * @param {string} props.accessToken JWT của staff.
+ * @param {'vi'|'en'} props.lang ngôn ngữ.
+ * @param {Function} props.onBack quay lại danh sách/đổi hồ sơ.
+ * @param {Function} props.onUnauthorized gọi khi API trả 401.
+ */
 function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized }) {
   const en = lang === 'en';
   const [data, setData] = useState(null);
   const [contactsOpen, setContactsOpen] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'contacts');
   // Keep the chosen tab in the address, so a reload opens the same tab.
+  /** Ghi tab "Liên hệ" vào query `tab` của URL để tải lại trang vẫn mở đúng tab; các tab giấy tờ giữ nguyên hành vi cũ. */
   const rememberTab = value => {
     if (typeof window === 'undefined') return;
     try {
@@ -144,19 +207,23 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
   const lock = useRef(false);
   const auth = useRef(onUnauthorized);
   const attachmentRequests = useRef(new Map());
+  /** Hủy mọi request tệp đính kèm đang chạy (liệt kê, tải lên, xem). */
   const abortAttachments = () => {
     attachmentRequests.current.forEach(c => c.abort());
     attachmentRequests.current.clear();
   };
+  /** Bắt đầu một request tệp đính kèm theo khóa; trả về `AbortController` hoặc null nếu cùng khóa đang chạy. */
   const startAttachment = (key) => {
     if (attachmentRequests.current.has(key)) return null;
     const c = new AbortController();
     attachmentRequests.current.set(key, c);
     return c;
   };
+  /** Kết thúc một request tệp đính kèm, gỡ khỏi bảng theo dõi nếu vẫn là request hiện hành. */
   const finishAttachment = (key, c) => {
     if (attachmentRequests.current.get(key) === c) attachmentRequests.current.delete(key);
   };
+  /** Xử lý lỗi tệp đính kèm: 401 gọi `onUnauthorized`; 401/403/404 tắt khả năng ghi. */
   const attachmentFailure = (err) => {
     if (err.status === 401) auth.current?.();
     if ([401, 403, 404].includes(err.status)) setWriteReady(false);
@@ -178,6 +245,12 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
   }, [caseId, accessToken]);
 
   // Tự động tải danh sách giấy tờ đã tiếp nhận theo nhóm giấy tờ
+  /**
+   * Tải danh sách giấy tờ đã tiếp nhận của một nhóm (`GET /api/v1/staff/verification-cases/{caseId}/{category}`).
+   * Bỏ qua khi đang có thao tác ghi; hủy request cũ trước khi gọi.
+   *
+   * @param {'death-documents'|'original-will-intakes'} [category] nhóm giấy tờ (mặc định nhóm đang chọn).
+   */
   const loadDocuments = useCallback(async (category = kind) => {
     if (documentsWritePending.current) return;
     if (docsController.current) docsController.current.abort();
@@ -225,6 +298,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
   }, [loadDocuments, kind, isUploadingAtt]);
 
   // Tải danh sách tệp đính kèm của một bản ghi giấy tờ đã lưu
+  /** Tải danh sách tệp đính kèm của một bản ghi giấy tờ (`GET .../{kind}/{recordId}/attachments`). */
   const loadRecordAttachments = async (recordId) => {
     if (!recordId) return;
     const key = `list:${recordId}`;
@@ -246,6 +320,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
     }
   };
 
+  /** Mở/đóng phần tệp đính kèm của một bản ghi; lần mở đầu tiên sẽ tải danh sách tệp. */
   const toggleRecordAttachments = (recordId) => {
     if (activeRecordId === recordId) {
       setActiveRecordId(null);
@@ -257,11 +332,13 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
     }
   };
 
+  /** Lưu tệp được chọn cho một bản ghi và xóa lỗi tải lên cũ. */
   const handleRecordFileChange = (recordId, file) => {
     setSelectedRecordFiles(prev => ({ ...prev, [recordId]: file }));
     setUploadAttErrors(prev => ({ ...prev, [recordId]: '' }));
   };
 
+  /** Tải tệp đã chọn lên làm đính kèm của bản ghi (`POST .../{kind}/{recordId}/attachments`), báo kết quả và thông báo cho Legal. */
   const handleUploadAttachment = async (recordId) => {
     const file = selectedRecordFiles[recordId];
     if (!file) return;
@@ -287,6 +364,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
     }
   };
 
+  /** Tải nội dung tệp đính kèm và mở bản xem trước (`EvidencePreviewModal`) bằng object URL. */
   const handleViewAttachment = async (recordId, att) => {
     const key = 'preview';
     const c = startAttachment(key);
@@ -310,6 +388,12 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
     }
   };
 
+  /**
+   * Chạy một thao tác ghi/đọc chính với khóa chống chạy trùng: vô hiệu các lần đọc danh sách cũ, bật trạng thái bận,
+   * gọi `action(options, signal)` và xử lý lỗi chung (401 gọi `onUnauthorized`, 401/403/404 tắt ghi, còn lại đặt `error`).
+   *
+   * @param {Function} action hàm bất đồng bộ nhận `({accessToken, lang, signal}, signal)`.
+   */
   async function run(action) {
     if (lock.current) return;
     lock.current = true; const c = new AbortController(); controller.current = c;

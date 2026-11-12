@@ -20,6 +20,35 @@ import DmsGraceSettings from '../../components/dms/DmsGraceSettings.jsx';
 import DurationSetting from '../../components/dms/DurationSetting.jsx';
 import './DMSOverviewPage.css';
 
+/**
+ * Trang "Giám sát hoạt động" (Dead Man's Switch) của chủ kho. Được `App.jsx` render.
+ *
+ * API (qua `utils/dmsService.js`): `GET /api/v1/dms` (`fetchDmsConfig`; 404 RESOURCE_NOT_FOUND nghĩa là chưa cấu hình),
+ * `PUT /api/v1/dms` (`saveDmsConfig`: chu kỳ kiểm tra theo ngày hoặc phút), `POST /api/v1/dms/check-in` (`checkInDms`: xác nhận còn hoạt động).
+ * Thời gian ân hạn do `DmsGraceSettings` lưu qua `PUT /api/v1/dms`; hủy cảnh báo qua `OwnerCancelAlert`/`OwnerLiveCancelAlert`.
+ *
+ * Cách hoạt động: nạp cấu hình khi đổi chủ sở hữu/token/ngôn ngữ/bộ đếm làm mới, bỏ kết quả cũ bằng `fetchRequestId` và kiểm tra owner/token;
+ * một đồng hồ 1 giây dùng để tính tiến độ chu kỳ và phát hiện quá hạn. Khi quá hạn (MONITORING quá `nextCheckAt`, TRIGGERED chờ hoặc hết `graceDeadline`)
+ * trang polling 3 giây (và khi tab hiện lại) để lấy chuyển trạng thái chính thức từ backend. Form chu kỳ (ngày/giờ/phút, preset) được validate bằng
+ * `validateDmsDuration`; chỉ lưu được khi trạng thái là MONITORING. Quá hạn xác nhận không đồng nghĩa với việc đã qua đời và không tự mở khóa kho.
+ * Chế độ dev preview chỉ dùng khi không có token và `import.meta.env.DEV`.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {string} props.accessToken JWT chủ kho.
+ * @param {string} [props.ownerId] ID chủ kho (đổi thì reset toàn bộ state).
+ * @param {Function} [props.onUnauthorized] Callback khi 401.
+ * @param {boolean} [props.isDevPreview=false] Bật dữ liệu giả lập (chỉ DEV, không token).
+ * @param {boolean} [props.showDevToolbar=false] Giữ để tương thích, không còn vẽ thanh công cụ.
+ * @param {Function} [props.onNavigateToLogin] Về trang đăng nhập.
+ * @param {number} [props.onRefreshTrigger] Bộ đếm làm mới từ App.
+ * @param {Function} [props.onRequestRefreshParent] Yêu cầu App làm mới state chung.
+ * @param {boolean} [props.canCancelAlert] Có thể hủy cảnh báo.
+ * @param {object} [props.customCancelCapability] Khả năng hủy cảnh báo tùy biến.
+ * @param {Function} [props.onCancelAlert] Hàm hủy cảnh báo.
+ * @param {boolean} [props.isOwner=true] Người xem là chủ kho (nếu không thì chỉ đọc, không check-in).
+ * @param {object} [props.graceActions] Hành động lưu thời gian ân hạn (mặc định `liveDmsGraceActions`).
+ */
 export default function DMSOverviewPage({
   lang = 'vi',
   accessToken,
@@ -80,6 +109,9 @@ export default function DMSOverviewPage({
     onUnauthorizedRef.current = onUnauthorized;
   }, [accessToken, lang, onUnauthorized]);
   const mutationController = useRef(null);
+  /**
+   * Effect vòng đời: đánh dấu component còn sống và khi gỡ thì hủy mọi request ghi/polling đang chạy.
+   */
   useEffect(() => {
     active.current = true;
     return () => {
@@ -90,6 +122,9 @@ export default function DMSOverviewPage({
     };
   }, []);
 
+  /**
+   * Đồng hồ 1 giây (`clockNow`) dùng để tính tiến độ chu kỳ và phát hiện quá hạn; dọn interval khi gỡ.
+   */
   // Progress and grace-period eligibility are derived from server timestamps, with
   // one page-scoped clock. The interval is cleaned up on unmount/remount.
   useEffect(() => {
@@ -97,6 +132,9 @@ export default function DMSOverviewPage({
     return () => window.clearInterval(timer);
   }, []);
 
+  /**
+   * Có đang ở chế độ xem thử DEV không: chỉ khi build DEV, không có accessToken và có cờ preview (prop hoặc `?preview=true`).
+   */
   const isDevPreviewActive = useMemo(() => {
     if (typeof window === 'undefined') return false;
     const searchParams = new URLSearchParams(window.location.search);
@@ -104,6 +142,9 @@ export default function DMSOverviewPage({
     return Boolean(import.meta.env.DEV && !accessToken && (isDevPreview || showDevToolbar || hasPreview));
   }, [accessToken, isDevPreview, showDevToolbar]);
 
+  /**
+   * Hạn kiểm tra đã qua nhưng trạng thái hiển thị vẫn là MONITORING (scheduler backend chưa chuyển) nên cần polling.
+   */
   // Once the backend deadline has passed, the displayed status can remain the
   // old MONITORING snapshot until its scheduler runs. Poll for the authoritative
   // backend transition so the overdue notice appears without leaving this page.
@@ -114,8 +155,15 @@ export default function DMSOverviewPage({
   const graceExpired = (dmsData?.status === 'TRIGGERED' || dmsData?.status === 'GRACE_PERIOD_EXCEEDED') &&
     Number.isFinite(Date.parse(dmsData?.graceDeadline || '')) &&
     clockNow >= Date.parse(dmsData.graceDeadline);
+  /**
+   * Có cần polling backend không: một trong ba tình huống chờ chuyển trạng thái và không phải dev preview.
+   */
   const needsPolling = Boolean((deadlineReached || awaitingGraceDeadline || graceExpired) && !isDevPreviewActive);
 
+  /**
+   * Effect nạp cấu hình DMS (`GET /api/v1/dms`) với chống race: reset toàn bộ state khi đổi chủ sở hữu, bỏ kết quả của request cũ
+   * (`fetchRequestId`, owner, token) và đồng bộ các ô nhập ngày/giờ/phút từ dữ liệu server khi có làm mới tường minh.
+   */
   // Data fetching with intelligent sync, race condition protection and context reset
   useEffect(() => {
     let ignore = false;
@@ -213,6 +261,10 @@ export default function DMSOverviewPage({
     };
   }, [isDevPreview, showDevToolbar, lang, onRefreshTrigger, refreshKey, accessToken, ownerId, needsPolling]);
 
+  /**
+   * Effect polling nền (mỗi 3 giây) khi `needsPolling`: gọi lại `GET /api/v1/dms` để nhận chuyển trạng thái chính thức (TRIGGERED, GRACE_PERIOD_EXCEEDED...)
+   * mà không rời trang; dừng và hủy request khi không còn cần.
+   */
   useEffect(() => {
     if (!needsPolling) {
       isPollingActiveRef.current = false;
@@ -320,6 +372,9 @@ export default function DMSOverviewPage({
     };
   }, [needsPolling, accessToken, ownerId]);
 
+  /**
+   * Effect khi tab hiện lại/lấy focus: cập nhật đồng hồ và, nếu đã quá hạn mà chưa có polling, làm mới cấu hình ngay (hủy request trùng trước đó).
+   */
   // Tab visibility and focus listener: refresh immediately if expired/overdue upon returning
   useEffect(() => {
     if (isDevPreviewActive) return undefined;
@@ -381,6 +436,11 @@ export default function DMSOverviewPage({
     setRefreshKey((k) => k + 1);
   }, []);
 
+  /**
+   * Chọn nhanh chu kỳ theo số ngày (preset): đặt ngày, đưa giờ/phút về 0 và xóa lỗi.
+   *
+   * @param {number} days Số ngày của preset.
+   */
   const handlePresetSelect = (days) => {
     setIntervalInput(days);
     setHoursInput('0');
@@ -389,6 +449,9 @@ export default function DMSOverviewPage({
     setSaveError('');
   };
 
+  /**
+   * Nhập số ngày của chu kỳ; nếu đang có lỗi thì validate lại ngay bằng `validateDmsDuration`.
+   */
   const handleIntervalInputChange = (e) => {
     const val = e.target.value;
     setIntervalInput(val);
@@ -398,6 +461,9 @@ export default function DMSOverviewPage({
     }
   };
 
+  /**
+   * Nhập số giờ của chu kỳ; validate lại ngay nếu đang có lỗi liên quan.
+   */
   const handleHoursInputChange = (e) => {
     const val = e.target.value;
     setHoursInput(val);
@@ -407,6 +473,9 @@ export default function DMSOverviewPage({
     }
   };
 
+  /**
+   * Nhập số phút của chu kỳ; validate lại ngay nếu đang có lỗi liên quan.
+   */
   const handleMinutesInputChange = (e) => {
     const val = e.target.value;
     setMinutesInput(val);
@@ -416,6 +485,13 @@ export default function DMSOverviewPage({
     }
   };
 
+  /**
+   * Lưu chu kỳ kiểm tra: chỉ khi đang ở MONITORING và không có thao tác ghi nào khác; validate, rồi gọi `saveDmsConfig`
+   * (`PUT /api/v1/dms` với `checkIntervalDays` hoặc `checkIntervalMinutes`). Kết quả mới thay thế dữ liệu và đồng bộ ô nhập; lỗi 401 gọi `onUnauthorized`,
+   * lỗi khác hiện theo `err.code`.
+   *
+   * @param {Event} e Sự kiện submit form.
+   */
   const handleSaveInterval = async (e) => {
     e.preventDefault();
     if (dmsData && dmsData.status !== 'MONITORING') return;
@@ -480,6 +556,10 @@ export default function DMSOverviewPage({
     }
   };
 
+  /**
+   * Xác nhận còn hoạt động (check-in): gọi `checkInDms` (`POST /api/v1/dms/check-in`). Backend trả 409 DMS_NOT_MONITORING nếu không còn ở trạng thái theo dõi.
+   * Thành công thì cập nhật dữ liệu và hiện thông báo CHECKED_IN. Bị chặn khi `cannotCheckIn` hoặc đang có thao tác ghi khác.
+   */
   const handleCheckIn = async () => {
     if (cannotCheckIn) return;
     if (pendingCheckIn.current || pendingSave.current) return;
@@ -529,6 +609,9 @@ export default function DMSOverviewPage({
     }
   };
 
+  /**
+   * Lỗi trường đã bản địa hóa, tính lại từ giá trị ngày/giờ/phút hiện tại mỗi khi đổi ngôn ngữ hoặc giá trị.
+   */
   // Localized field errors derived from current language and duration state
   const currentErrors = useMemo(() => {
     if (Object.keys(fieldErrors).length === 0) return {};
@@ -538,6 +621,9 @@ export default function DMSOverviewPage({
   const currentIntervalError = currentErrors.days || currentErrors.check_interval_days || currentErrors.duration || null;
   const firstErrorMsg = currentIntervalError || currentErrors.hours || currentErrors.minutes || null;
 
+  /**
+   * Phần trăm tiến độ của chu kỳ hiện tại (0 đến 100) từ lần check-in gần nhất (hoặc `nextCheckAt` trừ chu kỳ) đến `nextCheckAt`; null nếu thiếu mốc hợp lệ.
+   */
   // Calculate cycle progress if timestamps are valid
   const cycleProgress = useMemo(() => {
     if (!dmsData || !dmsData.nextCheckAt) return null;
@@ -551,6 +637,9 @@ export default function DMSOverviewPage({
     return Math.min(100, Math.max(0, Math.round(((clockNow - start) / (end - start)) * 100)));
   }, [dmsData, clockNow]);
 
+  /**
+   * Chuỗi giao diện song ngữ của trang giám sát hoạt động.
+   */
   const content = {
     vi: {
       pageTitle: "Giám sát hoạt động",
@@ -646,6 +735,9 @@ export default function DMSOverviewPage({
     );
   }
 
+  /**
+   * Thời gian ân hạn đã kết thúc (trạng thái GRACE_PERIOD_EXCEEDED hoặc đã qua `graceDeadline`).
+   */
   const isGraceEnded = dmsData?.status === 'GRACE_PERIOD_EXCEEDED' || Boolean(graceExpired);
   const isTriggered = isGraceEnded ||
     (dmsData?.status === 'TRIGGERED' && Boolean(dmsData.graceDeadline));
@@ -653,10 +745,19 @@ export default function DMSOverviewPage({
   const isDeadlinePending = dmsData?.status === 'MONITORING' &&
     Number.isFinite(Date.parse(dmsData.nextCheckAt || '')) &&
     clockNow >= Date.parse(dmsData.nextCheckAt);
+  /**
+   * Cho phép check-in trong thời gian ân hạn (trạng thái TRIGGERED còn hạn).
+   */
   const canCheckInDuringGrace = dmsData?.status === 'TRIGGERED' &&
     Number.isFinite(Date.parse(dmsData.graceDeadline || '')) &&
     clockNow < Date.parse(dmsData.graceDeadline);
+  /**
+   * Không được check-in: người xem không phải chủ kho, hoặc trạng thái không phải MONITORING (ngoại trừ ân hạn còn hạn).
+   */
   const cannotCheckIn = !isOwner || (dmsData?.status !== 'MONITORING' && !canCheckInDuringGrace);
+  /**
+   * Cấu hình bị khóa khi đã có dữ liệu và trạng thái khác MONITORING.
+   */
   const configLocked = Boolean(dmsData && dmsData.status !== 'MONITORING');
   const configReadOnly = isSavingGrace || configLocked;
   const intervalTotal = Number(intervalInput) * 1440 + Number(hoursInput) * 60 + Number(minutesInput);
@@ -664,6 +765,9 @@ export default function DMSOverviewPage({
   // Compare the typed text, not the total: 29 days 24 hours equals 30 days but must keep Save (the only way to see the error) and Cancel.
   const intervalChanged = savedIntervalTotal !== undefined && (String(intervalInput) !== String(Math.floor(savedIntervalTotal / 1440))
     || String(hoursInput) !== String(Math.floor(savedIntervalTotal % 1440 / 60)) || String(minutesInput) !== String(savedIntervalTotal % 60));
+  /**
+   * Hủy chỉnh sửa chu kỳ: khôi phục ngày/giờ/phút về giá trị đã lưu, xóa lỗi, thoát chế độ cấu hình mới.
+   */
   const handleCancelInterval = () => {
     const saved = savedIntervalTotal || 0;
     setIntervalInput(String(Math.floor(saved / 1440)));

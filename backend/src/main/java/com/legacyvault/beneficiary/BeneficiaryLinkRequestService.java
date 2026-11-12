@@ -31,10 +31,17 @@ import com.legacyvault.verification.repository.VerificationCaseRepository;
  * Submitting only records a PENDING request; it never links the account, grants a role or reveals case data.
  * The account row is locked first (User -> Vault order used elsewhere) so the duplicate/limit checks are serialized
  * per account. Every unusable code gets the same generic error so a code cannot be used to probe cases.
+ *
+ * <p>Được gọi từ {@code BeneficiaryLinkRequestController} (các endpoint {@code /api/v1/beneficiary-link-requests}).
+ * Bảng: {@code beneficiary_link_requests}, {@code verification_cases}, {@code vaults}, {@code users}. Audit:
+ * {@code BENEFICIARY_LINK_REQUESTED}, {@code BENEFICIARY_LINK_REQUEST_CANCELLED}.
  */
 @Service
 public class BeneficiaryLinkRequestService {
 
+	/**
+	 * Số yêu cầu đang chờ tối đa của mỗi tài khoản.
+	 */
 	static final int MAX_PENDING_PER_ACCOUNT = 5;
 	private static final Pattern CASE_CODE = Pattern.compile("^HS-(\\d{4})-(\\d{1,9})$", Pattern.CASE_INSENSITIVE);
 	private static final Set<String> INTERNAL_ROLES = Set.of("ROLE_STAFF_EXECUTOR", "ROLE_LEGAL_VERIFIER", "ROLE_ADMIN");
@@ -47,6 +54,9 @@ public class BeneficiaryLinkRequestService {
 	private final AuditService audit;
 	private final long ttlDays;
 
+	/**
+	 * Hàm khởi tạo; {@code ttlDays} lấy từ {@code legacyvault.beneficiary.link-request-ttl-days} (mặc định 7).
+	 */
 	public BeneficiaryLinkRequestService(BeneficiaryLinkRequestRepository requests, VerificationCaseRepository cases,
 			VaultRepository vaults, UserRepository users, UserRoleRepository userRoles, AuditService audit,
 			@Value("${legacyvault.beneficiary.link-request-ttl-days:7}") long ttlDays) {
@@ -59,6 +69,14 @@ public class BeneficiaryLinkRequestService {
 		this.ttlDays = ttlDays;
 	}
 
+	/**
+	 * Gửi yêu cầu liên kết. Các bước: khóa dòng tài khoản, từ chối tài khoản có vai trò nội bộ, phân giải mã hồ sơ đang mở,
+	 * từ chối chủ kho của chính Vault, xử lý yêu cầu trùng (hết hạn thì chuyển EXPIRED), kiểm tra giới hạn, lưu yêu cầu mới và audit.
+	 * @param accountId id tài khoản đang đăng nhập
+	 * @param caseCode mã hồ sơ dạng {@code HS-yyyy-n}
+	 * @return {@code MyRequest} của yêu cầu mới
+	 * @throws com.legacyvault.common.error.BusinessException {@code UNAUTHENTICATED}, {@code BENEFICIARY_LINK_REQUEST_INVALID}, {@code BENEFICIARY_LINK_REQUEST_ALREADY_PENDING}, {@code BENEFICIARY_LINK_REQUEST_LIMIT}
+	 */
 	@Transactional
 	public BeneficiaryLinkRequestDtos.MyRequest submit(Long accountId, String caseCode) {
 		User account = lockAccount(accountId);
@@ -98,6 +116,9 @@ public class BeneficiaryLinkRequestService {
 		return BeneficiaryLinkRequestDtos.MyRequest.from(created, now);
 	}
 
+	/**
+	 * Liệt kê mọi yêu cầu của tài khoản (chỉ đọc), kèm trạng thái hiệu lực theo giờ hiện tại.
+	 */
 	@Transactional(readOnly = true)
 	public List<BeneficiaryLinkRequestDtos.MyRequest> listMine(Long accountId) {
 		LocalDateTime now = now();
@@ -105,6 +126,10 @@ public class BeneficiaryLinkRequestService {
 				.map(r -> BeneficiaryLinkRequestDtos.MyRequest.from(r, now)).toList();
 	}
 
+	/**
+	 * Hủy yêu cầu đang chờ của chính tài khoản: khóa tài khoản, khóa dòng yêu cầu, kiểm tra chủ sở hữu và còn mở, đổi sang CANCELLED, audit.
+	 * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND}, {@code BENEFICIARY_LINK_REQUEST_NOT_PENDING}
+	 */
 	@Transactional
 	public BeneficiaryLinkRequestDtos.MyRequest cancel(Long accountId, UUID requestId) {
 		lockAccount(accountId);
@@ -124,6 +149,9 @@ public class BeneficiaryLinkRequestService {
 		return BeneficiaryLinkRequestDtos.MyRequest.from(request, now);
 	}
 
+	/**
+	 * Khóa ghi dòng tài khoản đang ACTIVE (thứ tự khóa User trước Vault); không thấy thì {@code UNAUTHENTICATED}.
+	 */
 	private User lockAccount(Long accountId) {
 		return users.findActiveAccountForUpdate(accountId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
@@ -141,7 +169,13 @@ public class BeneficiaryLinkRequestService {
 		return found;
 	}
 
+	/**
+	 * Lỗi chung cho mọi mã hồ sơ không dùng được, để không dò được hồ sơ.
+	 */
 	private BusinessException invalid() { return new BusinessException(ErrorCode.BENEFICIARY_LINK_REQUEST_INVALID); }
 
+	/**
+	 * Giờ UTC hiện tại.
+	 */
 	private static LocalDateTime now() { return LocalDateTime.now(ZoneOffset.UTC); }
 }

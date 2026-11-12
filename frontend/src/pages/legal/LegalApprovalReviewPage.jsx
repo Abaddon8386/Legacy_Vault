@@ -26,6 +26,22 @@ import { isUuid } from '../../api/contracts.js';
  * 2. Thay đổi bất kỳ thuộc tính nào hoặc phát sinh tranh chấp mới khiến phê duyệt cũ bị STALE.
  * 3. Phê duyệt KHÔNG đồng nghĩa Vault đã UNLOCKED, không tự giải mã hoặc bàn giao tài sản.
  * 4. Không tự ý bịa version 1 hoặc hash nếu dữ liệu bị thiếu.
+  *
+  * Cách hoạt động: component vỏ chọn kịch bản/hồ sơ (props.dossierId hoặc tham số URL scenario/dossier/case, mặc định 'dossier-001'), đồng bộ lại vào URL bằng history.replaceState
+  * và dựng ApprovalReviewContent với key theo (dossierId, kịch bản, accessToken, isDevPreview) để reset toàn bộ trạng thái khi các giá trị này đổi.
+  * Được App.jsx render cho vai trò Legal (chế độ xem trước hoặc đã đăng nhập). Hiện luồng live của legalApprovalService chưa nối backend (ném BACKEND_NOT_READY); luồng phê duyệt thật nằm ở LegalLiveWorkflow/LegalFinalDecision.
+  *
+  * @param {object} props
+  * @param {string} [props.dossierId] Mã hồ sơ cố định (nếu có thì bỏ qua chọn kịch bản).
+  * @param {string} [props.accessToken] JWT.
+  * @param {boolean} [props.isDevPreview] Chế độ xem trước DEV.
+  * @param {'vi'|'en'} [props.lang] Ngôn ngữ.
+  * @param {Function} [props.onToggleLang] Đổi ngôn ngữ.
+  * @param {Function} [props.onLogout] Đăng xuất.
+  * @param {Function} [props.onUnauthorized] Khi API trả 401.
+  * @param {Function} [props.onRefresh] Làm mới dữ liệu phiên.
+  * @param {boolean} [props.isRefreshing] Đang làm mới.
+  * @returns {JSX.Element}
  */
 export default function LegalApprovalReviewPage(props) {
   const [selectedScenario, setSelectedScenario] = useState(() => {
@@ -44,6 +60,7 @@ export default function LegalApprovalReviewPage(props) {
     return 'dossier-001';
   });
 
+  /** Đổi kịch bản/hồ sơ đang xem và ghi vào tham số URL 'scenario' bằng history.replaceState (không tải lại trang). */
   const handleSelectScenario = (val) => {
     setSelectedScenario(val);
     if (typeof window !== 'undefined' && window.history?.replaceState) {
@@ -70,6 +87,28 @@ export default function LegalApprovalReviewPage(props) {
   );
 }
 
+/**
+ * Nội dung màn hình Phê duyệt pháp lý (PS-49) cho một hồ sơ.
+ * - Tải hồ sơ bằng loadDossier (mặc định fetchDossierForApproval) trong useEffect với AbortController; 401 -> onUnauthorized/onLogout; lỗi khác hiện trạng thái lỗi (BACKEND_NOT_READY/503 được xem là backend chưa sẵn sàng).
+ * - Tính độ mới của phê duyệt bằng assessApprovalFreshness (phiên bản, hash, phạm vi phân bổ, tranh chấp).
+ * - Form chọn APPROVE/REJECT + lý do (không chọn sẵn), kiểm tra bằng validateApprovalForm, mở hộp thoại xác nhận rồi gọi onSubmitApproval (mặc định submitLegalApproval), kiểm tra biên nhận bằng validateApprovalReceipt.
+ * - Dùng ref để chặn gửi lặp và tránh race giữa các lần tải/gửi (activeScenarioRef, loadAbortRef, submitAbortRef, isSubmittingRef).
+ *
+ * @param {object} props
+ * @param {string} [props.accessToken=null] JWT.
+ * @param {boolean} [props.isDevPreview=false] Chế độ xem trước.
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {Function} [props.onToggleLang] Đổi ngôn ngữ.
+ * @param {Function} [props.onLogout] Đăng xuất.
+ * @param {Function} [props.onUnauthorized] 401.
+ * @param {Function} [props.onRefresh] Làm mới.
+ * @param {boolean} [props.isRefreshing=false] Đang làm mới.
+ * @param {string} [props.selectedScenario='dossier-001'] Hồ sơ/kịch bản hiện tại.
+ * @param {(value: string) => void} [props.onSelectScenario] Chọn kịch bản.
+ * @param {Function} [props.loadDossier] Hàm tải hồ sơ (để thay thế khi kiểm thử).
+ * @param {Function} [props.onSubmitApproval] Hàm gửi phê duyệt (để thay thế khi kiểm thử).
+ * @returns {JSX.Element}
+ */
 function ApprovalReviewContent({
   accessToken = null,
   isDevPreview = false,
@@ -112,6 +151,7 @@ function ApprovalReviewContent({
   const isSubmittingRef = useRef(false);
 
   // Helper định dạng ngày giờ theo locale
+  /** Định dạng chuỗi ISO thành ngày giờ theo locale (vi-VN hoặc en-US); trả "—" nếu rỗng hoặc không hợp lệ. */
   const formatDateTime = (isoString) => {
     if (!isoString) return '—';
     try {
@@ -191,6 +231,7 @@ function ApprovalReviewContent({
   }, []);
 
   // Handlers
+  /** Đặt lại toàn bộ trạng thái form/gửi/lỗi, hủy các request đang chạy và tăng retryCount để tải lại hồ sơ. */
   const handleResetScenario = () => {
     submitAbortRef.current?.abort();
     loadAbortRef.current?.abort();
@@ -205,10 +246,12 @@ function ApprovalReviewContent({
     setRetryCount((c) => c + 1);
   };
 
+  /** Xử lý thay đổi ô chọn kịch bản: chuyển giá trị cho onSelectScenario. */
   const handleSelectScenario = (e) => {
     onSelectScenario?.(e.target.value);
   };
 
+  /** Chọn quyết định (APPROVE/REJECT) và xóa lỗi của trường quyết định. */
   const handleSelectDecision = (val) => {
     setDecision(val);
     if (fieldErrors.decision) {
@@ -216,6 +259,7 @@ function ApprovalReviewContent({
     }
   };
 
+  /** Cập nhật lý do nhập vào và xóa lỗi của trường lý do. */
   const handleChangeReason = (e) => {
     setReason(e.target.value);
     if (fieldErrors.reason) {
@@ -223,6 +267,7 @@ function ApprovalReviewContent({
     }
   };
 
+  /** Kiểm tra form bằng validateApprovalForm; nếu hợp lệ mở hộp thoại xác nhận, nếu không hiển thị lỗi từng trường. */
   const handleOpenConfirmModal = (e) => {
     e?.preventDefault();
     const validation = validateApprovalForm({ decision, reason }, lang);
@@ -234,10 +279,15 @@ function ApprovalReviewContent({
     setShowConfirmModal(true);
   };
 
+  /** Đóng hộp thoại xác nhận mà không gửi. */
   const handleCloseConfirmModal = () => {
     setShowConfirmModal(false);
   };
 
+  /**
+   * Gửi quyết định phê duyệt sau khi người dùng xác nhận: chống gửi lặp bằng isSubmittingRef, gọi onSubmitApproval kèm phiên bản, hash, scopeFingerprint hiện tại,
+   * xác thực biên nhận (validateApprovalReceipt) rồi hiển thị thành công và xóa form. Lỗi 401 -> đăng xuất; lỗi khác giữ nguyên form để thử lại.
+   */
   const handleConfirmSubmit = async () => {
     setShowConfirmModal(false);
 

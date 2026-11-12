@@ -18,6 +18,11 @@ import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.verification.service.StaffVaultCaseGuard;
 import jakarta.persistence.EntityManager;
 
+/**
+ * Dịch vụ xác minh danh tính tại quầy (ST-14, LV-ID-001), gọi từ {@code IdentityVerificationController}. Bảng:
+ * {@code beneficiaries}, {@code beneficiary_identity_verifications}, {@code users}. Quyền: Staff có case đang mở của Vault
+ * (kiểm tra qua {@code StaffVaultCaseGuard}). Audit {@code BENEFICIARY_IDENTITY_VERIFIED}.
+ */
 @Service
 public class IdentityVerificationService {
 
@@ -29,6 +34,9 @@ public class IdentityVerificationService {
 	private final StaffVaultCaseGuard cases;
 	private final EntityManager entities;
 
+	/**
+	 * Hàm khởi tạo, Spring tiêm các phụ thuộc.
+	 */
 	public IdentityVerificationService(BeneficiaryRepository beneficiaries,
 			IdentityVerificationRepository verifications, StaffContextService staff,
 			UserRepository users, AuditService audit, StaffVaultCaseGuard cases, EntityManager entities) {
@@ -41,6 +49,14 @@ public class IdentityVerificationService {
 		this.entities = entities;
 	}
 
+	/**
+	 * Ghi kết quả xác minh. Các bước: xác thực Staff, tìm người thụ hưởng, yêu cầu case mở ở chế độ ghi (khóa Vault và Case), refresh bản ghi,
+	 * lưu {@code IdentityVerificationRecord}, đặt trạng thái người thụ hưởng ({@code MATCH} gọi {@code verifyAtCounter}, {@code NOT_MATCH}
+	 * gọi {@code markIdentityNotVerified}) rồi audit.
+	 * Endpoint: {@code POST /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications}.
+	 * @return {@code Response} của bản ghi vừa tạo
+	 * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND} hoặc lỗi từ guard case
+	 */
 	@Transactional
 	public IdentityVerificationDtos.Response verify(UUID beneficiaryId, IdentityVerificationDtos.Request request) {
 		User actor = staff.requireStaff();
@@ -69,6 +85,11 @@ public class IdentityVerificationService {
 		return IdentityVerificationDtos.Response.from(record, actor);
 	}
 
+	/**
+	 * Trả lịch sử xác minh (chỉ đọc), kèm thông tin Staff đã xác minh. Endpoint: {@code GET .../identity-verifications}.
+	 * @throws IllegalStateException nếu không tìm thấy người xác minh
+	 * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND}
+	 */
 	@Transactional(readOnly = true)
 	public List<IdentityVerificationDtos.Response> history(UUID beneficiaryId) {
 		User actor = staff.requireStaff();
@@ -89,6 +110,9 @@ public class IdentityVerificationService {
 		}).toList();
 	}
 
+	/**
+	 * Cắt khoảng trắng; chuỗi trống thành null.
+	 */
 	private String clean(String value) {
 		if (value == null) return null;
 		String cleaned = value.trim();

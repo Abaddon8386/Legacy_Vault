@@ -1,3 +1,6 @@
+/**
+ * Dùng bởi App.jsx và pages/legal/LegalWillDocumentVerificationPage.jsx.
+ */
 import { isSessionActive } from './session.js';
 import { legalI18n } from '../pages/legal/legalI18n.js';
 
@@ -10,11 +13,17 @@ import { legalI18n } from '../pages/legal/legalI18n.js';
  * - Kết quả đối chiếu không tự động chuyển thành Legal Approved
  */
 
+/**
+ * Kết quả đối chiếu di chúc: MATCH (khớp) hoặc MISMATCH (không khớp).
+ */
 export const VERIFICATION_COMPARISON_CHOICES = Object.freeze([
   'MATCH',
   'MISMATCH',
 ]);
 
+/**
+ * Các khóa lỗi (i18n) của form đối chiếu di chúc.
+ */
 export const VERIFICATION_ERROR_KEYS = Object.freeze({
   COMPARISON_REQUIRED: 'comparisonRequired',
   COMPARISON_INVALID: 'comparisonInvalid',
@@ -23,6 +32,8 @@ export const VERIFICATION_ERROR_KEYS = Object.freeze({
 /**
  * Hàm kiểm tra quyền truy cập route Legal Will Document Verification dùng thật trong ứng dụng
  * Yêu cầu: phiên còn hiệu lực và người dùng có role LEGAL_VERIFIER
+ *
+ * Cho vào màn hình đối chiếu di chúc khi session còn hiệu lực và có vai trò LEGAL_VERIFIER.
  */
 export function canAccessLegalWillVerification(session) {
   if (!isSessionActive(session)) {
@@ -34,6 +45,8 @@ export function canAccessLegalWillVerification(session) {
 /**
  * Kiểm tra tính đầy đủ của biểu mẫu đối chiếu di chúc cục bộ
  * Trả về mã/key lỗi trung lập về ngôn ngữ để giao diện render theo ngôn ngữ hiện hành
+ *
+ * Kiểm tra form: comparison bắt buộc và phải là MATCH hoặc MISMATCH. Trả {isValid, errors}.
  */
 export function validateWillVerificationForm(data = {}) {
   const errors = {};
@@ -54,6 +67,8 @@ export function validateWillVerificationForm(data = {}) {
 
 /**
  * Helper dịch mã lỗi sang thông báo theo ngôn ngữ chỉ định
+ *
+ * Đổi khóa lỗi thành thông điệp theo ngôn ngữ từ legalI18n.
  */
 export function getWillVerificationErrorMessage(errorKey, lang = 'vi') {
   if (!errorKey) return '';
@@ -63,6 +78,8 @@ export function getWillVerificationErrorMessage(errorKey, lang = 'vi') {
 
 /**
  * Helper chuyển toàn bộ map mã lỗi thành map thông báo đã dịch
+ *
+ * Đổi cả map khóa lỗi thành map thông điệp đã dịch.
  */
 export function formatWillVerificationErrors(errors = {}, lang = 'vi') {
   const dict = legalI18n[lang] || legalI18n.vi;

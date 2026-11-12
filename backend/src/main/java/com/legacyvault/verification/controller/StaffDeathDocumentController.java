@@ -34,6 +34,10 @@ public class StaffDeathDocumentController {
         this.service = service;
     }
 
+    /**
+     * {@code POST .../death-documents}: ghi nhận giấy tờ khai tử. Body {@link RecordDeathDocumentRequest};
+     * trả 201 Created kèm {@link DeathDocumentRecordResponse}.
+     */
     @PostMapping
     public ResponseEntity<DeathDocumentRecordResponse> record(
             @PathVariable UUID caseId,
@@ -45,6 +49,9 @@ public class StaffDeathDocumentController {
         return ResponseEntity.created(location).body(created);
     }
 
+    /**
+     * {@code GET .../death-documents}: liệt kê giấy tờ khai tử đã nhận của ca.
+     */
     @GetMapping
     public List<DeathDocumentRecordResponse> list(
             @PathVariable UUID caseId,
@@ -53,6 +60,9 @@ public class StaffDeathDocumentController {
         return service.list(caseId, principal);
     }
 
+    /**
+     * {@code GET .../death-documents/{recordId}}: đọc một bản ghi; 404 nếu không thuộc ca của Staff.
+     */
     @GetMapping("/{recordId}")
     public DeathDocumentRecordResponse get(
             @PathVariable UUID caseId,

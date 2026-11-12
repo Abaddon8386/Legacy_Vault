@@ -22,11 +22,37 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Quản lý vòng đời "snapshot xem xét" (review) của hồ sơ căn cứ pháp lý (ST-20, LV-BASIS-001).
+ *
+ * <p>Một snapshot gồm số phiên bản, SHA-256 chứng cứ, trạng thái tranh chấp và hash phạm vi phân bổ. Service so sánh
+ * snapshot đã review lần cuối với dữ liệu hiện tại; nếu lệch thì đánh dấu {@code REVIEW_REQUIRED} (ghi lịch sử và audit
+ * {@code LEGAL_BASIS_REVIEW_REQUIRED} với actor SYSTEM). Khi Legal hoàn tất review thì ghi snapshot mới trạng thái
+ * {@code FRESH} (audit {@code LEGAL_BASIS_REVIEW_RECORDED}).
+ *
+ * <p>Điểm vào: {@code LegalBasisDossierController} gọi
+ * {@code POST /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/review}
+ * ({@link #recordCompletedReviewByCasePublicId(UUID, Long, CompleteLegalBasisReviewRequest)}) và
+ * {@code POST .../basis-dossier/request-supplementation} ({@link #requestSupplementationByCasePublicId}), vai trò
+ * LEGAL_VERIFIER. {@code BasisIntakeService}, {@code BasisForwardService} và {@code DistributionWorkflowService} gọi
+ * {@code evaluate*} sau khi dữ liệu thay đổi. Thứ tự khóa luôn là Vault, VerificationCase, rồi Dossier (FOR UPDATE).
+ * Bảng: {@code vaults}, {@code verification_cases}, {@code legal_basis_dossiers}, các bảng phiên bản, phân bổ, lịch sử
+ * review.
+ */
 @Service
 public class LegalBasisReviewService {
 
+    /**
+     * Loại thực thể ghi trong audit.
+     */
     private static final String ENTITY_TYPE = "LEGAL_BASIS_DOSSIER";
+    /**
+     * Mã bước quy trình ghi vào audit.
+     */
     private static final String STEP_ID = "ST-20";
+    /**
+     * Mã quy tắc nghiệp vụ ghi vào audit.
+     */
     private static final String RULE_ID = "LV-BASIS-001";
 
     private final LegalBasisDossierRepository dossiers;
@@ -39,6 +65,17 @@ public class LegalBasisReviewService {
     private final LegalBasisLockedState lockedState;
     private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
+    /**
+     * @param dossiers repository hồ sơ căn cứ (có truy vấn khóa ghi)
+     * @param versions repository phiên bản hồ sơ căn cứ
+     * @param allocations repository dòng phân bổ theo phiên bản
+     * @param history repository lịch sử review
+     * @param auditService dịch vụ ghi nhật ký kiểm toán
+     * @param verificationCases repository hồ sơ xác minh
+     * @param vaultRepository repository Vault
+     * @param lockedState tiện ích refresh entity sau khi khóa
+     * @param notifications dịch vụ thông báo workflow
+     */
     public LegalBasisReviewService(
             LegalBasisDossierRepository dossiers,
             LegalBasisDossierVersionRepository versions,
@@ -62,7 +99,13 @@ public class LegalBasisReviewService {
     }
 
     /**
-     * Đánh giá snapshot theo thứ tự khóa Vault -> VerificationCase -> Dossier.
+     * Đánh giá snapshot theo thứ tự khóa Vault -> VerificationCase -> Dossier, bắt đầu từ id nội bộ của dossier.
+     *
+     * @param dossierId id nội bộ của hồ sơ căn cứ
+     * @return kết quả đánh giá (khớp hoặc REVIEW_REQUIRED)
+     * @throws BusinessException {@code VALIDATION_FAILED}, {@code RESOURCE_NOT_FOUND}, {@code VERIFICATION_CASE_NOT_OPEN}
+     *         khi case đóng, {@code BASIS_DOSSIER_INVALID_STATE} khi Vault đang ON_HOLD, hoặc
+     *         {@code COURT_DECISION_REQUIRED} khi tuyến tòa chưa có quyết định
      */
     @Transactional
     public LegalBasisReviewResponse evaluate(Long dossierId) {
@@ -118,7 +161,14 @@ public class LegalBasisReviewService {
     }
 
     /**
-     * Đánh giá lại snapshot theo verification case sau khi có thay đổi.
+     * Đánh giá lại snapshot theo public id của case sau khi có thay đổi (tải phiên bản mới, forward, đổi phân bổ...). Khóa
+     * Vault, case, dossier; yêu cầu case mở, Vault không ON_HOLD và ở trạng thái nhận hồ sơ hoặc LEGAL_BASIS_VERIFICATION;
+     * dossier phải PROVIDED hoặc FORWARDED.
+     *
+     * @param casePublicId public id của hồ sơ xác minh
+     * @return kết quả đánh giá
+     * @throws BusinessException {@code VALIDATION_FAILED}, {@code RESOURCE_NOT_FOUND}, {@code VERIFICATION_CASE_NOT_OPEN},
+     *         {@code BASIS_DOSSIER_INVALID_STATE}
      */
     @Transactional
     public LegalBasisReviewResponse evaluateAfterChange(UUID casePublicId) {
@@ -183,7 +233,12 @@ public class LegalBasisReviewService {
     }
 
     /**
-     * Đánh giá dossier đã được caller khóa.
+     * Đánh giá dossier mà caller đã khóa Vault/case trước đó; chỉ khóa lại dossier theo id rồi refresh.
+     *
+     * @param dossierId id nội bộ của hồ sơ căn cứ
+     * @param vaultId id nội bộ của Vault (dùng khi ghi audit)
+     * @return kết quả đánh giá
+     * @throws BusinessException {@code VALIDATION_FAILED} khi thiếu tham số; {@code RESOURCE_NOT_FOUND}
      */
     @Transactional
     public LegalBasisReviewResponse evaluateAfterChange(
@@ -204,7 +259,13 @@ public class LegalBasisReviewService {
     }
 
     /**
-     * Ghi nhận review hoàn tất theo verification case.
+     * Ghi nhận review hoàn tất theo verification case, không kiểm tra snapshot kỳ vọng (dành cho caller nội bộ).
+     *
+     * @param casePublicId public id của hồ sơ xác minh
+     * @param reviewerUserId id người review
+     * @param reason lý do/ghi chú review (không rỗng, tối đa 1000 ký tự)
+     * @return kết quả review
+     * @throws BusinessException xem {@code completeReview}
      */
     @Transactional
     public LegalBasisReviewResponse recordCompletedReviewByCasePublicId(
@@ -215,7 +276,18 @@ public class LegalBasisReviewService {
         return completeReview(casePublicId, reviewerUserId, reason, null);
     }
 
-    /** HTTP boundary requires the exact displayed snapshot. The String overload is for trusted in-process callers only. */
+    /**
+     * Ghi nhận review hoàn tất qua biên HTTP. Bắt buộc đúng snapshot đang hiển thị: số phiên bản, SHA-256 và hash phân
+     * bổ (64 ký tự hex) và trạng thái tranh chấp (NONE, DISPUTED, UNDETERMINED). Bản overload nhận String chỉ dành cho caller
+     * nội bộ tin cậy.
+     *
+     * @param casePublicId public id của hồ sơ xác minh
+     * @param reviewerUserId id người dùng Legal Verifier
+     * @param expected snapshot kỳ vọng kèm lý do
+     * @return kết quả review (FRESH)
+     * @throws BusinessException {@code VALIDATION_FAILED} khi snapshot sai định dạng; {@code LEGAL_DECISION_STALE} khi
+     *         snapshot không còn khớp dữ liệu hiện tại; các lỗi trạng thái khác như ở {@code completeReview}
+     */
     @Transactional
     public LegalBasisReviewResponse recordCompletedReviewByCasePublicId(UUID casePublicId, Long reviewerUserId,
             CompleteLegalBasisReviewRequest expected) {
@@ -227,6 +299,15 @@ public class LegalBasisReviewService {
         return completeReview(casePublicId, reviewerUserId, expected.reason(), expected);
     }
 
+    /**
+     * Thực hiện review hoàn tất: kiểm tra đầu vào, khóa Vault -> case -> dossier, kiểm tra hold, tuyến tòa
+     * ({@code COURT_DECISION_REQUIRED}), Vault ở LEGAL_BASIS_VERIFICATION và dossier FORWARDED; nếu có snapshot kỳ vọng thì
+     * đối chiếu với phiên bản mới nhất; cuối cùng gọi {@code recordCompletedReviewLocked}.
+     *
+     * @param expected snapshot kỳ vọng hoặc {@code null} khi gọi từ nội bộ
+     * @throws BusinessException {@code VALIDATION_FAILED}, {@code RESOURCE_NOT_FOUND}, {@code VERIFICATION_CASE_NOT_OPEN},
+     *         {@code BASIS_DOSSIER_INVALID_STATE}, {@code LEGAL_DECISION_STALE}
+     */
     private LegalBasisReviewResponse completeReview(UUID casePublicId, Long reviewerUserId, String reason,
             CompleteLegalBasisReviewRequest expected) {
         validateReviewInput(casePublicId, reviewerUserId, reason);
@@ -298,6 +379,20 @@ public class LegalBasisReviewService {
 
     /**
      * Legal yêu cầu bổ sung hồ sơ và trả hồ sơ về Staff.
+     * API: {@code POST /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/request-supplementation}
+     * (LEGAL_VERIFIER).
+     *
+     * <p>Các bước: kiểm tra lý do (không rỗng, tối đa 1000 ký tự); khóa Vault -> case -> dossier; kiểm tra hold TRƯỚC các
+     * kiểm tra trạng thái, tuyến tòa, Vault ở LEGAL_BASIS_VERIFICATION và dossier FORWARDED; đánh dấu dossier cần review và
+     * cần bổ sung; chuyển Vault về trạng thái chờ căn cứ; lưu lịch sử review; ghi audit {@code LEGAL_BASIS_REVIEW_REQUIRED};
+     * gửi thông báo {@code LEGAL_BASIS_REVIEW_REQUIRED} cho Staff.
+     *
+     * @param casePublicId public id của hồ sơ xác minh
+     * @param reviewerUserId id Legal Verifier
+     * @param reason lý do yêu cầu bổ sung
+     * @return kết quả với trạng thái REVIEW_REQUIRED
+     * @throws BusinessException {@code VALIDATION_FAILED}, {@code RESOURCE_NOT_FOUND}, {@code VERIFICATION_CASE_NOT_OPEN},
+     *         {@code COURT_DECISION_REQUIRED}, {@code BASIS_DOSSIER_INVALID_STATE}
      */
     @Transactional
     public LegalBasisReviewResponse requestSupplementationByCasePublicId(
@@ -418,7 +513,16 @@ public class LegalBasisReviewService {
 
 
     /**
-     * So sánh snapshot đã review với dữ liệu hiện tại.
+     * So sánh snapshot đã review lần cuối với dữ liệu hiện tại của dossier đã khóa.
+     *
+     * <p>Thứ tự phát hiện lệch: chưa có snapshot (NO_REVIEW_SNAPSHOT), đổi phiên bản (DOSSIER_VERSION_CHANGED), đổi hash
+     * chứng cứ (EVIDENCE_HASH_CHANGED), đổi trạng thái tranh chấp (DISPUTE_STATUS_CHANGED), đổi phạm vi phân bổ
+     * (ALLOCATION_SCOPE_CHANGED). Nếu lệch thì gọi {@code markRequired}; nếu khớp thì trả SNAPSHOT_MATCHES.
+     *
+     * @param dossier dossier đã khóa
+     * @param vaultId id Vault dùng cho audit
+     * @return kết quả đánh giá
+     * @throws BusinessException {@code COURT_DECISION_REQUIRED} khi dossier chưa thể xem xét
      */
     private LegalBasisReviewResponse evaluateLocked(
             LegalBasisDossier dossier,
@@ -499,7 +603,14 @@ public class LegalBasisReviewService {
     }
 
     /**
-     * Đánh dấu REVIEW_REQUIRED và ghi history/audit.
+     * Đánh dấu dossier REVIEW_REQUIRED với mã lý do. Chỉ khi trạng thái hoặc lý do thực sự đổi mới ghi lịch sử review và
+     * audit {@code LEGAL_BASIS_REVIEW_REQUIRED} (actor SYSTEM) để tránh ghi trùng.
+     *
+     * @param current phiên bản hiện hành hoặc {@code null}
+     * @param currentAllocationHash hash phân bổ hiện tại hoặc {@code null}
+     * @param reasonCode mã lý do
+     * @param reason mô tả lý do
+     * @return kết quả với reviewRequired = true
      */
     private LegalBasisReviewResponse markRequired(
             LegalBasisDossier dossier,
@@ -572,7 +683,11 @@ public class LegalBasisReviewService {
     }
 
     /**
-     * Ghi snapshot, lịch sử review và audit sau khi reviewer hoàn tất.
+     * Ghi snapshot hiện tại làm snapshot đã review, lưu lịch sử (FRESH, REVIEW_COMPLETED), ghi audit
+     * {@code LEGAL_BASIS_REVIEW_RECORDED} và gửi thông báo {@code LEGAL_BASIS_REVIEW_RECORDED} cho Staff.
+     *
+     * @throws BusinessException {@code COURT_DECISION_REQUIRED}; {@code BASIS_DOSSIER_INVALID_STATE} khi phiên bản mới nhất
+     *         chưa FORWARDED, thấp hơn phiên bản yêu cầu hoặc thiếu SHA-256; {@code RESOURCE_NOT_FOUND}
      */
     private LegalBasisReviewResponse recordCompletedReviewLocked(
             LegalBasisDossier dossier,
@@ -655,7 +770,9 @@ public class LegalBasisReviewService {
     }
 
     /**
-     * Kiểm tra tham số review.
+     * Kiểm tra tham số review: case, reviewer không null, lý do không rỗng và tối đa 1000 ký tự.
+     *
+     * @throws BusinessException {@code VALIDATION_FAILED}
      */
     private void validateReviewInput(
             UUID casePublicId,
@@ -672,12 +789,18 @@ public class LegalBasisReviewService {
     }
 
     /**
-     * Tạo hash ổn định cho các dòng phân bổ.
+     * Tạo hash ổn định cho tập giá trị chuẩn hóa của các dòng phân bổ (ủy quyền cho {@code AllocationScopeHash}).
+     *
+     * @param values các giá trị chuẩn hóa
+     * @return chuỗi hash
      */
     public static String allocationHashFromCanonicalValues(List<String> values) {
         return AllocationScopeHash.hashCanonicalValues(values);
     }
 
+    /**
+     * Tính hash phạm vi phân bổ của phiên bản {@code versionNo} trong dossier từ các dòng phân bổ.
+     */
     private String allocationHash(Long dossierId, int versionNo) {
         List<String> scope = allocations.findRowsByDossier(dossierId).stream()
                 .filter(row -> row.versionNo() == versionNo)
@@ -687,6 +810,9 @@ public class LegalBasisReviewService {
         return allocationHashFromCanonicalValues(scope);
     }
 
+    /**
+     * Chuẩn hóa một dòng phân bổ (tài sản, beneficiary, mô tả) thành chuỗi dùng để tính hash.
+     */
     private String allocationCanonicalValue(AllocationRow row) {
         return AllocationScopeHash.canonicalValue(row.assetId(), row.beneficiaryId(), row.description());
     }

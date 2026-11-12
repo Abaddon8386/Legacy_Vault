@@ -4,6 +4,17 @@ import './AssetImages.css';
 import './AssetFilePicker.css';
 import './AssetAttachmentTable.css';
 
+/**
+ * Ô chọn ảnh JPEG/PNG đính kèm tài sản (tối đa 5 ảnh, mỗi ảnh 5 MB, tính cả {@code existingCount} ảnh đã có). Gộp ảnh mới vào danh sách hiện tại, kiểm tra bằng
+ * {@code validateAssetImages}; sai thì hiện lỗi và không cập nhật. Không gọi API; việc tải lên do component cha thực hiện.
+ *
+ * @param {object} props
+ * @param {File[]} props.files Ảnh đang chọn.
+ * @param {(files:File[])=>void} props.onChange Cập nhật danh sách.
+ * @param {boolean} props.disabled Khóa ô chọn.
+ * @param {string} [props.lang='vi']
+ * @param {number} [props.existingCount=0] Số ảnh đã có của tài sản.
+ */
 export function AssetImagePicker({ files, onChange, disabled, lang = 'vi', existingCount = 0 }) {
   const en = lang === 'en';
   const [error, setError] = useState('');

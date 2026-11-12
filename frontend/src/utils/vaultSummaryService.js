@@ -1,5 +1,16 @@
+/**
+ * Dịch vụ tổng hợp dữ liệu cho thẻ tóm tắt kho; dùng bởi components/vault/VaultSummary.jsx.
+ */
 import { request, ApiError } from '../api/http.js';
 import { readDms } from './dmsService.js';
+/**
+ * Tải song song ba nguồn bằng Promise.allSettled:
+ * - GET /api/v1/vaults/{vaultId}/assets?page=0&size=1&sort=createdAt,desc: lấy tổng số tài sản (totalElements).
+ * - GET /api/v1/vaults/{vaultId}/configuration-check: số người thụ hưởng và cờ ready.
+ * - GET /api/v1/dms: cấu hình giám sát (chuẩn hóa bằng readDms).
+ * Mỗi nguồn lỗi chỉ đánh dấu available=false, riêng AbortError hoặc 401 thì ném lại.
+ * @returns {Promise<{assets:object,configuration:object,dms:object}>} mỗi phần có dạng {available, value?}.
+ */
 export async function fetchVaultSummary(vaultId, options = {}) {
   const count = raw => {
     if (!Number.isSafeInteger(raw?.totalElements) || raw.totalElements < 0 || !Array.isArray(raw.content)) throw new ApiError('INVALID_RESPONSE');
@@ -29,6 +40,9 @@ export function confirmationState(dms, now = Date.now()) {
   return { past, canConfirm };
 }
 
+/**
+ * Mô tả mốc kiểm tra kế tiếp: "Còn N ngày", "Đã đến hạn xác nhận" hoặc "Đã quá hạn xác nhận" (vi/en).
+ */
 export function describeNextCheck(dms, lang = 'vi', now = Date.now()) {
   const en = lang === 'en';
   if (dms.status !== 'MONITORING') return en ? 'Confirmation overdue' : 'Đã quá hạn xác nhận';

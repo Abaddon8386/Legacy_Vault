@@ -16,12 +16,24 @@ import com.legacyvault.asset.entity.AssetType;
  */
 public interface AssetRepository extends JpaRepository<Asset, Long> {
 
-	/** Danh sách Asset của Vault, bỏ loại DOCUMENT (di chúc đi qua /wills). */
+	/**
+	 * Danh sách Asset của Vault, bỏ loại DOCUMENT (di chúc đi qua /wills). Dùng bởi {@code AssetService.listAssets}.
+	 *
+	 * @param vaultId id nội bộ của Vault
+	 * @param excludedType loại bị loại trừ (DOCUMENT)
+	 * @param pageable phân trang + sắp xếp
+	 */
 	Page<Asset> findByVaultIdAndAssetTypeNot(Long vaultId, AssetType excludedType, Pageable pageable);
 
-	/** Public metadata catalog for an authorized pre-unlock Staff case. */
+	/**
+	 * Danh mục metadata công khai của Asset cho một hồ sơ Staff đã được ủy quyền trước khi mở khóa (lọc thêm theo {@code status}).
+	 *
+	 * @param status trạng thái Asset cần lấy
+	 */
 	Page<Asset> findByVaultIdAndStatusAndAssetTypeNot(Long vaultId, String status, AssetType excludedType, Pageable pageable);
 
-	/** Một Asset của đúng Vault đó (bỏ DOCUMENT): Asset của Vault khác hay di chúc đều coi như không tồn tại. */
+	/**
+	 * Một Asset của đúng Vault đó (bỏ DOCUMENT): Asset của Vault khác hay di chúc đều coi như không tồn tại. Dùng bởi {@code AssetService}, {@code AssetDocumentService}, {@code AssetImageService}.
+	 */
 	Optional<Asset> findByPublicIdAndVaultIdAndAssetTypeNot(UUID publicId, Long vaultId, AssetType excludedType);
 }

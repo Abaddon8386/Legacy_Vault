@@ -3,10 +3,17 @@ import { getAuthMessage } from '../../utils/loginService.js';
 import { loadGoogleIdentityScript } from '../../utils/googleIdentity.js';
 import './GoogleSignInButton.css';
 // GIS has one active callback. Restore the underlying screen after a reauthentication dialog closes.
+/**
+ * Ngăn xếp cấu hình Google Identity Services (GIS chỉ có một callback hoạt động); khi một nút bị gỡ thì cấu hình trước đó được khôi phục.
+ */
 const configurations = [];
 
 /**
  * Official Google 4-color "G" Icon conforming to Google Branding Guidelines.
+ *
+ * Biểu tượng chữ "G" bốn màu theo hướng dẫn thương hiệu của Google.
+ *
+ * @param {{size?:number}} props Kích thước (px), mặc định 18.
  */
 export function GoogleGIcon({ size = 18 }) {
   return (
@@ -41,6 +48,19 @@ export function GoogleGIcon({ size = 18 }) {
 /**
  * Google Sign-In Button component.
  * Supports official GIS rendered button and brand-compliant fallback when Client ID is unconfigured.
+ *
+ * Nút đăng nhập Google. Đọc {@code VITE_GOOGLE_CLIENT_ID}; nếu có thì nạp script GIS ({@code loadGoogleIdentityScript}), khởi tạo và render nút chính thức vào container;
+ * nếu chưa cấu hình hoặc script lỗi thì hiện nút dự phòng bị khóa kèm thông báo. Không gọi backend: credential (ID token) nhận được được chuyển cho cha qua {@code onCredentialReceived},
+ * cha mới gọi API (ví dụ đăng nhập Google, đăng ký, hoặc đặt mật khẩu lần đầu trong {@code PasswordSetupProvider}).
+ *
+ * @param {object} props
+ * @param {string} [props.id] Id nút.
+ * @param {boolean} [props.disabled=false] Khóa nút.
+ * @param {string} [props.lang='vi']
+ * @param {('continue_with'|'signup_with')} [props.text] Nhãn của nút GIS.
+ * @param {(response:{credential:string})=>void} props.onCredentialReceived Nhận credential từ Google.
+ * @param {(error:{code:string,message:string})=>void} props.onError Báo lỗi (GOOGLE_SCRIPT_LOAD_ERROR, INVALID_GOOGLE_CREDENTIAL).
+ * @param {string} [props.customUnavailableNotice] Thông báo thay thế khi chưa cấu hình.
  */
 export default function GoogleSignInButton({
   id = 'lv-google-btn',
@@ -158,6 +178,9 @@ export default function GoogleSignInButton({
   const showGis = isConfigured && gisLoaded && !hasError;
   const isButtonDisabled = disabled || !isConfigured || hasError;
 
+  /**
+   * Xử lý bấm nút dự phòng (không làm gì khi bị khóa).
+   */
   const handleCustomClick = () => {
     if (isButtonDisabled) return;
   };

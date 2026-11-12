@@ -7,6 +7,9 @@ import { Modal } from '../../components/common/Modal.jsx';
 import { fetchAdminAuditDetail, fetchAdminAuditLogs } from '../../utils/adminService.js';
 import './AdminPages.css';
 
+/**
+ * Các mã hành động phổ biến hiển thị trong dropdown lọc nhật ký (là tập con của `AuditAction` ở backend).
+ */
 const COMMON_ACTIONS = [
   'AUTH_REGISTERED',
   'ADMIN_USER_CREATED',
@@ -31,6 +34,21 @@ const COMMON_ACTIONS = [
   'HANDOVER_ASSET_DELIVERED',
 ];
 
+/**
+ * Trang "Nhật ký kiểm toán" của quản trị viên (ROLE_ADMIN).
+ *
+ * Cách hoạt động: giữ state bộ lọc (hành động, loại tác nhân, actorId, vaultId, số hồ sơ, khoảng ngày) và phân trang
+ * (10 dòng/trang), gọi `fetchAdminAuditLogs` qua `useAdminQuery` tới `GET /api/v1/admin/audit-logs` (query: action, actorType,
+ * actorId, vaultId, caseNumber, fromDate, toDate, page, pageSize). Bấm "Xem chi tiết" mở modal `AuditDetail` gọi
+ * `GET /api/v1/admin/audit-logs/{id}`. Đổi bộ lọc luôn đưa về trang 1. Được `App.jsx` render cho ADMIN khi chọn mục logs.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {string|null} [props.accessToken] JWT admin.
+ * @param {boolean} [props.fetchOnMount=false] Có gọi API thật hay không.
+ * @param {Function|null} [props.onUnauthorized] Callback khi 401.
+ * @returns {JSX.Element} Giao diện nhật ký.
+ */
 export default function AdminLogsPage({
   lang = 'vi',
   accessToken = null,
@@ -56,12 +74,18 @@ export default function AdminLogsPage({
   const detailLog = detailSelection?.data === data ? detailSelection.record : null;
   const setDetailLog = (record) => setDetailSelection(record ? { record, data } : null);
 
+  /**
+   * Submit form lọc: về trang 1 và tải lại dữ liệu.
+   */
   const handleFilterSubmit = (e) => {
     e.preventDefault();
     setPage(1);
     handleReload();
   };
 
+  /**
+   * Xóa toàn bộ bộ lọc và về trang 1.
+   */
   const handleResetFilters = () => {
     setActionFilter('');
     setActorTypeFilter('');
@@ -73,6 +97,9 @@ export default function AdminLogsPage({
     setPage(1);
   };
 
+  /**
+   * Định dạng thời điểm sự kiện thành "YYYY-MM-DD HH:mm:ss UTC" cho cột thời gian của bảng.
+   */
   const formatTimestamp = (isoString) => {
     if (!isoString) return t.notAvailable;
     try {
@@ -83,6 +110,9 @@ export default function AdminLogsPage({
     }
   };
 
+  /**
+   * Hiển thị tác nhân của sự kiện: SYSTEM, người dùng đã xóa, không rõ, hoặc tên + vai trò + ID người dùng.
+   */
   const renderActorLabel = (log) => {
     if (log.actorType === 'SYSTEM') {
       return <span style={{ color: 'var(--lv-brand-forest)', fontWeight: 600 }}>{t.actorSystem}</span>;
@@ -358,7 +388,17 @@ export default function AdminLogsPage({
   );
 }
 
+/**
+ * Adapter cho `useAdminQuery`: tách `id` khỏi tham số rồi gọi `fetchAdminAuditDetail` (`GET /api/v1/admin/audit-logs/{id}`).
+ */
 const loadDetail = (token, { id, ...options }) => fetchAdminAuditDetail(token, id, options);
+/**
+ * Nút nhỏ sao chép một giá trị (ID, trace, số hồ sơ) vào clipboard; hiện "Đã chép" 2 giây.
+ *
+ * @param {object} props
+ * @param {string} props.text Nội dung cần sao chép.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ nhãn nút.
+ */
 function CopyButton({ text, lang }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
@@ -388,11 +428,26 @@ function CopyButton({ text, lang }) {
   );
 }
 
+/**
+ * Modal chi tiết một sự kiện audit. Tải `GET /api/v1/admin/audit-logs/{id}` qua `useAdminQuery`; lỗi 403 gọi `onDenied`
+ * để trang cha hiển thị thông báo từ chối truy cập. Hiển thị mã hành động, loại thực thể, thời gian và các định danh kỹ thuật (có nút sao chép).
+ *
+ * @param {object} props
+ * @param {object} props.event Dòng nhật ký được chọn (dùng `id`).
+ * @param {string} props.accessToken JWT admin.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {Function} props.onClose Đóng modal.
+ * @param {Function} props.onUnauthorized Callback 401.
+ * @param {Function} props.onDenied Callback 403.
+ */
 function AuditDetail({ event, accessToken, lang, onClose, onUnauthorized, onDenied }) {
   const t = adminI18n[lang] || adminI18n.vi;
   const onFailure = (error) => { if (error.status === 403) onDenied(); };
   const { data, loading, error, apiPending, reload } = useAdminQuery(loadDetail, accessToken, { id: event.id, lang }, true, onUnauthorized, t.accessDenied, onFailure);
 
+  /**
+   * Ghép thời gian hiển thị theo giờ UTC (locale) cùng dạng ISO rút gọn trong ngoặc.
+   */
   const formatFullTimestamp = (occurredAt) => {
     if (!occurredAt) return t.notAvailable;
     const local = formatAdminTimestamp(occurredAt, lang);

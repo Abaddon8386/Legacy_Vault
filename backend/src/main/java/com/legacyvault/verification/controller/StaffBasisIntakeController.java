@@ -39,7 +39,13 @@ public class StaffBasisIntakeController {
         this.views = views;
     }
 
-    /** Hai phần không bắt buộc ở tầng binding để thiếu phần nào cũng trả 400 VALIDATION_FAILED (service kiểm tra). */
+    /**
+     * Hai phần không bắt buộc ở tầng binding để thiếu phần nào cũng trả 400 VALIDATION_FAILED (service kiểm tra).
+     *
+     * {@code POST /api/v1/staff/verification-cases/{caseId}/basis-dossier/versions} (multipart).
+     * Phần {@code metadata} là {@link BasisIntakeMetadata} (JSON), phần {@code file} là bản số hóa. Gọi
+     * {@code DistributionWorkflowService.receive}; trả 201 Created kèm {@link BasisDossierResponse}.
+     */
     @PostMapping(path = "/versions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<BasisDossierResponse> receive(
             @PathVariable UUID caseId,
@@ -52,7 +58,14 @@ public class StaffBasisIntakeController {
         return ResponseEntity.created(location).body(updated);
     }
 
-    /** ST-19: chuyển đúng phiên bản (chỉ phiên bản mới nhất) cho Legal. Phiên bản cũ trả 409 BASIS_VERSION_STALE. */
+    /**
+     * ST-19: chuyển đúng phiên bản (chỉ phiên bản mới nhất) cho Legal. Phiên bản cũ trả 409 BASIS_VERSION_STALE.
+     *
+     * {@code POST .../basis-dossier/versions/{version}/forward}: chuyển phiên bản (chỉ bản mới nhất)
+     * sang Legal qua {@code DistributionWorkflowService.forward}; trả {@link BasisDossierResponse}.
+     *
+     * @param version số phiên bản, tối thiểu 1
+     */
     @PostMapping("/versions/{version}/forward")
     public BasisDossierResponse forward(
             @PathVariable UUID caseId,
@@ -62,6 +75,9 @@ public class StaffBasisIntakeController {
         return distribution.forward(caseId, version, principal);
     }
 
+    /**
+     * {@code GET .../basis-dossier}: xem hồ sơ căn cứ phía Staff qua {@code BasisDossierViewService.forStaff}.
+     */
     @GetMapping
     public BasisDossierResponse get(@PathVariable UUID caseId, @AuthenticationPrincipal CustomUserPrincipal principal) {
         return views.forStaff(caseId, principal);

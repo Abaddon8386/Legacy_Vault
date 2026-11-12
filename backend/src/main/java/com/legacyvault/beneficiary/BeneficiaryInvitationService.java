@@ -27,7 +27,15 @@ import com.legacyvault.vault.service.VaultService;
 /** PS-86. Resource writes serialize on Vault before refreshing Beneficiary and invitation.
  * Account linking first locks the target User, matching User -> Vault in Owner content writers.
  * PS-87 must call linkAccount in its outer auth transaction, after rate limiting and authentication.
- * No public redemption endpoint is supplied by PS-86. */
+ * No public redemption endpoint is supplied by PS-86.
+ *
+ * <p>Vai trò: vòng đời mã mời liên kết tài khoản cho người thụ hưởng. Owner cấp, xem, cấp lại, thu hồi mã (qua
+ * {@code BeneficiaryInvitationController}); Staff cấp mã gắn email (qua {@code StaffInvitationEmailService.issueBoundForStaff});
+ * người thụ hưởng đã đăng nhập đổi mã lấy liên kết (qua {@code InvitationRedeemService}, endpoint {@code POST /api/v1/auth/invitations/redeem}).
+ * <p>Bảng liên quan: {@code beneficiary_invitations}, {@code beneficiaries}, {@code users}, {@code user_roles}, {@code vaults}.
+ * Audit (qua {@code AuditService}): {@code BENEFICIARY_INVITATION_ISSUED}, {@code _REISSUED}, {@code _REVOKED}, {@code _CONSUMED}.
+ * Thứ tự khóa: User rồi Vault, tránh deadlock với các luồng ghi của Owner.
+ */
 @Service
 public class BeneficiaryInvitationService {
     private static final Set<String> INTERNAL_ROLES = Set.of("ROLE_ADMIN", "ROLE_STAFF_EXECUTOR", "ROLE_LEGAL_VERIFIER");
@@ -43,6 +51,9 @@ public class BeneficiaryInvitationService {
     private final EntityManager entities;
     private final AuditService audit;
 
+    /**
+     * Hàm khởi tạo, Spring tiêm repository, dịch vụ Vault/Owner, bộ sinh mã {@code InvitationTokens}, {@code EntityManager} và audit.
+     */
     public BeneficiaryInvitationService(BeneficiaryInvitationRepository invitations, BeneficiaryRepository beneficiaries,
             OwnerContextService owners, VaultService ownerVaults, VaultRepository vaults, UserRepository users,
             UserRoleRepository userRoles, RoleRepository roles, InvitationTokens tokens, EntityManager entities, AuditService audit) {
@@ -51,6 +62,12 @@ public class BeneficiaryInvitationService {
         this.roles = roles; this.tokens = tokens; this.entities = entities; this.audit = audit;
     }
 
+    /**
+     * Xem metadata mã mời hiện hành của một người thụ hưởng (không bao giờ trả mã thô).
+     * Endpoint: {@code GET /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/invitation} (VAULT_OWNER).
+     * @return {@code Metadata}; trạng thái {@code NOT_ISSUED} nếu chưa cấp
+     * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND} nếu Vault/người thụ hưởng không thuộc Owner
+     */
     @Transactional(readOnly = true)
     public InvitationDtos.Metadata get(UUID vaultId, UUID beneficiaryId) {
         User owner = owners.requireOwner();
@@ -59,6 +76,12 @@ public class BeneficiaryInvitationService {
         return InvitationDtos.Metadata.from(current(beneficiary), beneficiaryId, now());
     }
 
+    /**
+     * Cấp mã mời đầu tiên (generation 1). Khóa Vault để ghi, đảm bảo người thụ hưởng chưa liên kết và chưa có mã hiện hành.
+     * Endpoint: {@code POST .../invitation}. Audit {@code BENEFICIARY_INVITATION_ISSUED}.
+     * @return {@code Issued} chứa metadata và mã thô (chỉ trả một lần)
+     * @throws com.legacyvault.common.error.BusinessException {@code BENEFICIARY_ACCOUNT_ALREADY_LINKED}, {@code BENEFICIARY_INVITATION_ALREADY_EXISTS}
+     */
     @Transactional
     public InvitationDtos.Issued issue(UUID vaultId, UUID beneficiaryId) {
         User owner = owners.requireOwner();
@@ -68,6 +91,12 @@ public class BeneficiaryInvitationService {
         return create(beneficiary, 1, owner.getUserId(), "BENEFICIARY_INVITATION_ISSUED");
     }
 
+    /**
+     * Cấp lại mã: thu hồi mã hiện hành, bỏ cờ hiện hành, flush để giải phóng ô duy nhất rồi tạo mã generation+1.
+     * Endpoint: {@code POST .../invitation/reissue}. Audit {@code BENEFICIARY_INVITATION_REISSUED}.
+     * @param generation thế hệ client đang thấy; lệch với DB thì từ chối để chống thao tác cũ
+     * @throws com.legacyvault.common.error.BusinessException {@code BENEFICIARY_INVITATION_ALREADY_USED}, {@code BENEFICIARY_INVITATION_STALE}, {@code RESOURCE_NOT_FOUND}
+     */
     @Transactional
     public InvitationDtos.Issued reissue(UUID vaultId, UUID beneficiaryId, int generation) {
         User owner = owners.requireOwner();
@@ -83,7 +112,13 @@ public class BeneficiaryInvitationService {
     }
 
     /** PS-106 internal seam: rotate an unbound/current PS-86 code (or create the first generation), binding the
-     * new code to the Staff-confirmed address. Caller owns the Staff/case/Legal/allocation guards and outbox txn. */
+     * new code to the Staff-confirmed address. Caller owns the Staff/case/Legal/allocation guards and outbox txn.
+     *
+     * Cấp mã mời gắn với email Staff đã xác nhận tại quầy (PS-106). Phải chạy trong giao dịch có sẵn (MANDATORY). Chấp nhận
+     * generation kỳ vọng 0 (chưa có mã) hoặc đúng thế hệ hiện hành chưa gắn email; mã cũ được thu hồi và thay thế.
+     * @param expectedGeneration thế hệ Staff nhìn thấy
+     * @throws com.legacyvault.common.error.BusinessException {@code BENEFICIARY_INVITATION_COUNTER_EMAIL_REQUIRED}, {@code BENEFICIARY_INVITATION_STALE}, {@code BENEFICIARY_INVITATION_ALREADY_USED}, {@code BENEFICIARY_INVITATION_ALREADY_EXISTS}
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public InvitationDtos.Issued issueBoundForStaff(Beneficiary beneficiary, String confirmedEmail,
             Long staffUserId, int expectedGeneration) {
@@ -106,6 +141,10 @@ public class BeneficiaryInvitationService {
         return create(beneficiary, Math.addExact(currentGeneration, 1), staffUserId, action, normalizedEmail);
     }
 
+    /**
+     * Thu hồi mã hiện hành (idempotent nếu đã thu hồi). Endpoint: {@code DELETE .../invitation?generation=n}. Audit {@code BENEFICIARY_INVITATION_REVOKED}.
+     * @throws com.legacyvault.common.error.BusinessException {@code BENEFICIARY_INVITATION_STALE}, {@code BENEFICIARY_INVITATION_ALREADY_USED}, {@code RESOURCE_NOT_FOUND}
+     */
     @Transactional
     public void revoke(UUID vaultId, UUID beneficiaryId, int generation) {
         User owner = owners.requireOwner();
@@ -119,7 +158,11 @@ public class BeneficiaryInvitationService {
         record(owner.getUserId(), invitation, "BENEFICIARY_INVITATION_REVOKED");
     }
 
-    /** Caller already holds the editable Vault lock. A contact change cannot leave an old shared code usable. */
+    /**
+     * Caller already holds the editable Vault lock. A contact change cannot leave an old shared code usable.
+     *
+     * Thu hồi mã hiện hành còn hiệu lực (nếu có). Gọi từ {@code BeneficiaryService.update} khi Owner đổi email người thụ hưởng.
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public void revokeForEmailChange(Beneficiary beneficiary, Long actor) {
         BeneficiaryInvitation invitation = current(beneficiary);
@@ -129,13 +172,21 @@ public class BeneficiaryInvitationService {
         record(actor, invitation, "BENEFICIARY_INVITATION_REVOKED");
     }
 
-    /** PS-88: Staff linked an account at the counter, so a still-pending shared code must not stay usable. */
+    /**
+     * PS-88: Staff linked an account at the counter, so a still-pending shared code must not stay usable.
+     *
+     * Thu hồi mã đang chờ khi Staff đã liên kết tài khoản tại quầy; gọi từ {@code BeneficiaryAccountService.attach}.
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public void revokeForCounterLink(Beneficiary beneficiary, Long actor) {
         revokeForEmailChange(beneficiary, actor);
     }
 
-    /** PS-86 internal seam retained for established Staff flows. */
+    /**
+     * PS-86 internal seam retained for established Staff flows.
+     *
+     * Đổi mã lấy liên kết tài khoản, không yêu cầu ràng buộc email (đường nội bộ cũ).
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public InvitationDtos.Linked linkAccount(String code, Long accountId) {
         return linkAccountInternal(code, accountId, false);
@@ -143,12 +194,24 @@ public class BeneficiaryInvitationService {
 
     /** Authenticated PS-87 redeem. A Staff-bound PS-106 invitation may be redeemed when the
      * authenticated account email exactly matches the counter-confirmed binding. Legacy unbound
-     * invitations retain the existing verified-account-email requirement and fail closed. */
+     * invitations retain the existing verified-account-email requirement and fail closed.
+     *
+     * Đổi mã lấy liên kết tài khoản ở chế độ có kiểm tra ràng buộc email; được gọi từ {@code InvitationRedeemService.redeem}.
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public InvitationDtos.Linked redeemBoundAccount(String code, Long accountId) {
         return linkAccountInternal(code, accountId, true);
     }
 
+    /**
+     * Lõi của việc đổi mã. Các bước: kiểm tra định dạng mã, tìm lời mời theo hash, khóa tài khoản rồi Vault, kiểm tra trạng thái Vault
+     * và email ràng buộc, xác minh danh tính tại quầy, loại tài khoản nội bộ/chủ kho, xử lý lặp (idempotent nếu cùng tài khoản đã dùng),
+     * cấp {@code ROLE_BENEFICIARY}, liên kết người thụ hưởng, đánh dấu mã đã dùng và audit {@code BENEFICIARY_INVITATION_CONSUMED}.
+     * @param requireEmailBinding {@code true} cho PS-87 (kiểm tra email); {@code false} cho đường nội bộ
+     * @return {@code Linked} gồm mã người thụ hưởng, mã tài khoản, trạng thái tài khoản
+     * @throws com.legacyvault.common.error.BusinessException {@code BENEFICIARY_INVITATION_INVALID} cho mọi mã không dùng được (không lộ lý do),
+     * {@code BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED}, {@code BENEFICIARY_IDENTITY_NOT_VERIFIED}
+     */
     private InvitationDtos.Linked linkAccountInternal(String code, Long accountId, boolean requireEmailBinding) {
         if (!tokens.validFormat(code) || accountId == null) throw invalid();
         BeneficiaryInvitation invitation = invitations.findByCodeHash(tokens.hash(code)).orElseThrow(this::invalid);
@@ -208,9 +271,15 @@ public class BeneficiaryInvitationService {
         return linked(beneficiary, account);
     }
 
+    /**
+     * Dựng kết quả {@code Linked} từ người thụ hưởng và tài khoản.
+     */
     private InvitationDtos.Linked linked(Beneficiary beneficiary, User account) {
         return new InvitationDtos.Linked(beneficiary.getPublicId(), account.getPublicId(), beneficiary.getAccountStatus());
     }
+    /**
+     * Chuẩn bị ghi của Owner: khóa Vault có thể sửa, tìm người thụ hưởng, refresh để tránh dữ liệu cũ và kiểm tra thuộc đúng Vault.
+     */
     private Beneficiary ownerWrite(UUID vaultId, UUID beneficiaryId, User owner) {
         Vault vault = ownerVaults.requireEditableVaultForUpdate(vaultId, owner.getUserId());
         Beneficiary beneficiary = findBeneficiary(vault, beneficiaryId);
@@ -218,26 +287,44 @@ public class BeneficiaryInvitationService {
         if (!vault.getVaultId().equals(beneficiary.getVault().getVaultId())) throw error(ErrorCode.RESOURCE_NOT_FOUND);
         return beneficiary;
     }
+    /**
+     * Tìm người thụ hưởng theo mã công khai trong một Vault; không thấy thì {@code RESOURCE_NOT_FOUND}.
+     */
     private Beneficiary findBeneficiary(Vault vault, UUID beneficiaryId) {
         return beneficiaries.findByPublicIdAndVault_VaultId(beneficiaryId, vault.getVaultId())
                 .orElseThrow(() -> error(ErrorCode.RESOURCE_NOT_FOUND));
     }
+    /**
+     * Lấy mã hiện hành (đã refresh từ DB) hoặc null.
+     */
     private BeneficiaryInvitation current(Beneficiary beneficiary) {
         BeneficiaryInvitation invitation = invitations.findByBeneficiary_IdAndCurrentTrue(beneficiary.getId()).orElse(null);
         if (invitation != null) entities.refresh(invitation);
         return invitation;
     }
+    /**
+     * Như {@code current} nhưng ném {@code RESOURCE_NOT_FOUND} nếu không có.
+     */
     private BeneficiaryInvitation requireCurrent(Beneficiary beneficiary) {
         BeneficiaryInvitation invitation = current(beneficiary);
         if (invitation == null) throw error(ErrorCode.RESOURCE_NOT_FOUND);
         return invitation;
     }
+    /**
+     * Từ chối nếu người thụ hưởng đã có tài khoản ({@code BENEFICIARY_ACCOUNT_ALREADY_LINKED}).
+     */
     private void requireUnlinked(Beneficiary beneficiary) {
         if (beneficiary.hasAccount()) throw error(ErrorCode.BENEFICIARY_ACCOUNT_ALREADY_LINKED);
     }
+    /**
+     * Tạo mã không ràng buộc email.
+     */
     private InvitationDtos.Issued create(Beneficiary beneficiary, int generation, Long actor, String action) {
         return create(beneficiary, generation, actor, action, null);
     }
+    /**
+     * Sinh mã ngẫu nhiên, lưu hash cùng thế hệ (và email nếu có), ghi audit và trả mã thô một lần duy nhất.
+     */
     private InvitationDtos.Issued create(Beneficiary beneficiary, int generation, Long actor, String action,
             String recipientEmail) {
         String code = tokens.generate();
@@ -246,6 +333,9 @@ public class BeneficiaryInvitationService {
         record(actor, invitation, action);
         return new InvitationDtos.Issued(InvitationDtos.Metadata.from(invitation, beneficiary.getPublicId(), now()), code);
     }
+    /**
+     * Ghi audit cho lời mời (loại đối tượng {@code BENEFICIARY_INVITATION}, chi tiết gồm mã người thụ hưởng, thế hệ và trạng thái sau).
+     */
     private void record(Long actor, BeneficiaryInvitation invitation, String action) {
         Beneficiary beneficiary = invitation.getBeneficiary();
         audit.record(actor, beneficiary.getVault().getVaultId(), action, "BENEFICIARY_INVITATION", invitation.getId(), "USER",
@@ -254,7 +344,16 @@ public class BeneficiaryInvitationService {
     }
     // SQL Server datetime2 keeps 100 ns; Linux clocks return nanoseconds, so the value returned right after
     // issue() would differ from the one read back. Micros fit every platform and the column.
+    /**
+     * Giờ UTC hiện tại, cắt về micro giây để khớp độ chính xác cột datetime2.
+     */
     private LocalDateTime now() { return LocalDateTime.now(ZoneOffset.UTC).truncatedTo(java.time.temporal.ChronoUnit.MICROS); }
+    /**
+     * Lỗi chung {@code BENEFICIARY_INVITATION_INVALID}, dùng cho mọi mã không hợp lệ để không lộ thông tin.
+     */
     private BusinessException invalid() { return error(ErrorCode.BENEFICIARY_INVITATION_INVALID); }
+    /**
+     * Tạo {@code BusinessException} từ {@code ErrorCode}.
+     */
     private BusinessException error(ErrorCode code) { return new BusinessException(code); }
 }

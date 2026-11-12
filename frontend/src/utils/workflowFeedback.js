@@ -1,5 +1,10 @@
 // Only explicit workflow codes mean a business prerequisite is missing.
 // A 404 cannot tell us whether a record is absent or outside the caller's scope.
+/**
+ * Chuyển lỗi API của luồng nhân viên/pháp lý thành thông điệp hiển thị {kind, title, description} theo ngôn ngữ.
+ * Phân loại theo status: 401 (hết phiên), 403 (không có quyền), 404 (hồ sơ/phiên không truy cập được), >= 500 (lỗi máy chủ); mã nghiệp vụ LEGAL_APPROVAL_REQUIRED, LEGAL_WORKFLOW_ON_HOLD, LEGAL_DECISION_STALE (kind waiting); 409 (trạng thái đã đổi); còn lại là lỗi tải dữ liệu (INVALID_RESPONSE được nêu riêng).
+ * Dùng bởi các trang staff/legal (LegalLiveWorkflow, LiveHandoverPage, CloseAndArchivePage, StaffContactPanel...) và workflows/DistributionWorkflowOverview.jsx.
+ */
 export function workflowFailure(error, lang = 'vi') {
   const en = lang === 'en';
   const value = (kind, viTitle, enTitle, vi, english) => ({kind, title: en ? enTitle : viTitle, description: en ? english : vi});
@@ -17,6 +22,11 @@ export function workflowFailure(error, lang = 'vi') {
   return value('system', 'Không tải được dữ liệu', 'Unable to load data', error?.code === 'INVALID_RESPONSE' ? 'Máy chủ trả dữ liệu không hợp lệ. Thử tải lại; nếu vẫn lỗi cần kiểm tra hệ thống.' : 'Kết nối hoặc máy chủ gặp lỗi. Thử lại; lỗi này không có nghĩa Staff hay Legal chưa hoàn thành công việc.', error?.code === 'INVALID_RESPONSE' ? 'The server returned invalid data. Retry; persistent failures require investigation.' : 'A connection or server request failed. Retry; this does not mean Staff or Legal have unfinished work.');
 }
 
+/**
+ * Cho biết vì sao nhân viên chưa thể mở phiên bàn giao: dựa trên giai đoạn distributionWorkflow.phase hoặc vaultStatus của hồ sơ để trả {kind:'waiting', title, description, destination} (destination là 'basis' để quay về hồ sơ căn cứ, hoặc 'handover' khi chỉ cần mở phiên tại quầy).
+ * @param {object} item Hồ sơ (có distributionWorkflow, vaultStatus).
+ * @param {string} lang vi hoặc en.
+ */
 export function staffSessionPrerequisite(item, lang = 'vi') {
   const en = lang === 'en';
   const phase = {

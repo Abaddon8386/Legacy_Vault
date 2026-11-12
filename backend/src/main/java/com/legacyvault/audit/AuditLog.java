@@ -10,6 +10,15 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Entity JPA ánh xạ bảng {@code dbo.audit_logs}: mỗi dòng là một sự kiện audit bất biến.
+ *
+ * <p>Được tạo bởi {@code AuditService.record(...)} (từ {@link AuditEvent}) và đọc bởi
+ * {@code AdminAuditService} cho API admin xem nhật ký. {@code occurredAt} do DB tự gán (chỉ đọc);
+ * {@code retentionUntil} là hạn lưu trữ (12 tháng kể từ lúc ghi); {@code details} là JSON ngữ cảnh đã lọc dữ liệu
+ * nhạy cảm; {@code actorRoles} là JSON danh sách quyền của người thực hiện lúc đó; {@code traceId} liên kết log với
+ * request (xem {@code TraceIdFilter}).
+ */
 @Entity
 @Table(name = "audit_logs", schema = "dbo")
 public class AuditLog {
@@ -67,9 +76,14 @@ public class AuditLog {
     @Column(name = "rule_id", length = 100)
     private String ruleId;
 
+    /** Constructor không tham số bắt buộc của JPA. */
     protected AuditLog() {
     }
 
+    /**
+     * Tạo một dòng audit mới (chưa lưu). Tham số tương ứng từng cột của bảng {@code audit_logs}; xem mô tả trong
+     * {@link AuditEvent}. {@code action} và {@code actorType} là tên của {@link AuditAction}/{@link AuditActorType}.
+     */
     public AuditLog(
             Long actorUserId,
             Long vaultId,

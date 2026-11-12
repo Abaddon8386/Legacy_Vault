@@ -26,6 +26,22 @@ import { getAuthMessage } from '../../utils/loginService.js';
 import './AccountProfilePage.css';
 import {EmailVerificationPanel} from '../auth/EmailVerification.jsx';
 
+/**
+ * Trang "Hồ sơ tài khoản" (xem) của người dùng đang đăng nhập. Được `App.jsx` render.
+ *
+ * Cách hoạt động: hiển thị họ tên, email, số điện thoại, vai trò, trạng thái xác minh email (`EmailVerificationPanel`),
+ * nút thiết lập mật khẩu lần đầu (`FirstPasswordButton`) và liên kết tài khoản Google (`GoogleSignInButton` -> `linkGoogleAccount`
+ * -> `POST /api/v1/auth/google/link`). Nút "Làm mới" gọi `GET /api/v1/auth/me` và báo `onRefreshSession`.
+ * Mọi request bị hủy và cờ trạng thái được đặt lại khi token/người dùng đổi hoặc component bị gỡ; kết quả cũ không được áp dụng
+ * (`canApplyProfileRefresh`).
+ *
+ * @param {object} props
+ * @param {object|null} [props.session] Phiên hiện tại ({accessToken, user}).
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {Function} [props.onRefreshSession] Nhận user mới sau khi làm mới/hoặc đổi trạng thái.
+ * @param {boolean} [props.preview=false] Cho phép hiển thị bản xem trước khi dev.
+ * @param {Function} [props.onNavigateEdit] Mở trang chỉnh sửa hồ sơ.
+ */
 export default function AccountProfilePage({
   session = null,
   lang = 'vi',
@@ -89,6 +105,10 @@ export default function AccountProfilePage({
   const activeFeedback = feedback?.token === activeToken ? feedback : null;
   const activeLinkFeedback = linkFeedback?.token === activeToken ? linkFeedback : null;
 
+  /**
+   * Làm mới hồ sơ từ server: `GET /api/v1/auth/me` bằng access token hiện tại, validate bằng `readUser`, chỉ áp dụng nếu
+   * phản hồi còn khớp token/người dùng, lưu vào `refreshedData` và báo `onRefreshSession`. Hiện thông báo thành công/thất bại.
+   */
   // Fetch fresh profile from GET /auth/me
   const handleRefresh = async () => {
     const currentToken = sessionRef.current?.accessToken;
@@ -154,6 +174,12 @@ export default function AccountProfilePage({
     }
   };
 
+  /**
+   * Nhận credential từ Google Identity Services và liên kết với tài khoản hiện tại qua `linkGoogleAccount`
+   * (`POST /api/v1/auth/google/link`). Chặn gọi trùng bằng `isLinkingRef`, hủy khi đổi phiên, và hiện thông báo kết quả theo mã lỗi.
+   *
+   * @param {{credential: string}} credentialResponse Phản hồi từ Google.
+   */
   const handleGoogleCredential = useCallback(
     async (credentialResponse) => {
       const currentToken = sessionRef.current?.accessToken;
@@ -228,6 +254,9 @@ export default function AccountProfilePage({
     [lang, t.googleLinkSuccess]
   );
 
+  /**
+   * Xử lý lỗi từ nút Google (người dùng đóng popup, không tải được script...): hiện thông báo lỗi liên kết.
+   */
   const handleGoogleError = useCallback(
     (err) => {
       const currentToken = sessionRef.current?.accessToken;

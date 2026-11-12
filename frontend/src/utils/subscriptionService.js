@@ -20,6 +20,9 @@ import { request, ApiError } from '../api/http.js';
 import { SUBSCRIPTION_PLANS } from './subscriptionPlans.js';
 export { SUBSCRIPTION_PLANS, COMMON_FEATURES_VI, COMMON_FEATURES_EN } from './subscriptionPlans.js';
 
+/**
+ * Danh sách kịch bản mô phỏng (chỉ cho DEV preview/test) của màn hình gói sử dụng.
+ */
 export const SUBSCRIPTION_SCENARIOS = [
   { id: 'active_basic', labelVi: 'Gói Cơ bản (Hoạt động bình thường)', labelEn: 'Basic Plan (Active Normal)' },
   { id: 'active_standard', labelVi: 'Gói Tiêu chuẩn (Dùng thử nghiệm)', labelEn: 'Standard Plan (Active Trial)' },
@@ -33,6 +36,9 @@ export const SUBSCRIPTION_SCENARIOS = [
   { id: 'backend_not_ready', labelVi: 'Dịch vụ chưa sẵn sàng (Pending)', labelEn: 'Service Unavailable (Pending)' },
 ];
 
+/**
+ * Thông điệp UI song ngữ (vi/en) của màn hình gói sử dụng và hạn mức. Dùng bởi pages/subscription/SubscriptionPage.jsx.
+ */
 export const subscriptionMessages = {
   vi: {
     title: 'Gói Sử Dụng & Hạn Mức',
@@ -88,6 +94,8 @@ export const subscriptionMessages = {
  * Formats byte values into human-readable MB / GB
  * @param {number} bytes
  * @returns {string}
+ *
+ * Định dạng số byte thành MB hoặc GB (1 chữ số thập phân nếu không tròn).
  */
 export function formatStorageBytes(bytes = 0) {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
@@ -103,6 +111,8 @@ export function formatStorageBytes(bytes = 0) {
  * Checks whether simulation is permitted
  * @param {Object} options
  * @returns {boolean}
+ *
+ * Cổng mô phỏng: false khi có accessToken hoặc production; ngoài ra true khi isDevPreview, isTest hoặc testEnv.
  */
 export function isSimulationPermitted(options = {}) {
   if (options?.accessToken) return false;
@@ -121,6 +131,9 @@ export function isSimulationPermitted(options = {}) {
  * Normalizes and validates subscription payload
  * @param {Object} raw
  * @returns {Object}
+ *
+ * Kiểm tra và chuẩn hóa dữ liệu gói của người dùng: planCode phải thuộc SUBSCRIPTION_PLANS, status dạng chữ hoa, các số đếm sử dụng không âm, hạn mức dương, maxVaultsLifetime = 1 và vaultsCreatedLifetime <= 1, expiresAt có mặt (null hoặc thời điểm hợp lệ).
+ * @throws {ApiError} INVALID_RESPONSE nếu sai hợp đồng.
  */
 export function readSubscription(raw) {
   const invalid = () => { throw new ApiError('INVALID_RESPONSE'); };
@@ -157,23 +170,35 @@ export function readSubscription(raw) {
 }
 
 // Proposed adapter shape, pending FE/BE agreement. Mock quotas are never live defaults.
+/**
+ * Bổ sung hạn mức mặc định của gói vào dữ liệu mô phỏng rồi chuẩn hóa bằng readSubscription.
+ */
 function readMockSubscription(raw) {
   const plan = SUBSCRIPTION_PLANS.find((p) => p.code === raw.planCode);
   return readSubscription({ maxAssets: plan.maxAssets, maxStorageBytes: plan.maxStorageBytes,
     maxVaultsLifetime: 1, ...raw });
 }
 
+/**
+ * Đọc tham số scenario trong query; không hợp lệ thì dùng active_basic.
+ */
 export function subscriptionScenario(search = '') {
   const value = new URLSearchParams(search).get('scenario');
   return SUBSCRIPTION_SCENARIOS.some((item) => item.id === value) ? value : 'active_basic';
 }
 
+/**
+ * Nhãn vi/en của trạng thái gói (ACTIVE, EXPIRED, INACTIVE, CANCELLED).
+ */
 export function subscriptionStatusLabel(status, lang = 'vi') {
   const labels = { ACTIVE: ['Đang hoạt động', 'Active'], EXPIRED: ['Đã hết hạn', 'Expired'],
     INACTIVE: ['Chưa hoạt động', 'Inactive'], CANCELLED: ['Đã hủy', 'Cancelled'] };
   return labels[status]?.[lang === 'en' ? 1 : 0] || (lang === 'en' ? 'Status unavailable' : 'Chưa có thông tin trạng thái');
 }
 
+/**
+ * Chuyển lỗi thành thông điệp: 401, SUBSCRIPTION_POLICY_PENDING, 403, BACKEND_NOT_READY hoặc >= 500, 404, NETWORK_ERROR.
+ */
 export function subscriptionErrorMessage(error, lang = 'vi') {
   const t = subscriptionMessages[lang] || subscriptionMessages.vi;
   if (error?.status === 401) return t.unauthorized;
@@ -188,6 +213,9 @@ export function subscriptionErrorMessage(error, lang = 'vi') {
 // ============================================================================
 // MOCK ADAPTER (Strictly for DEV Preview & isolated unit tests)
 // ============================================================================
+/**
+ * Adapter giả lập (DEV preview và test) trả dữ liệu gói mẫu hoặc ném lỗi theo kịch bản.
+ */
 export const mockSubscriptionAdapter = {
   fetch(scenario = 'active_basic', lang = 'vi') {
     const msgs = subscriptionMessages[lang] || subscriptionMessages.vi;
@@ -284,7 +312,13 @@ export const mockSubscriptionAdapter = {
 // ============================================================================
 // LIVE ADAPTER (Connects to actual Backend API contract)
 // ============================================================================
+/**
+ * Adapter thật đọc gói hiện tại của chủ kho.
+ */
 export const liveSubscriptionAdapter = {
+  /**
+   * GET /api/v1/subscriptions/me (mong đợi 200). Chấp nhận DTO hiện tại có effectivePlan (code, limits), usage (assetCount, storageBytes), vaultCreated, effectiveUntil và cả dạng phẳng cũ; từ chối dữ liệu isSimulation.
+   */
   async fetch(options = {}) {
     const data = await request('/subscriptions/me', {
       ...options,
@@ -308,6 +342,8 @@ export const liveSubscriptionAdapter = {
  * Fetch current subscription for Vault Owner
  * @param {Object} options - { lang, scenario, isDevPreview, isTest, testEnv, fetchFn, accessToken }
  * @returns {Promise<Object|null>}
+ *
+ * Lấy gói hiện tại của chủ kho: mô phỏng (có hỗ trợ hủy bằng AbortSignal) nếu isSimulationPermitted, ngược lại liveSubscriptionAdapter.fetch. Dùng bởi SubscriptionPage, AssetManagementPage và VaultSummary.
  */
 export async function fetchSubscription(options = {}) {
   const lang = options.lang || 'vi';

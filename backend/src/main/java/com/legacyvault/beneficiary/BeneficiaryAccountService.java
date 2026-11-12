@@ -32,12 +32,24 @@ import jakarta.persistence.EntityManager;
  * of the account: only linked_user_id and account_status change. No Guest Portal, claim link or OTP.
  * Account/unique-email locks precede Vault -> VerificationCase -> Beneficiary refresh.
  * Preflight is rechecked under resource locks; any failure rolls back a newly created account too.
+ *
+ * <p>Giao dịch ghi dùng khóa theo thứ tự User, Vault, VerificationCase rồi refresh Beneficiary. Được gọi bởi
+ * {@code StaffBeneficiaryAccountController} (đường cũ, mặc định tắt) và {@code StaffLinkRequestService}
+ * (dùng lại {@code requireUnlinkedVerified}, {@code requireEligible}, {@code attach}).
+ * Bảng liên quan: {@code users}, {@code user_roles}, {@code beneficiaries}; audit {@code BENEFICIARY_ACCOUNT_LINKED} và
+ * {@code BENEFICIARY_ACCOUNT_CREATED}.
  */
 @Service
 public class BeneficiaryAccountService {
 
+	/**
+	 * Mã bước nghiệp vụ ghi vào chi tiết audit.
+	 */
 	static final String STEP_ID = "ST-24";
 	static final String RULE_ID = "LV-ID-001";
+	/**
+	 * Vai trò được cấp cho tài khoản khi liên kết thành công.
+	 */
 	static final String BENEFICIARY_ROLE = "ROLE_BENEFICIARY";
 	/** Internal authorities that must never double as a Beneficiary account (separation of duties). */
 	private static final Set<String> INTERNAL_ROLES = Set.of("ROLE_STAFF_EXECUTOR", "ROLE_LEGAL_VERIFIER", "ROLE_ADMIN");
@@ -53,6 +65,9 @@ public class BeneficiaryAccountService {
 	private final AuditService audit;
 	private final BeneficiaryInvitationService invitations;
 
+	/**
+	 * Hàm khởi tạo, Spring tiêm các repository/dịch vụ phụ thuộc (kho người thụ hưởng, ngữ cảnh Staff, guard hồ sơ, user/role, mã hóa mật khẩu, audit, dịch vụ lời mời).
+	 */
 	public BeneficiaryAccountService(BeneficiaryRepository beneficiaries, StaffContextService staff,
 			StaffVaultCaseGuard cases, EntityManager entities, UserRepository users, RoleRepository roles,
 			UserRoleRepository userRoles, PasswordEncoder passwordEncoder, AuditService audit,
@@ -69,7 +84,17 @@ public class BeneficiaryAccountService {
 		this.invitations = invitations;
 	}
 
-	/** PS-62: link an existing active account. */
+	/**
+	 * PS-62: link an existing active account.
+	 *
+	 * <p>Các bước: xác thực Staff, preflight (hồ sơ tồn tại, case đang mở, đã xác minh danh tính, chưa liên kết) rồi tìm
+	 * tài khoản theo email chuẩn hóa, khóa dòng user, khóa Vault/Case và kiểm tra lại, cuối cùng gọi {@code attach}.
+	 * @param beneficiaryId mã công khai của người thụ hưởng
+	 * @param request email tài khoản cần liên kết
+	 * @return {@code Response} gồm trạng thái sau liên kết
+	 * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND}, {@code BENEFICIARY_ACCOUNT_INELIGIBLE},
+	 * {@code BENEFICIARY_IDENTITY_NOT_VERIFIED}, {@code BENEFICIARY_ACCOUNT_ALREADY_LINKED}
+	 */
 	@Transactional
 	public BeneficiaryAccountDtos.Response link(UUID beneficiaryId, BeneficiaryAccountDtos.LinkRequest request) {
 		User actor = staff.requireStaff();
@@ -87,7 +112,14 @@ public class BeneficiaryAccountService {
 		return BeneficiaryAccountDtos.Response.from(beneficiary, account.getPublicId());
 	}
 
-	/** PS-63: create and activate a new account at the counter, then link it. */
+	/**
+	 * PS-63: create and activate a new account at the counter, then link it.
+	 *
+	 * <p>Các bước: preflight, kiểm tra email chưa tồn tại, tạo {@code User} ACTIVE với mật khẩu đã băm (không cần OTP vì đã xác minh trực tiếp),
+	 * {@code saveAndFlush} (bắt trùng email qua unique index), sau đó khóa Vault/Case rồi {@code attach}. Mọi lỗi sẽ rollback cả tài khoản mới.
+	 * @return {@code Response} gồm mã tài khoản mới
+	 * @throws com.legacyvault.common.error.BusinessException {@code EMAIL_ALREADY_EXISTS}, {@code RESOURCE_NOT_FOUND}, {@code BENEFICIARY_IDENTITY_NOT_VERIFIED}, {@code BENEFICIARY_ACCOUNT_ALREADY_LINKED}
+	 */
 	@Transactional
 	public BeneficiaryAccountDtos.Response create(UUID beneficiaryId, BeneficiaryAccountDtos.CreateRequest request) {
 		User actor = staff.requireStaff();
@@ -116,6 +148,10 @@ public class BeneficiaryAccountService {
 		return BeneficiaryAccountDtos.Response.from(beneficiary, account.getPublicId());
 	}
 
+	/**
+	 * Kiểm tra sơ bộ (không khóa): tìm người thụ hưởng, bảo đảm Staff có case đang mở của Vault này (đọc), đã xác minh và chưa liên kết.
+	 * @return bản ghi người thụ hưởng (chỉ để xem trước)
+	 */
 	private Beneficiary preflightForAccount(UUID beneficiaryId, User actor) {
 		Beneficiary beneficiary = beneficiaries.findByPublicId(beneficiaryId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
@@ -124,6 +160,9 @@ public class BeneficiaryAccountService {
 		return beneficiary;
 	}
 
+	/**
+	 * Kiểm tra lại dưới khóa: yêu cầu case mở ở chế độ ghi (khóa Vault rồi Case), refresh bản ghi vì Staff khác có thể vừa liên kết, rồi kiểm tra lại điều kiện.
+	 */
 	private Beneficiary lockForAccount(UUID beneficiaryId, User actor) {
 		Beneficiary beneficiary = beneficiaries.findByPublicId(beneficiaryId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
@@ -138,6 +177,10 @@ public class BeneficiaryAccountService {
 		return beneficiary;
 	}
 
+	/**
+	 * Bảo đảm người thụ hưởng đã được xác minh tại quầy và chưa có tài khoản.
+	 * @throws com.legacyvault.common.error.BusinessException {@code BENEFICIARY_IDENTITY_NOT_VERIFIED} hoặc {@code BENEFICIARY_ACCOUNT_ALREADY_LINKED}
+	 */
 	void requireUnlinkedVerified(Beneficiary beneficiary) {
 		if (!Beneficiary.VERIFIED_AT_COUNTER.equals(beneficiary.getIdentityVerificationStatus())) {
 			throw new BusinessException(ErrorCode.BENEFICIARY_IDENTITY_NOT_VERIFIED);
@@ -147,6 +190,11 @@ public class BeneficiaryAccountService {
 		}
 	}
 
+	/**
+	 * Kiểm tra tài khoản đủ điều kiện làm người thụ hưởng: đang ACTIVE và chưa xóa, không phải chủ kho, không có vai trò nội bộ
+	 * (STAFF_EXECUTOR, LEGAL_VERIFIER, ADMIN) và chưa liên kết với người thụ hưởng khác của cùng Vault.
+	 * @throws com.legacyvault.common.error.BusinessException {@code BENEFICIARY_ACCOUNT_INELIGIBLE}
+	 */
 	void requireEligible(Beneficiary beneficiary, User account) {
 		Long vaultId = beneficiary.getVault().getVaultId();
 		boolean usable = "ACTIVE".equals(account.getStatus()) && account.getDeletedAt() == null;
@@ -160,6 +208,11 @@ public class BeneficiaryAccountService {
 		}
 	}
 
+	/**
+	 * Thực hiện liên kết: cấp {@code ROLE_BENEFICIARY} nếu thiếu, gọi {@code linkAccount}, lưu, thu hồi lời mời đang chờ
+	 * ({@code revokeForCounterLink}, PS-88) và ghi audit (không chứa email/mật khẩu/dữ liệu định danh).
+	 * @param action {@code BENEFICIARY_ACCOUNT_LINKED} hoặc {@code BENEFICIARY_ACCOUNT_CREATED}
+	 */
 	void attach(Beneficiary beneficiary, User account, User actor, AuditAction action) {
 		boolean hasBeneficiaryRole = userRoles.findByUserIdWithRole(account.getUserId()).stream()
 				.map(UserRole::getRole).map(Role::getRoleCode).anyMatch(BENEFICIARY_ROLE::equals);

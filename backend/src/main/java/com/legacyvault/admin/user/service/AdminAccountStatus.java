@@ -4,7 +4,10 @@ import com.legacyvault.vault.entity.Vault;
 
 import java.util.List;
 
-/** Vault statuses an Admin lock decision depends on (the post-death workflow and the archive). */
+/**
+ * Vault statuses an Admin lock decision depends on (the post-death workflow and the archive).
+ * Hằng số dùng chung, không khởi tạo được; {@link AdminUserManagementService} dùng để chặn khoá tài khoản đang trong quy trình thừa kế.
+ */
 public final class AdminAccountStatus {
     /** Every vault status from the first verification step up to the handover itself (the whole post-death workflow). */
     public static final List<String> HANDOVER_VAULT_STATUSES = List.of(
@@ -26,6 +29,7 @@ public final class AdminAccountStatus {
         LOCK_BLOCKING_VAULT_STATUSES = List.copyOf(blocking);
     }
 
+    /** Ngăn khởi tạo: class chỉ chứa hằng số. */
     private AdminAccountStatus() {
     }
 }

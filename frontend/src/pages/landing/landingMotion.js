@@ -1,3 +1,11 @@
+/**
+ * Bật hiệu ứng hiện dần (reveal) cho các phần tử có thuộc tính `data-reveal` trong trang chủ bằng IntersectionObserver.
+ * Nếu trình duyệt thiếu API này hoặc người dùng chọn `prefers-reduced-motion: reduce` thì hiện ngay toàn bộ nội dung. Phần tử đã cuộn qua phía trên
+ * được hiện luôn; khi phần tử nhận focus (focusin) thì hiện nó và các phần tử cha để không che nội dung trợ năng.
+ *
+ * @param {HTMLElement|null} root Gốc của trang.
+ * @returns {Function} Hàm dọn dẹp (ngắt observer, gỡ listener và lớp CSS); no-op nếu không có root.
+ */
 // Enhance visible HTML after mount; without browser motion APIs the page stays readable.
 export function observeLandingReveals(root) {
   if (!root) return () => {};

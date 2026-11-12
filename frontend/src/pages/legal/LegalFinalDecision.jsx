@@ -11,6 +11,13 @@ import { ArrowRight, FileCheck2, LockKeyhole, RefreshCw, ShieldCheck } from 'luc
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import { legalBlockedReason } from '../../utils/workflowGuidance.js';
 
+/**
+ * Tạo chuỗi JSON đại diện "phạm vi quyết định" của hồ sơ (trạng thái case/kho, hồ sơ căn cứ, snapshot, capability approval/unlock) để so sánh trước và sau khi tải lại.
+ * Loại trường evaluatedAt vì mỗi lần đọc có đồng hồ mới nhưng không phải phạm vi phê duyệt mới.
+ *
+ * @param {object} value Ngữ cảnh hồ sơ từ loadLegalContext.
+ * @returns {string} Chuỗi JSON.
+ */
 // Exclude evaluatedAt: each read has a new clock value, not a new approval scope.
 function legalDecisionScope(value) {
   const snapshot = value.snapshot;
@@ -23,6 +30,30 @@ function legalDecisionScope(value) {
     value.capabilities.unlock.allowed, value.capabilities.unlock.blockedReason]);
 }
 
+/**
+ * Bước cuối của Legal: "Quyết định phê duyệt" (step approval-review) hoặc "Xác nhận mở khóa" (step controlled-unlock), được LegalDistributionFinalWorkspace render.
+ * Hiển thị thông tin thẩm định (phiên bản, kết luận tòa án, phê duyệt còn hiệu lực, lý do từ chối gần nhất), phân bổ (LegalAllocations) và tệp văn bản (LegalEvidenceFiles).
+ * Quy trình ghi: bấm nút mở hộp thoại xác nhận (Modal) -> submit(): tải lại ngữ cảnh (loadLegalContext), so sánh legalDecisionScope và capability; lệch thì báo 409 (LEGAL_DECISION_STALE);
+ * chạy beforeCommit (preflight workflow); rồi gọi unlockLegalVault (POST .../verification-cases/{caseId}/unlock) hoặc decideLegalApproval (POST .../basis-dossier/decision với versionNo, sha256Hash, allocationHash).
+ * Nếu capability bị chặn thì hiển thị lý do (legalBlocker) và liên kết tới bước cần quay lại. Có khóa lock chống gửi trùng; 401 -> onUnauthorized, 403 -> onDenied.
+ *
+ * @param {object} props
+ * @param {object} props.session Phiên đăng nhập.
+ * @param {object} props.context Ngữ cảnh hồ sơ (capabilities, snapshot, basisDossier...).
+ * @param {'approval-review'|'controlled-unlock'} props.step Bước.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {{decision?: string, reason?: string, confirmed?: boolean}} props.draft Bản nháp.
+ * @param {Function} props.setDraft Cập nhật bản nháp.
+ * @param {() => void} props.onReload Tải lại ngữ cảnh.
+ * @param {(receipt: object) => void} props.onSaved Callback khi ghi thành công.
+ * @param {() => void} [props.onUnauthorized] 401.
+ * @param {(error: Error) => void} [props.onDenied] 403.
+ * @param {() => void} [props.onContextChanged] Báo ngữ cảnh đã đổi (làm hướng dẫn cũ).
+ * @param {(pending: boolean) => void} [props.onPendingChange] Báo trạng thái đang ghi.
+ * @param {boolean} [props.workflowReadOnly=false] Workflow chưa tới bước này nên chỉ xem.
+ * @param {Function} [props.beforeCommit] Kiểm tra trước khi ghi (fresh, options).
+ * @returns {JSX.Element}
+ */
 export default function LegalFinalDecision({ session, context, step, lang, draft, setDraft, onReload, onSaved, onUnauthorized, onDenied, onContextChanged, onPendingChange, workflowReadOnly = false, beforeCommit }) {
   const en = lang === 'en', unlocking = step === 'controlled-unlock';
   const { decision = '', reason = '', confirmed = false } = draft;
@@ -53,6 +84,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
         : !complete ? unlocking ? (en ? 'Tick the box to unlock.' : 'Tích ô xác nhận để mở khóa')
           : ['APPROVE', 'REJECT'].includes(decision) ? (en ? 'Enter the decision reason.' : 'Nhập lý do cho quyết định.')
             : (en ? 'Select a decision.' : 'Chọn quyết định.') : '';
+  /** Thực hiện phê duyệt/từ chối hoặc mở khóa sau khi người dùng xác nhận trong hộp thoại: kiểm tra điều kiện, tải lại ngữ cảnh để phát hiện thay đổi (409), chạy beforeCommit rồi gọi API ghi; thành công thì lưu kết quả, bắt buộc tải lại và gọi onSaved. */
   async function submit() {
     if (!allowed || !complete || lock.current) return;
     setConfirmOpen(false);

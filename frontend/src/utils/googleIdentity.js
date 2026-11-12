@@ -1,4 +1,10 @@
+/**
+ * Promise dùng chung cho việc tải script Google Identity Services (GIS); đặt lại về null khi tải lỗi để cho phép thử lại.
+ */
 let gisScriptPromise = null;
+/**
+ * Địa chỉ script Google Identity Services.
+ */
 const SDK_URL = 'https://accounts.google.com/gsi/client';
 
 /** Share an in-flight load, but allow a fresh attempt after a failed load. */

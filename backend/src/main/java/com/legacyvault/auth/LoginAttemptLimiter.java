@@ -20,40 +20,69 @@ import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 
 /**
- * Limits password logins: after 5 unconfirmed failures within 15 minutes an email is locked for 15 minutes, counted
- * from its 5th failure. Only the email is limited, so one
- * account being guessed never blocks other accounts that happen to share the same client IP (shared network, localhost).
- * A separate, much looser per-IP cap (default 30 failures per 15 minutes, LOGIN_IP_LIMIT) only stops one address from
- * guessing across many emails.
+ * Giới hạn đăng nhập bằng mật khẩu: sau 5 lần thất bại chưa được xác nhận trong 15 phút, email bị khóa 15 phút tính
+ * từ lần thất bại thứ 5. Chỉ khóa theo email nên một tài khoản bị dò mật khẩu không chặn tài khoản khác dùng chung IP.
+ * Ngoài ra có hạn mức theo IP lỏng hơn nhiều (mặc định 30 lần/15 phút, {@code LOGIN_IP_LIMIT}) chỉ để chặn một địa chỉ dò
+ * nhiều email.
  *
- * <p>Checking and counting happen in one step, {@link #reserveAttempt}, under an exclusive application lock per email,
- * so concurrent requests cannot all see "below the limit". Every attempt is reserved before the password is
- * verified; a successful login clears the email's failures (clearFailures), so only unconfirmed attempts stay counted. It runs in REQUIRES_NEW so the
- * rollback of the login transaction cannot erase a failure.
+ * <p>Kiểm tra và đếm diễn ra trong một bước, {@link #reserveAttempt}, dưới khóa ứng dụng độc quyền
+ * ({@code sp_getapplock}) theo email nên các request song song không cùng thấy "dưới ngưỡng". Mỗi lần thử được giữ chỗ
+ * trước khi kiểm tra mật khẩu; đăng nhập thành công xóa các lần thất bại của email ({@link #clearFailures}). Chạy trong
+ * {@code REQUIRES_NEW} nên rollback của transaction đăng nhập không xóa được lần thất bại. Dữ liệu nằm ở bảng
+ * {@code dbo.login_failures} (email băm SHA-256, IP, thời điểm). Được {@code AuthService.login} gọi.
  */
 @Service
 public class LoginAttemptLimiter {
+    /**
+     * Số lần thất bại tối đa theo email trong một cửa sổ trước khi bị khóa.
+     */
     static final int LIMIT = 5;
+    /**
+     * Số lần thất bại mặc định cho phép từ một IP (trên mọi email) trong một cửa sổ.
+     */
     static final int DEFAULT_IP_LIMIT = 30;
+    /**
+     * Độ dài cửa sổ tính và thời gian khóa (phút).
+     */
     private static final int WINDOW_MINUTES = 15;
 
+    /**
+     * Truy vấn SQL trực tiếp vào {@code dbo.login_failures}.
+     */
     private final JdbcTemplate jdbc;
     /** Normalized emails that are never locked. Empty (the default) means nobody is exempt. */
     private final Set<String> exemptEmails;
+    /**
+     * Hạn mức thất bại theo IP trong một cửa sổ.
+     */
     private final int ipLimit;
 
+    /**
+     * Constructor tiện dụng: không email nào được miễn trừ, hạn mức IP mặc định.
+     *
+     * @param jdbc JdbcTemplate
+     */
     public LoginAttemptLimiter(JdbcTemplate jdbc) {
         this(jdbc, "");
     }
 
+    /**
+     * Constructor tiện dụng cho test: có danh sách email miễn trừ, hạn mức IP mặc định.
+     *
+     * @param jdbc         JdbcTemplate
+     * @param exemptEmails danh sách email (phân tách bằng dấu phẩy) bỏ qua khóa
+     */
     public LoginAttemptLimiter(JdbcTemplate jdbc, String exemptEmails) {
         this(jdbc, exemptEmails, DEFAULT_IP_LIMIT);
     }
 
     /**
-     * @param ipLimit failures one client IP may cause within 15 minutes across all emails (default 30)
-     * @param exemptEmails comma-separated emails that skip the lockout, for shared demo accounts only. Leave empty in any
-     *                     real environment. Set with LOGIN_LOCKOUT_EXEMPT_EMAILS or legacyvault.auth.login-lockout.exempt-emails.
+     * Constructor chính do Spring dùng. Chuẩn hóa danh sách email miễn trừ bằng {@link EmailNormalizer}.
+     *
+     * @param jdbc         JdbcTemplate
+     * @param exemptEmails email (phân tách bằng dấu phẩy) bỏ qua khóa, chỉ dành cho tài khoản demo dùng chung; để trống ở
+     *                     môi trường thật. Cấu hình bằng LOGIN_LOCKOUT_EXEMPT_EMAILS hoặc legacyvault.auth.login-lockout.exempt-emails
+     * @param ipLimit      số lần thất bại một IP được gây ra trong 15 phút trên mọi email (mặc định 30)
      */
     @Autowired
     public LoginAttemptLimiter(JdbcTemplate jdbc,
@@ -68,10 +97,16 @@ public class LoginAttemptLimiter {
     }
 
     /**
-     * Atomically checks the limits and reserves one attempt.
+     * Kiểm tra hạn mức và giữ chỗ một lần thử một cách nguyên tử. Thứ tự khóa cố định (email rồi IP) để tránh deadlock;
+     * xóa các dòng cũ hơn hai cửa sổ; email bị khóa khi lần thất bại mới nhất còn trong cửa sổ và 15 phút kết thúc tại đó
+     * có ít nhất {@link #LIMIT} lần (khóa cố định, không trượt; các lần bị chặn không được ghi). Sau đó kiểm tra hạn mức IP
+     * và chèn một dòng vào {@code dbo.login_failures}.
      *
-     * @return the id of the recorded attempt, or 0 when the email is exempt and nothing was recorded
-     * @throws BusinessException {@code TOO_MANY_ATTEMPTS} (429) when the email is already at the limit
+     * @param normalizedEmail email đã chuẩn hóa
+     * @param clientIp        IP nguồn, có thể {@code null}
+     * @return id của lần thử đã ghi, hoặc 0 nếu email được miễn trừ và không ghi gì
+     * @throws BusinessException {@code TOO_MANY_ATTEMPTS} (429) khi email đã chạm ngưỡng; {@code RATE_LIMITED} khi IP vượt hạn mức
+     * @throws IllegalStateException nếu không lấy được khóa (đóng kín: không cho thử không đếm)
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.READ_COMMITTED)
     public long reserveAttempt(String normalizedEmail, String clientIp) {
@@ -121,7 +156,12 @@ public class LoginAttemptLimiter {
         return id;
     }
 
-    /** A successful login clears every failure still counted for that email, so earlier typos do not linger. */
+    /**
+     * Xóa mọi lần thất bại còn được tính của email sau khi đăng nhập thành công, để lỗi gõ nhầm trước đó không còn tồn
+     * đọng. Bỏ qua nếu email được miễn trừ.
+     *
+     * @param normalizedEmail email đã chuẩn hóa
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void clearFailures(String normalizedEmail) {
         if (exemptEmails.contains(normalizedEmail)) {
@@ -130,7 +170,13 @@ public class LoginAttemptLimiter {
         jdbc.update("DELETE dbo.login_failures WHERE email_hash = ?", hash(normalizedEmail));
     }
 
-    /** Hibernate may defer the first physical BEGIN until DML; sp_getapplock needs the transaction now. */
+    /**
+     * Lấy khóa ứng dụng độc quyền kiểu giao dịch ({@code sp_getapplock}, chờ tối đa 5 giây). Hibernate có thể trì hoãn
+     * BEGIN thật sự tới khi có DML nên mở transaction ngay tại đây.
+     *
+     * @param resource tên tài nguyên khóa
+     * @throws IllegalStateException nếu không lấy được khóa
+     */
     private void lock(String resource) {
         Integer result = jdbc.queryForObject("""
                 IF @@TRANCOUNT=0 BEGIN TRANSACTION;
@@ -143,6 +189,12 @@ public class LoginAttemptLimiter {
         }
     }
 
+    /**
+     * Băm SHA-256 (hex) để không lưu email thô trong bảng thất bại.
+     *
+     * @param value chuỗi cần băm
+     * @return 64 ký tự hex
+     */
     private static String hash(String value) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")

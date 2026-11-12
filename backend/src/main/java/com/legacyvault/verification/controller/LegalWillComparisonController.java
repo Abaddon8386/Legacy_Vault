@@ -34,11 +34,19 @@ public class LegalWillComparisonController {
         this.service = service;
     }
 
+    /**
+     * {@code GET /api/v1/legal-verifications/verification-cases/{caseId}/will-comparisons}
+     * Tổng quan các lần đối chiếu: {@link WillComparisonOverviewResponse}.
+     */
     @GetMapping
     public WillComparisonOverviewResponse overview(@PathVariable UUID caseId) {
         return service.overview(caseId);
     }
 
+    /**
+     * {@code POST .../will-comparisons}: ghi nhận kết quả đối chiếu. Body
+     * {@link RecordWillComparisonRequest}; trả 201 Created kèm {@link WillComparisonResponse}.
+     */
     @PostMapping
     public ResponseEntity<WillComparisonResponse> record(
             @PathVariable UUID caseId,

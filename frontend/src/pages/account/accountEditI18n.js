@@ -3,6 +3,10 @@
  * Dedicated keys for VI and EN without server/API jargon.
  */
 
+/**
+ * Từ điển chuỗi song ngữ (vi/en) của trang chỉnh sửa hồ sơ `AccountEditPage`: tiêu đề, nhãn trường, lỗi validate,
+ * thông báo kết quả lưu (thành công, mật khẩu sai, email trùng, quá nhiều lần thử...) và nội dung hộp thoại thay đổi chưa lưu.
+ */
 export const accountEditI18n = {
   vi: {
     pageTitle: 'Chỉnh sửa hồ sơ',

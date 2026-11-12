@@ -56,8 +56,14 @@ import AccountEditPage from './pages/account/AccountEditPage.jsx';
 import { canAccessAccountEdit } from './utils/accountEditValidation.js';
 import { updateProfile } from './services/profileService.js';
 
+/**
+ * Các trang thông tin công khai (không cần đăng nhập): {@code /support}, {@code /privacy}, {@code /about}.
+ */
 const publicInfoPages = { '/support': 'support', '/privacy': 'privacy', '/about': 'about' };
 
+/**
+ * Màn hình 404 cho đường dẫn không khớp tuyến nào; có nút về đăng nhập/đăng ký.
+ */
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
   return (
     <main
@@ -177,6 +183,9 @@ function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
   );
 }
 
+/**
+ * Màn hình "không có quyền" khi tài khoản đã đăng nhập nhưng không có vai trò STAFF_EXECUTOR mà vào cổng nhân viên; cho phép đăng xuất.
+ */
 function StaffAccessDeniedFallback({ lang, onLogout }) {
   const isEn = lang === 'en';
   return (
@@ -272,6 +281,9 @@ function StaffAccessDeniedFallback({ lang, onLogout }) {
   );
 }
 
+/**
+ * Màn hình "không có quyền" khi tài khoản không có vai trò LEGAL_VERIFIER mà vào cổng pháp lý; có thể quay về kho nếu tài khoản còn là VAULT_OWNER.
+ */
 function LegalAccessDeniedFallback({ lang, onLogout, onNavigateToVault, canReturnToVault }) {
   const isEn = lang === 'en';
   return (
@@ -393,12 +405,37 @@ function LegalAccessDeniedFallback({ lang, onLogout, onNavigateToVault, canRetur
   );
 }
 
+/**
+ * Gốc của ứng dụng. Giữ phiên đăng nhập ({@code session}, khởi tạo từ {@code readStoredSession}) và bọc {@code AppContent} bằng {@code PasswordSetupProvider}
+ * (để tài khoản Google đặt mật khẩu lần đầu; khi xong cập nhật {@code passwordLoginEnabled = true} trong phiên). Nhận từ {@code main.jsx} các action (lời mời, liên kết hồ sơ, DMS) qua props.
+ */
 export default function App(props) {
   const [session, setSession] = useState(readStoredSession);
   return <PasswordSetupProvider session={session} onConfigured={token => setSession(current => current?.accessToken === token
     ? { ...current, user: { ...current.user, passwordLoginEnabled: true } } : current)}><AppContent {...props} session={session} setSession={setSession} /></PasswordSetupProvider>;
 }
 
+/**
+ * Bộ định tuyến và điều phối màn hình của ứng dụng (không dùng thư viện router): đọc {@code window.location}, tự chọn màn hình theo đường dẫn và vai trò trong phiên.
+ *
+ * Quy trình chọn màn hình (theo thứ tự trong hàm):
+ * 1. Trang công khai: {@code /support}, {@code /privacy}, {@code /about} (PublicInfoPage), {@code /verify-email}, {@code /forgot-password}, {@code /reset-password}.
+ * 2. Nếu đang khôi phục phiên đã lưu ({@code restoreStatus}) thì chờ {@code GET /auth/me} xác minh; 401 thì đăng xuất.
+ * 3. {@code /invitations}: luồng nhận lời mời của người thụ hưởng.
+ * 4. {@code /admin*}: yêu cầu vai trò ADMIN (chưa đăng nhập -> LoginPage; không phải ADMIN -> thông báo từ chối); hiển thị các trang quản trị trong AppShell role ADMIN.
+ * 5. {@code /shared-with-me} (cũ {@code /beneficiary}): người thụ hưởng (BENEFICIARY) xem tài sản được chia.
+ * 6. Cổng nhân viên: {@code /staff/cases}, {@code /staff/handover}, {@code /staff/legal-documents}, {@code /staff/asset-handover}, {@code /staff/beneficiary-confirmation}, {@code /staff/close-and-archive}, {@code /staff/beneficiary-accounts}: yêu cầu STAFF_EXECUTOR (trừ chế độ preview khi dev), bọc bằng StaffShell.
+ * 7. Cổng pháp lý: {@code /legal}, {@code /legal/death-verification}, {@code /legal/will-document-verification}, {@code /legal/basis-route-selection}, {@code /legal/dossier-review}, {@code /legal/approval-review}, {@code /legal/controlled-unlock}: yêu cầu LEGAL_VERIFIER.
+ * 8. Hồ sơ tài khoản {@code /account/profile} và {@code /account/edit}: mọi vai trò; khung giao diện (shellRole) chọn theo vai trò ưu tiên STAFF > LEGAL > ADMIN > BENEFICIARY > OWNER.
+ * 9. Khu chủ hầm: {@code /vault}, {@code /dms}, {@code /assets}, {@code /wills}, {@code /beneficiaries}, {@code /subscription}: yêu cầu VAULT_OWNER.
+ * 10. {@code /}: nếu đã đăng nhập thì chuyển tới trang đích theo vai trò ({@code resolvePostLoginRoute}; nhân viên thuần thì {@code /staff/cases}); nếu chưa thì trang giới thiệu.
+ * 11. {@code /login}, {@code /register}, và các đường dẫn khác (NotFoundFallback).
+ *
+ * Ghi chú: Role từ API đã bỏ tiền tố {@code ROLE_}. Mỗi màn hình được bọc ErrorBoundary theo đường dẫn. Hỗ trợ lịch sử trình duyệt có chặn rời form chưa lưu ({@code isEditFormDirty}, {@code pendingNavigationTarget}), tự đăng xuất khi phiên hết hạn ({@code session.expiresAt}), chuyển ngôn ngữ vi/en qua {@code ?lang=}.
+ *
+ * Props (đều tùy chọn, dùng cho test/mock): {@code invitationActions}, {@code beneficiaryAssetActions}, {@code legalDiscovery}, {@code caseLinkActions}, {@code counterLinkActions}, {@code dmsGraceActions}; cùng {@code session}, {@code setSession} từ {@code App}.
+ * State chính: {@code location}, {@code lang}, {@code invitationIntent}, {@code pendingInvitationCode}, {@code restoreStatus}, {@code refreshTrigger}, {@code isRefreshing}, {@code isEditFormDirty}, {@code staffContextCaseId}/{@code staffContextSessionId}/{@code staffActiveCase} (hồ sơ nhân viên đang chọn, đồng bộ với query {@code caseId}/{@code sessionId}).
+ */
 function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery, caseLinkActions, counterLinkActions, dmsGraceActions, session, setSession } = {}) {
   const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
   const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
@@ -411,10 +448,16 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
   const invitationIntentRef = useRef(invitationIntent), invitationSessionRef = useRef(session);
   useEffect(() => { invitationIntentRef.current = invitationIntent; }, [invitationIntent]);
   useEffect(() => { invitationSessionRef.current = session; }, [session]);
+  /**
+   * Thoát luồng lời mời: xóa ý định/mã mời đang giữ trong bộ nhớ và quay lại đường dẫn hiện tại với {@code ?lang=}.
+   */
   const cancelInvitation = () => {
     setInvitationIntent(false); setPendingInvitationCode('');
     navigateTo(`${window.location.pathname}?lang=${lang}`);
   };
+  /**
+   * Thêm {@code &invitation=true} vào đường dẫn đăng nhập/đăng ký khi đang trong luồng lời mời.
+   */
   const authPath = path => invitationIntent ? `${path}?lang=${lang}&invitation=true` : path;
   const [restoreStatus, setRestoreStatus] = useState(() => (!['/forgot-password', '/reset-password'].includes(window.location.pathname) && readStoredSession() ? 'loading' : 'ready'));
   const [restoreAttempt, setRestoreAttempt] = useState(0);
@@ -429,6 +472,9 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
   const restoreControllerRef = useRef(null);
   const refreshControllerRef = useRef(null);
 
+  /**
+   * Chọn action tài sản đã nhận của người thụ hưởng: dùng bản truyền qua props nếu có, ngược lại tạo bản thật {@code createLiveReceivedAssetActions} (gọi {@code /received-assets}) khi phiên còn hiệu lực.
+   */
   const effectiveBeneficiaryAssetActions = useMemo(() => {
     if (beneficiaryAssetActions !== undefined) return beneficiaryAssetActions;
     if (!isSessionActive(session)) return null;
@@ -486,6 +532,9 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     }
   }, [location, staffContextCaseId, staffContextSessionId]);
 
+  /**
+   * Chọn hồ sơ xác minh đang xử lý của nhân viên: lưu {@code caseId}, xóa {@code sessionId} cũ và cập nhật query của URL (replaceState).
+   */
   const handleSelectStaffCase = useCallback((caseItemOrId) => {
     const nextCaseId = typeof caseItemOrId === 'object' && caseItemOrId !== null
       ? (caseItemOrId.caseId || caseItemOrId.id || '')
@@ -505,6 +554,9 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     }
   }, [setStaffContextCaseId, setStaffActiveCase, setStaffContextSessionId]);
 
+  /**
+   * Chọn phiên bàn giao của hồ sơ: lưu {@code sessionId} và cập nhật query của URL.
+   */
   const handleSelectStaffSession = useCallback((nextSessionId) => {
     setStaffContextSessionId(nextSessionId || '');
     if (typeof window !== 'undefined') {
@@ -516,6 +568,9 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     }
   }, [setStaffContextSessionId]);
 
+  /**
+   * Điều hướng nội bộ: đẩy một mục lịch sử (đánh số {@code lvIdx}) và cập nhật {@code location}; đổi {@code /beneficiary} cũ thành {@code /shared-with-me}.
+   */
   const navigateTo = useCallback(path => {
     if (path.split('?')[0] === '/beneficiary') path = path.replace('/beneficiary', '/shared-with-me');
     const nextIdx = (historyIndexRef.current || 0) + 1;
@@ -531,6 +586,9 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     window.history.replaceState(window.history.state, '', target);
   }, [location]);
 
+  /**
+   * Đăng xuất: hủy mọi request đang chạy, xóa phiên đã lưu và toàn bộ state theo người dùng (lời mời, ngữ cảnh nhân viên), rồi chuyển tới {@code /login}.
+   */
   const logout = useCallback(() => {
     profileSessionRef.current = null;
     restoreControllerRef.current?.abort();
@@ -618,6 +676,9 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     schedule();
     return () => clearTimeout(timer);
   }, [session, logout]);
+  /**
+   * Thiết lập phiên sau khi đăng nhập thành công: tạo phiên từ kết quả đăng nhập, xác minh người dùng bằng {@code GET /auth/me}, lưu phiên, đặt ngôn ngữ rồi điều hướng (luồng lời mời -> {@code /invitations}; nhân viên thuần -> {@code /staff/cases}; còn lại {@code resolvePostLoginRoute}).
+   */
   const establishSession = async (result, options) => {
     refreshControllerRef.current?.abort();
     refreshControllerRef.current = null;
@@ -630,6 +691,9 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     if (invitationIntentRef.current) { navigateTo('/invitations'); return; }
     navigateTo(user.roles?.includes('STAFF_EXECUTOR') && !user.roles?.includes('VAULT_OWNER') && !user.roles?.includes('LEGAL_VERIFIER') ? '/staff/cases' : resolvePostLoginRoute(user));
   };
+  /**
+   * Làm mới dữ liệu người dùng: gọi {@code GET /auth/me}, cập nhật phiên và tăng {@code refreshTrigger} để các trang tải lại. 401 thì đăng xuất. Cũng được kích hoạt bởi sự kiện window {@code lv:refresh}.
+   */
   const handleRefresh = useCallback(async () => {
     if (profileWriteRef.current && !profileWriteRef.current.aborted) return;
     if (refreshControllerRef.current) return;
@@ -682,6 +746,9 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     window.addEventListener('lv:refresh', onTriggerRefresh);
     return () => window.removeEventListener('lv:refresh', onTriggerRefresh);
   }, [handleRefresh]);
+  /**
+   * Tải lại thông tin tài khoản ({@code GET /auth/me}) để cập nhật vai trò sau khi liên kết lời mời; id khác phiên thì đăng xuất.
+   */
   const refreshLinkedAccount = async ({ signal }) => {
     const snapshot = session;
     if (!isSessionActive(snapshot)) throw new ApiError('UNAUTHENTICATED', 401);
@@ -692,6 +759,9 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     setSession(current => current?.accessToken === snapshot.accessToken && current?.user.id === user.id ? { ...current, user } : current);
   };
 
+  /**
+   * Lưu hồ sơ cá nhân qua {@code updateProfile} ({@code PATCH /auth/me}), bảo đảm phiên không đổi trong lúc ghi.
+   */
   const saveAccountProfile = async (changes, options) => {
     const snapshot = session;
     const active = profileSessionRef.current;
@@ -709,6 +779,9 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
       if (profileWriteRef.current === options.signal) profileWriteRef.current = null;
     }
   };
+  /**
+   * Áp dụng người dùng đã lưu vào phiên (cập nhật state và bộ nhớ), xóa cờ form chưa lưu.
+   */
   const applySavedProfile = (user, context) => {
     const current = profileSessionRef.current;
     if (!isSessionActive(current) || current.accessToken !== context.accessToken || current.user.id !== context.userId || user.id !== context.userId) throw new Error('SESSION_CHANGED');
@@ -745,6 +818,9 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     </main>
   );
   const preview = Boolean(import.meta.env.DEV && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
+  /**
+   * Dựng đường dẫn trang tài khoản, giữ lại tham số {@code preview} và {@code lang}.
+   */
   const resolveAccountRoute = (basePath) => {
     const params = new URLSearchParams();
     if (preview) params.set('preview', 'true');
@@ -757,6 +833,9 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
   const staffCaseId = staffContextCaseId || staffParams?.get('caseId') || '';
   const staffSessionId = staffContextSessionId || staffParams?.get('sessionId') || '';
 
+  /**
+   * Dựng đường dẫn của cổng nhân viên giữ ngữ cảnh {@code caseId}/{@code sessionId} (có thể ghi đè) và {@code preview}.
+   */
   const buildStaffRoute = (basePath, overrides = {}) => {
     const params = new URLSearchParams();
     if (preview) params.set('preview', 'true');
@@ -1060,6 +1139,9 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
   const isLegalWillRoute = path === '/legal/will-document-verification';
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
 
+  /**
+   * Thực thi điều hướng theo tên tab của AppShell (home, shared-with-me, admin-*, vault, assets...) bằng cách gọi {@code navigateTo} tới đường dẫn tương ứng.
+   */
   function handleExecuteNavigation(targetTab) {
     if (targetTab === 'home') {
       navigateTo(`/?lang=${lang}`);

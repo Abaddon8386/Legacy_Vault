@@ -16,6 +16,9 @@ import { isUuid, isUtcDate } from '../api/contracts.js';
  *   7. Production builds (import.meta.env.PROD === true) strictly lock out all simulation adapters.
  */
 
+/**
+ * Các kịch bản mô phỏng kho (chỉ DEV preview và test) cho thanh công cụ preview.
+ */
 export const VAULT_SCENARIOS = [
   { id: 'exists', labelVi: 'Kho đang hoạt động (ACTIVE)', labelEn: 'Active Vault Exists (ACTIVE)' },
   { id: 'empty', labelVi: 'Chưa có kho (Empty State)', labelEn: 'No Vault (Empty State)' },
@@ -28,6 +31,9 @@ export const VAULT_SCENARIOS = [
   { id: 'network_error', labelVi: 'Lỗi mạng / Mất kết nối (Network Error)', labelEn: 'Network Error / Offline' },
 ];
 
+/**
+ * Thông điệp UI song ngữ (vi/en) cho kho di sản: lỗi nhập tên/mô tả, 401, 403, 404, mạng, vượt giới hạn một kho, tạo thành công.
+ */
 export const vaultStatusMessages = {
   vi: {
     nameRequired: 'Vui lòng nhập tên kho di sản.',
@@ -64,6 +70,8 @@ export const vaultStatusMessages = {
  * @param {Object} input - { vault_name, description } or { name, description }
  * @param {'vi'|'en'} lang
  * @returns {Object} validation errors keyed by field
+ *
+ * Kiểm tra form tạo kho: tên (vault_name hoặc name) bắt buộc, tối đa 150 ký tự; mô tả tùy chọn tối đa 1000. Trả map lỗi theo trường (vault_name, description); rỗng nghĩa là hợp lệ. Dùng bởi components/vault/CreateVaultModal.jsx.
  */
 export function validateVaultInput(input = {}, lang = 'vi') {
   const msgs = vaultStatusMessages[lang] || vaultStatusMessages.vi;
@@ -102,6 +110,8 @@ export function validateVaultInput(input = {}, lang = 'vi') {
  *
  * @param {Object} options
  * @returns {boolean} true if simulation is permitted
+ *
+ * Cổng mô phỏng: luôn false khi có accessToken hoặc khi chạy production; ngoài ra chỉ true khi isDevPreview hoặc isTest. Có scenario đơn lẻ không bật mô phỏng.
  */
 export function isSimulationPermitted(options = {}) {
   if (options.accessToken) return false;
@@ -132,6 +142,9 @@ export function isSimulationPermitted(options = {}) {
 // ============================================================================
 // MOCK ADAPTER (Strictly for DEV Preview & isolated test scenarios)
 // ============================================================================
+/**
+ * Adapter giả lập kho (chỉ DEV preview và test): fetch trả kho mẫu hoặc ném lỗi theo kịch bản; create trả kho ACTIVE mới hoặc lỗi (mạng, VAULT_LIMIT_EXCEEDED).
+ */
 export const mockVaultAdapter = {
   fetch(scenario, lang = 'vi') {
     const msgs = vaultStatusMessages[lang] || vaultStatusMessages.vi;
@@ -233,6 +246,10 @@ export const mockVaultAdapter = {
 // ============================================================================
 // LIVE ADAPTER (Connects to Spring Boot Backend API)
 // ============================================================================
+/**
+ * Kiểm tra và chuẩn hóa một kho từ backend: id UUID, name 1-150 ký tự, status, createdAt/updatedAt hợp lệ; khi created=true status phải là ACTIVE. Trả cả dạng name và vault_name.
+ * @throws {ApiError} INVALID_RESPONSE.
+ */
 export function readVault(raw, { created = false } = {}) {
   if (!isUuid(raw?.id) || typeof raw.name !== 'string' || !raw.name.trim() || raw.name.length > 150 ||
       typeof raw.status !== 'string' || !raw.status || (created && raw.status !== 'ACTIVE') ||
@@ -240,7 +257,13 @@ export function readVault(raw, { created = false } = {}) {
   return { id: raw.id, name: raw.name, vault_name: raw.name, description: raw.description || '',
     status: raw.status, created_at: raw.createdAt, updated_at: raw.updatedAt, isSimulation: false };
 }
+/**
+ * Adapter thật gọi API kho của chủ kho (ROLE_VAULT_OWNER).
+ */
 export const liveVaultAdapter = {
+  /**
+   * GET /api/v1/vaults?page=0&size=20&sort=createdAt,desc (mong đợi 200): lấy trang kho của chủ sở hữu; mỗi chủ chỉ có tối đa một kho nên trả phần tử đầu, hoặc null nếu chưa có kho.
+   */
   async fetch(options = {}) {
     const data = await request('/vaults?page=0&size=20&sort=createdAt,desc', { ...options, expectedStatus: 200 });
     if (!Array.isArray(data?.content) || !Number.isSafeInteger(data.page) || data.page < 0 ||
@@ -251,6 +274,9 @@ export const liveVaultAdapter = {
     if (!data.content.length) return null;
     return readVault(data.content[0]);
   },
+  /**
+   * POST /api/v1/vaults với {name, description} (mong đợi 201): tạo kho; kho mới phải có status ACTIVE. Backend có thể từ chối khi tài khoản đã có một kho (giới hạn trọn đời).
+   */
   async create(rawName, rawDesc, options = {}) {
     const data = await request('/vaults', { ...options, method: 'POST', expectedStatus: 201,
       body: { name: rawName.trim(), description: rawDesc.trim() } });
@@ -262,6 +288,8 @@ export const liveVaultAdapter = {
  * Fetch Vault details for the authenticated Vault Owner
  * @param {Object} options - { scenario, isDevPreview, isTest, testEnv, lang, fetchFn }
  * @returns {Promise<Object|null>}
+ *
+ * Lấy kho của chủ kho: mô phỏng nếu isSimulationPermitted, ngược lại liveVaultAdapter.fetch (GET /api/v1/vaults). Dùng bởi VaultOverviewPage, AssetsRoute, WillsRoute, TrusteeBeneficiaryRoute, OwnerLiveCancelAlert.
  */
 export async function fetchVault(options = {}) {
   const lang = options.lang || 'vi';
@@ -279,6 +307,8 @@ export async function fetchVault(options = {}) {
  * @param {Object} input - { vault_name, description } or { name, description }
  * @param {Object} options - { lang, scenario, isDevPreview, isTest, testEnv, fetchFn }
  * @returns {Promise<Object>}
+ *
+ * Tạo kho: kiểm tra form (ném lỗi VALIDATION_FAILED 400 kèm fieldErrors), rồi mô phỏng hoặc liveVaultAdapter.create (POST /api/v1/vaults). Dùng bởi components/vault/CreateVaultModal.jsx.
  */
 export async function createVault(input = {}, options = {}) {
   const lang = options.lang || 'vi';

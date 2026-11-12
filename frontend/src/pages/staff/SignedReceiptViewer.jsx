@@ -1,6 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.jsx';
 
+/**
+ * Nút "Xem biên nhận đã ký" cho một lần xác nhận nhận tài sản của người thụ hưởng.
+ * Khi bấm, `open()` gọi `GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/beneficiary-confirmations/{confirmationId}/file`
+ * (kèm Bearer token, quyền Staff), nhận blob và chỉ chấp nhận `application/pdf`, `image/jpeg`, `image/png`.
+ * Blob được đổi thành object URL để xem trước: nếu cha truyền `onViewReceipt` thì giao dữ liệu cho cha,
+ * nếu không thì tự mở `EvidencePreviewModal`. Object URL được thu hồi và request bị hủy khi unmount.
+ * Được dùng trong `BeneficiaryConfirmationPage.jsx`.
+ *
+ * @param {object} props
+ * @param {string} props.caseId id hồ sơ xác minh.
+ * @param {string} props.sessionId id phiên bàn giao.
+ * @param {string} props.confirmationId id bản ghi xác nhận của người thụ hưởng.
+ * @param {string} props.accessToken JWT của staff.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {Function} [props.onUnauthorized] gọi khi API trả 401.
+ * @param {Function} [props.onViewReceipt] nhận `{blobUrl, contentType, fileName}` để cha tự hiển thị.
+ * @returns {JSX.Element}
+ */
 export default function SignedReceiptViewer({
   caseId,
   sessionId,
@@ -26,6 +44,7 @@ export default function SignedReceiptViewer({
     };
   }, []);
 
+  /** Tải tệp biên nhận ký nhận từ backend, kiểm tra loại tệp và mở bản xem trước; lỗi đặt vào state `error`. */
   async function open() {
     if (busy) return;
     const c = new AbortController();

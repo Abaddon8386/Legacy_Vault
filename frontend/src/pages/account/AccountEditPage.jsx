@@ -19,6 +19,29 @@ import { accountEditI18n } from './accountEditI18n.js';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import './AccountEditPage.css';
 
+/**
+ * Trang "Chỉnh sửa hồ sơ" của người dùng đang đăng nhập (mọi vai trò). Được `App.jsx` render, truyền `saveProfile` là
+ * `saveAccountProfile` (gọi `updateProfile` trong `services/profileService.js` -> `PATCH /api/v1/auth/me`).
+ *
+ * Cách hoạt động: form gồm họ tên, số điện thoại, email (chỉ khi `canEditProfileEmail` cho phép). Chỉ gửi các trường đã đổi.
+ * Đổi email cần mật khẩu hiện tại; tài khoản chưa có mật khẩu (`passwordLoginEnabled === false`) sẽ dùng
+ * `requestFirstPassword` để thiết lập mật khẩu lần đầu làm bằng chứng xác thực. Có bảo vệ thay đổi chưa lưu: báo `onDirtyChange`,
+ * `beforeunload` và hộp thoại xác nhận khi hủy/điều hướng. Kết quả lưu hợp lệ được báo qua `onProfileSaved` để cập nhật session.
+ * Lỗi 401 gọi `onUnauthorized`, 403 chặn form, 429/EMAIL_ALREADY_EXISTS/REAUTH_FAILED/VALIDATION_FAILED có thông báo riêng.
+ *
+ * @param {object} props
+ * @param {object|null} [props.session] Phiên hiện tại ({accessToken, user}).
+ * @param {'vi'|'en'} [props.lang='vi'] Ngôn ngữ.
+ * @param {Function} [props.onDirtyChange] Nhận cờ form có thay đổi chưa lưu.
+ * @param {object|null} [props.pendingNavigation] Điều hướng đang chờ xác nhận khi form bẩn.
+ * @param {Function} [props.onConfirmNavigation] Bỏ thay đổi và tiếp tục điều hướng.
+ * @param {Function} [props.onCancelNavigation] Ở lại trang.
+ * @param {Function} [props.onCancel] Rời trang chỉnh sửa.
+ * @param {boolean} [props.preview=false] Chế độ xem trước khi dev (không lưu thật).
+ * @param {Function} [props.saveProfile] `(changes, {signal, lang}) => Promise<user>` gọi API lưu hồ sơ.
+ * @param {Function} [props.onProfileSaved] Nhận user mới sau khi lưu.
+ * @param {Function} [props.onUnauthorized] Callback khi 401.
+ */
 export default function AccountEditPage({
   session = null,
   lang = 'vi',
@@ -118,6 +141,9 @@ export default function AccountEditPage({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [dirty]);
 
+  /**
+   * Xử lý nhập họ tên: cập nhật state, xóa thông báo kết quả cũ và validate ngay (báo REQUIRED khi trống).
+   */
   // Handle name input change
   const handleNameChange = (e) => {
     const val = e.target.value;
@@ -133,6 +159,9 @@ export default function AccountEditPage({
   };
 
 
+  /**
+   * Bấm Hủy: nếu form có thay đổi chưa lưu thì mở hộp thoại xác nhận, ngược lại gọi `onCancel`.
+   */
   // Cancel action: leave the page, prompt if dirty
   const handleCancelClick = () => {
     if (dirty) {
@@ -142,6 +171,9 @@ export default function AccountEditPage({
     }
   };
 
+  /**
+   * Hộp thoại xác nhận: chọn ở lại trang, đóng hộp thoại và báo `onCancelNavigation`.
+   */
   // Modal actions
   const handleModalStay = () => {
     setLocalPendingCancel(false);
@@ -150,6 +182,9 @@ export default function AccountEditPage({
     }
   };
 
+  /**
+   * Hộp thoại xác nhận: bỏ thay đổi; nếu do bấm Hủy thì gọi `onCancel`, nếu do điều hướng ngoài thì gọi `onConfirmNavigation`.
+   */
   const handleModalDiscard = () => {
     if (localPendingCancel) {
       setLocalPendingCancel(false);
@@ -165,6 +200,11 @@ export default function AccountEditPage({
   const fieldErrors = validateProfileEditForm({ fullName, phoneNumber, email }, { canEditEmail: emailPermission.canEdit }).errors;
   const needsFirstPassword = session?.user?.passwordLoginEnabled === false;
   if (emailChanged && !needsFirstPassword && !currentPassword.trim()) fieldErrors.currentPassword = 'REQUIRED';
+  /**
+   * Submit form lưu hồ sơ: validate (focus vào trường lỗi đầu tiên), tính tập thay đổi (`fullName`, `phoneNumber`, `email` + `currentPassword`),
+   * gọi `saveProfile` (PATCH /api/v1/auth/me), kiểm tra user trả về cùng `id`, rồi gọi `onProfileSaved` và cập nhật form.
+   * Request có thể bị hủy khi đổi phiên/tài khoản; kết quả cũ bị bỏ qua nhờ `requestRef` và `activeScope`.
+   */
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!canSave || !dirty || pendingRef.current || accessDenied) return;

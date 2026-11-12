@@ -13,6 +13,9 @@ import { ApiError } from '../api/http.js';
  * - Adapter rogue bỏ qua AbortSignal phải bị từ chối ngay khi signal.aborted = true.
  */
 
+/**
+ * Thông điệp UI song ngữ (vi/en) cho chức năng hủy cảnh báo DMS của chủ kho. Dùng bởi components/dms/OwnerCancelAlert.jsx.
+ */
 export const cancelAlertMessages = {
   vi: {
     buttonLabel: 'Hủy cảnh báo (Tôi vẫn an toàn)',
@@ -69,6 +72,8 @@ export const cancelAlertMessages = {
  *
  * @param {any} raw
  * @returns {boolean}
+ *
+ * Dùng bởi executeCancelAlert để từ chối các phản hồi mơ hồ: chỉ chấp nhận success/cancelled = true hoặc status MONITORING/ACTIVE; mọi dấu hiệu thất bại hoặc status lạ đều bị loại.
  */
 export function isValidCancelAlertResponse(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -113,6 +118,8 @@ export function isValidCancelAlertResponse(raw) {
  * @param {boolean} [params.isTest=false] - Unit test runner flag
  * @param {Object} [params.testEnv] - Environment override for testing
  * @returns {boolean}
+ *
+ * Quyết định giao diện có cho phép hủy cảnh báo hay không. Dùng bởi OwnerCancelAlert.jsx và executeCancelAlert (kiểm tra lại ngay trước khi gửi).
  */
 export function checkCancelAlertCapability({
   status,
@@ -170,6 +177,10 @@ export function checkCancelAlertCapability({
  * @param {boolean} [options.isDevPreview=false] - DEV Preview flag
  * @param {boolean} [options.isTest=false] - Test runner flag
  * @returns {Promise<Object>}
+ *
+ * Thực hiện hủy cảnh báo DMS thông qua adapter do component truyền vào (adapter thường gọi API hủy cảnh báo trong vaultService/dmsService; hàm này không tự gọi endpoint nào).
+ * Các bước: kiểm tra quyền (ném ApiError FORBIDDEN 403), kiểm tra signal.aborted, gọi adapter(signal), kiểm tra phản hồi bằng isValidCancelAlertResponse (ném INVALID_RESPONSE 500), gọi onUnauthorized khi 401.
+ * Nếu không có adapter ném ApiError BACKEND_NOT_READY (503).
  */
 export async function executeCancelAlert(options = {}) {
   const lang = options.lang || 'vi';
@@ -242,6 +253,8 @@ export async function executeCancelAlert(options = {}) {
  * @param {string|number} code
  * @param {'vi'|'en'} lang
  * @returns {string}
+ *
+ * Đổi mã lỗi hoặc status HTTP thành thông điệp hiển thị theo ngôn ngữ (UNAUTHENTICATED/401, ACCESS_DENIED/403, DMS_NOT_TRIGGERED/409, NETWORK_ERROR, BACKEND_NOT_READY/503, SUCCESS...).
  */
 export function getCancelAlertMessage(code, lang = 'vi') {
   const msgs = cancelAlertMessages[lang] || cancelAlertMessages.vi;

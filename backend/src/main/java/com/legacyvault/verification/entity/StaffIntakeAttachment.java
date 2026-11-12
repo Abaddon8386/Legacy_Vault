@@ -19,60 +19,118 @@ import jakarta.persistence.Table;
  * PS-103 (ST-11, ST-13): append-only encrypted file or image attached to a received death document or to the original
  * paper will. Content is AES-256-GCM encrypted with the attachment's public id as associated data; a row copied onto
  * another attachment fails to decrypt. {@code toString} never exposes content.
+ * <p>
+ * Bảng {@code dbo.staff_intake_attachments}: file/ảnh đính kèm của giấy tờ khai tử ({@link DeathDocumentRecord}, chủ thể
+ * {@link #SUBJECT_DEATH_DOCUMENT}) hoặc di chúc giấy gốc ({@link OriginalWillIntake}, chủ thể {@link #SUBJECT_ORIGINAL_WILL}). Đúng một trong hai cột
+ * {@code death_document_record_id} / {@code original_will_intake_id} được gán. Do {@code IntakeAttachmentService} tạo và giải mã khi đọc.
  */
 @Entity
 @Table(name = "staff_intake_attachments", schema = "dbo")
 public class StaffIntakeAttachment {
 
+	/**
+	 * Chủ thể đính kèm: giấy tờ khai tử.
+	 */
 	public static final String SUBJECT_DEATH_DOCUMENT = "DEATH_DOCUMENT";
+	/**
+	 * Chủ thể đính kèm: di chúc giấy gốc.
+	 */
 	public static final String SUBJECT_ORIGINAL_WILL = "ORIGINAL_WILL";
 
+	/**
+	 * Khóa chính nội bộ {@code attachment_id} (IDENTITY).
+	 */
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "attachment_id")
 	private Long attachmentId;
 
+	/**
+	 * Mã công khai (UUID); cũng là AAD khi mã hóa.
+	 */
 	@Column(name = "public_id", nullable = false, unique = true, updatable = false)
 	private UUID publicId;
 
+	/**
+	 * Id ca xác minh.
+	 */
 	@Column(name = "verification_case_id", nullable = false, updatable = false)
 	private Long verificationCaseId;
 
+	/**
+	 * Id giấy tờ khai tử (null nếu đính kèm của di chúc).
+	 */
 	@Column(name = "death_document_record_id", updatable = false)
 	private Long deathDocumentRecordId;
 
+	/**
+	 * Id bản ghi nhận di chúc gốc (null nếu đính kèm của giấy tờ khai tử).
+	 */
 	@Column(name = "original_will_intake_id", updatable = false)
 	private Long originalWillIntakeId;
 
+	/**
+	 * Tên file gốc.
+	 */
 	@Column(name = "original_file_name", nullable = false, length = 255, updatable = false)
 	private String originalFileName;
 
+	/**
+	 * Content-Type của file.
+	 */
 	@Column(name = "content_type", nullable = false, length = 150, updatable = false)
 	private String contentType;
 
+	/**
+	 * Kích thước file gốc (byte).
+	 */
 	@Column(name = "file_size_bytes", nullable = false, updatable = false)
 	private long fileSizeBytes;
 
+	/**
+	 * SHA-256 của nội dung gốc, chỉ để phát hiện thay đổi.
+	 */
 	@Column(name = "sha256_hash", nullable = false, length = 64, updatable = false)
 	private String sha256Hash;
 
+	/**
+	 * Nội dung file đã mã hóa AES-256-GCM.
+	 */
 	@Column(name = "encrypted_file_content", nullable = false, updatable = false)
 	private byte[] encryptedFileContent;
 
+	/**
+	 * IV của AES-GCM.
+	 */
 	@Column(name = "encryption_iv", nullable = false, updatable = false)
 	private byte[] encryptionIv;
 
+	/**
+	 * Phiên bản khóa mã hóa.
+	 */
 	@Column(name = "encryption_key_version", nullable = false, length = 50, updatable = false)
 	private String encryptionKeyVersion;
 
+	/**
+	 * Id Staff tải lên.
+	 */
 	@Column(name = "uploaded_by_user_id", nullable = false, updatable = false)
 	private Long uploadedByUserId;
 
+	/**
+	 * Thời điểm tải lên (UTC).
+	 */
 	@Column(name = "uploaded_at", nullable = false, updatable = false)
 	private LocalDateTime uploadedAt;
 
+	/**
+	 * Constructor không tham số cho JPA.
+	 */
 	protected StaffIntakeAttachment() { }
 
+	/**
+	 * Constructor riêng dùng chung cho các factory: sinh {@code publicId} và gán các trường siêu dữ liệu file.
+	 */
 	private StaffIntakeAttachment(Long verificationCaseId, String originalFileName, String contentType,
 			long fileSizeBytes, String sha256Hash, Long uploadedByUserId) {
 		this.publicId = UUID.randomUUID();
@@ -84,6 +142,17 @@ public class StaffIntakeAttachment {
 		this.uploadedByUserId = uploadedByUserId;
 	}
 
+	/**
+	 * Tạo đính kèm cho giấy tờ khai tử (gán {@code deathDocumentRecordId}).
+	 * @param verificationCaseId id ca xác minh
+	 * @param recordId           id giấy tờ khai tử
+	 * @param fileName           tên file gốc
+	 * @param contentType        Content-Type
+	 * @param size               kích thước (byte)
+	 * @param sha256             SHA-256 nội dung gốc
+	 * @param uploadedByUserId   id Staff tải lên
+	 * @return đối tượng chưa lưu (chưa có nội dung mã hóa)
+	 */
 	public static StaffIntakeAttachment forDeathDocument(Long verificationCaseId, Long recordId, String fileName,
 			String contentType, long size, String sha256, Long uploadedByUserId) {
 		StaffIntakeAttachment a = new StaffIntakeAttachment(verificationCaseId, fileName, contentType, size, sha256,
@@ -92,6 +161,17 @@ public class StaffIntakeAttachment {
 		return a;
 	}
 
+	/**
+	 * Tạo đính kèm cho di chúc giấy gốc (gán {@code originalWillIntakeId}).
+	 * @param verificationCaseId id ca xác minh
+	 * @param intakeId           id bản ghi nhận di chúc gốc
+	 * @param fileName           tên file gốc
+	 * @param contentType        Content-Type
+	 * @param size               kích thước (byte)
+	 * @param sha256             SHA-256 nội dung gốc
+	 * @param uploadedByUserId   id Staff tải lên
+	 * @return đối tượng chưa lưu (chưa có nội dung mã hóa)
+	 */
 	public static StaffIntakeAttachment forOriginalWill(Long verificationCaseId, Long intakeId, String fileName,
 			String contentType, long size, String sha256, Long uploadedByUserId) {
 		StaffIntakeAttachment a = new StaffIntakeAttachment(verificationCaseId, fileName, contentType, size, sha256,
@@ -100,21 +180,35 @@ public class StaffIntakeAttachment {
 		return a;
 	}
 
+	/**
+	 * Lưu kết quả mã hóa (ciphertext, IV, phiên bản khóa) vào thực thể.
+	 * @param data kết quả mã hóa
+	 */
 	public void setEncryptedContent(EncryptedData data) {
 		this.encryptedFileContent = data.ciphertext();
 		this.encryptionIv = data.iv();
 		this.encryptionKeyVersion = data.keyVersion();
 	}
 
+	/**
+	 * @return gói ciphertext/IV/phiên bản khóa để service giải mã
+	 */
 	public EncryptedData encryptedContent() {
 		return new EncryptedData(encryptedFileContent, encryptionIv, encryptionKeyVersion);
 	}
 
-	/** Gắn ciphertext với đúng attachment: sao chép sang bản ghi khác thì giải mã thất bại. */
+	/**
+	 * Gắn ciphertext với đúng attachment: sao chép sang bản ghi khác thì giải mã thất bại.
+	 * @param attachmentPublicId UUID công khai của attachment
+	 * @return dữ liệu AAD dạng {@code STAFF_INTAKE_ATTACHMENT:<uuid>} (UTF-8)
+	 */
 	public static byte[] associatedData(UUID attachmentPublicId) {
 		return ("STAFF_INTAKE_ATTACHMENT:" + attachmentPublicId).getBytes(StandardCharsets.UTF_8);
 	}
 
+	/**
+	 * Trước khi lưu: sinh {@code publicId} và đặt {@code uploadedAt} (UTC) nếu chưa có.
+	 */
 	@PrePersist
 	protected void onCreate() {
 		if (publicId == null) publicId = UUID.randomUUID();
@@ -133,6 +227,9 @@ public class StaffIntakeAttachment {
 	public Long getUploadedByUserId() { return uploadedByUserId; }
 	public LocalDateTime getUploadedAt() { return uploadedAt; }
 
+	/**
+	 * Chuỗi chẩn đoán chỉ gồm id công khai và kích thước, không bao giờ in nội dung file.
+	 */
 	@Override
 	public String toString() {
 		return "StaffIntakeAttachment[id=" + publicId + ", sizeBytes=" + fileSizeBytes + "]";

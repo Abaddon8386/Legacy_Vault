@@ -33,10 +33,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * ST-28 (LV-LEG-001): Staff xác nhận và lập biên nhận bàn giao cho từng người nhận sau khi phiên đã hoàn tất.
+ *
+ * Được gọi bởi {@code HandoverReceiptController} (vai trò {@code STAFF_EXECUTOR}), tiền tố
+ * {@code /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/receipts}: {@code POST} → {@link #create}, {@code GET} → {@link #list}, {@code GET /{receiptId}} → {@link #get}.
+ * Ghi bảng {@code handover_receipts} và {@code handover_receipt_assets}; audit {@code HANDOVER_RECEIPT_STAFF_CONFIRMED}.
+ */
 @Service
 public class HandoverReceiptService {
 private final com.legacyvault.verification.group.GroupHandoverService group;
+    /**
+     * Mã bước quy trình ghi vào audit (ST-28).
+     */
     private static final String STEP_ID = "ST-28";
+    /**
+     * Mã quy tắc nghiệp vụ ghi vào audit.
+     */
     private static final String RULE_ID = "LV-LEG-001";
 
     private final VerificationCaseRepository cases;
@@ -49,6 +62,9 @@ private final com.legacyvault.verification.group.GroupHandoverService group;
     private final AuditService audit;
     private final com.legacyvault.verification.repository.HandoverCompletionEvidenceRepository evidence;
 
+    /**
+     * Khởi tạo với các repository (ca, phiên, biên nhận, tài sản biên nhận, phiên bản, phân bổ, bằng chứng), cổng quy trình, audit và bàn giao nhóm.
+     */
     public HandoverReceiptService(VerificationCaseRepository cases, HandoverSessionRepository sessions,
             HandoverReceiptRepository receipts, HandoverReceiptAssetRepository receiptAssets,
             LegalWorkflowGuard workflow, LegalBasisDossierVersionRepository versions,
@@ -66,6 +82,22 @@ this.group=group;
         this.evidence = evidence;
     }
 
+    /**
+     * Tạo biên nhận cho một người nhận.
+     *
+     * Các bước: kiểm tra request; khóa ca qua cổng HANDOVER; Staff phải phụ trách ca và Vault ở UNLOCKED/HANDOVER_IN_PROGRESS; phiên phải đã
+     * COMPLETED và bàn giao nhóm sẵn sàng; bằng chứng đóng phiên phải khớp phiên bản/SHA-256/hash phạm vi hiện hành; người nhận phải có dòng
+     * phân bổ và danh tính {@code VERIFIED_AT_COUNTER}; các tài sản chọn phải thuộc người đó và đã duyệt; nếu thay thế biên nhận cũ thì
+     * biên nhận cũ phải hợp lệ và chưa bị thay thế; lưu biên nhận, tài sản biên nhận và ghi audit.
+     *
+     * @param casePublicId UUID công khai của ca
+     * @param sessionPublicId UUID công khai của phiên
+     * @param request người nhận, danh sách tài sản và biên nhận bị thay thế (tùy chọn)
+     * @param principal Staff đang đăng nhập
+     * @return biên nhận vừa tạo
+     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED, RESOURCE_NOT_FOUND, HANDOVER_RECEIPT_INVALID_STATE,
+     *         HANDOVER_RECEIPT_ASSET_NOT_ALLOCATED, HANDOVER_RECEIPT_RECIPIENT_NOT_VERIFIED, HANDOVER_RECEIPT_REISSUE_INVALID
+     */
     @Transactional
     public HandoverReceiptResponse create(UUID casePublicId, UUID sessionPublicId,
             CreateHandoverReceiptRequest request, CustomUserPrincipal principal) {
@@ -155,6 +187,11 @@ this.group=group;
         return toResponse(receipt);
     }
 
+    /**
+     * Liệt kê biên nhận của một phiên (mới nhất trước); Staff phải phụ trách ca và phiên.
+     *
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND
+     */
     @Transactional(readOnly = true)
     public List<HandoverReceiptResponse> list(UUID casePublicId, UUID sessionPublicId,
             CustomUserPrincipal principal) {
@@ -168,6 +205,11 @@ this.group=group;
                 .map(this::toResponse).toList();
     }
 
+    /**
+     * Xem chi tiết một biên nhận của phiên.
+     *
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND
+     */
     @Transactional(readOnly = true)
     public HandoverReceiptResponse get(UUID casePublicId, UUID sessionPublicId, UUID receiptPublicId,
             CustomUserPrincipal principal) {
@@ -182,6 +224,11 @@ this.group=group;
         return toResponse(receipt);
     }
 
+    /**
+     * Dựng response: tra phiên, UUID và tên người nhận, danh sách UUID tài sản, UUID Staff và biên nhận bị thay thế.
+     *
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND nếu thiếu dữ liệu liên quan
+     */
     private HandoverReceiptResponse toResponse(HandoverReceipt receipt) {
         var session = sessions.findById(receipt.getHandoverSessionId()).orElseThrow(HandoverReceiptService::notFound);
         UUID recipientPublicId = receipts.findRecipientPublicId(receipt.getId())
@@ -197,11 +244,17 @@ this.group=group;
                 receipt.getConfirmationType(), receipt.getConfirmedAt(), supersedesPublicId);
     }
 
+    /**
+     * Tạo lỗi {@code HANDOVER_RECEIPT_INVALID_STATE}.
+     */
     private static BusinessException invalidState() {
         return new BusinessException(ErrorCode.HANDOVER_RECEIPT_INVALID_STATE);
     }
 
 
+    /**
+     * Tạo lỗi {@code RESOURCE_NOT_FOUND}.
+     */
     private static BusinessException notFound() {
         return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
     }

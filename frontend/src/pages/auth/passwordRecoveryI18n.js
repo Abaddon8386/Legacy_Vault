@@ -1,3 +1,6 @@
+/**
+ * Chuỗi giao diện song ngữ (vi/en) của màn quên mật khẩu và đặt lại mật khẩu (`PasswordRecoveryPage`).
+ */
 export const passwordRecoveryI18n = {
   vi: {
     language: 'Ngôn ngữ', requestTitle: 'Quên mật khẩu?', resetTitle: 'Đặt lại mật khẩu',

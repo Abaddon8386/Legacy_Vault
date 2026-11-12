@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bell, Check, CheckCheck, X } from 'lucide-react';
 import { request } from '../../api/http.js';
 import './WorkflowNotifications.css';
+/**
+ * Nhãn (vi, en) cho từng loại hành động thông báo quy trình (bàn giao nhóm, phân chia di sản, tiếp nhận/xác minh hồ sơ, mở khóa hầm...).
+ */
 const labels={
  HANDOVER_GROUP_ATTENDANCE:['Đã ghi nhận người có mặt tại bàn giao','Handover attendance recorded'],
  HANDOVER_GROUP_REQUEST:['Staff yêu cầu mở lại bàn giao','Staff requested handover reopening'],
@@ -21,21 +24,56 @@ const labels={
  LEGAL_BASIS_RECLASSIFIED:['Đã cập nhật căn cứ pháp lý','Legal basis updated'],COURT_DECISION_RECORDED:['Đã có kết luận kiểm tra giấy tờ','Document assessment recorded'],
  LEGAL_BASIS_HELD:['Hồ sơ cần tạm dừng xử lý','Case processing paused'],LEGAL_BASIS_REVIEW_REQUIRED:['Hồ sơ cần bổ sung hoặc thẩm định lại','Supplementation or reassessment needed'],
  LEGAL_BASIS_REVIEW_RECORDED:['Đã ghi nhận thẩm định giấy tờ phân chia','Distribution assessment recorded'],LEGAL_BASIS_DECIDED:['Đã có quyết định phê duyệt hồ sơ','Final decision recorded'],LEGAL_VAULT_UNLOCKED:['Kho đã được mở khóa để bàn giao','Vault unlocked for handover']};
+/**
+ * Kiểm tra chuỗi UUID.
+ */
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(value);
+/**
+ * Thời gian toast hiển thị (ms).
+ */
 const TOAST_VISIBLE_MS = 6000;
+/**
+ * Thời gian hiệu ứng toast (ms).
+ */
 const TOAST_MOTION_MS = 240;
+/**
+ * Số thông báo gần nhất tối đa backend trả (dùng để hiện chú thích "50 thông báo gần nhất").
+ */
 const RECENT_LIMIT = 50;
+/**
+ * Số yêu cầu "đánh dấu đã đọc" gửi song song mỗi lượt.
+ */
 const READ_BATCH_SIZE = 4;
+/**
+ * Bộ định dạng ngày/giờ theo locale (vi-VN, en-GB).
+ */
 const dateFormatters = Object.fromEntries(['vi-VN', 'en-GB'].map(locale => [locale, {
  date: new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }),
  time: new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }),
 }]));
 
+/**
+ * Lấy tiêu đề thông báo theo hành động và ngôn ngữ; hành động lạ dùng câu chung "Có cập nhật về hồ sơ".
+ */
 function notificationTitle(action, en) {
  return Object.hasOwn(labels, action) ? labels[action][en ? 1 : 0]
    : en ? 'There is an update about the case' : 'Có cập nhật về hồ sơ';
 }
 
+/**
+ * Chuông thông báo quy trình hồ sơ cho nhân viên và pháp lý, hiển thị trong {@code AppShell}.
+ *
+ * API: {@code GET /workflow-notifications?workspace={STAFF|LEGAL}} (xác thực từng phần tử, làm mới mỗi 15 giây, khi tab hiện lại hoặc khi có sự kiện window {@code lv-workflow-notifications-changed}); 404/501 coi như tính năng chưa khả dụng.
+ * {@code PUT /workflow-notifications/{id}/read?workspace=...} để đánh dấu đã đọc (theo lô 4, xác nhận {@code read === true}).
+ * Thông báo mới đến hiện toast và làm chuông rung; bấm một thông báo thì đánh dấu đã đọc rồi {@code onNavigate} tới màn hình phù hợp (ví dụ {@code /staff/cases}, {@code /staff/handover}, {@code /legal/death-verification}, {@code /legal/controlled-unlock}) kèm {@code caseId}, {@code lang} và tab.
+ *
+ * @param {object} props
+ * @param {{accessToken:string}} props.session Phiên đăng nhập.
+ * @param {('STAFF'|'LEGAL')} props.role Không gian làm việc.
+ * @param {string} [props.lang='vi']
+ * @param {(url:string)=>void} [props.onNavigate] Điều hướng (mặc định {@code window.location.assign}).
+ * State: {@code result} (danh sách hoặc lỗi), {@code readState}, {@code expanded}, {@code toast}, {@code attempt}.
+ */
 export default function WorkflowNotifications({ session, role, lang='vi', onNavigate = url => window.location.assign(url) }) {
  const token=session?.accessToken,en=lang==='en';
  const [result,setResult]=useState(null),[attempt,setAttempt]=useState(0);
@@ -90,6 +128,9 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
    : `${unreadCount} thông báo chưa đọc`;
  const activeToast = !expanded && toast && toast.token === token && toast.role === role
    && visible?.items?.some(item => item.id === toast.item.id && !item.read) ? toast : null;
+ /**
+  * Đặt gốc biến đổi (transform-origin) của toast về vị trí icon chuông để hiệu ứng xuất phát từ chuông.
+  */
  const anchorToast = useCallback(card => {
   if (!card || !bell.current) return;
   const icon = bell.current.getBoundingClientRect();
@@ -98,15 +139,24 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
   const y = icon.top + icon.height / 2 - slot.top;
   card.style.transformOrigin = `${x}px ${y}px`;
  }, []);
+ /**
+  * Cập nhật cờ hover/focus của toast để tạm dừng bộ đếm tự đóng.
+  */
  function setToastInteraction(field, value) {
   setToast(current => current && current.item.id === activeToast?.item.id && current[field] !== value
    ? { ...current, [field]: value, closing: false } : current);
  }
+ /**
+  * Đóng toast và trả focus về chuông nếu nút đóng đang giữ focus.
+  */
  function dismissToast(event) {
   if (document.activeElement === event.currentTarget) details.current?.querySelector('summary')?.focus();
   setToast(null);
  }
  if(!token)return null;
+ /**
+  * Đánh dấu một nhóm thông báo đã đọc: gửi {@code PUT /workflow-notifications/{id}/read?workspace=...} theo lô, cập nhật danh sách khi được xác nhận; gặp 401/403/404 thì dừng và báo lỗi; gọi {@code onConfirmed} khi tất cả thành công.
+  */
  async function markRead(items, onConfirmed) {
   const controller = current.current;
   if (!items.length || !controller || controller.signal.aborted || readOperation.current === controller) return;
@@ -143,12 +193,18 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
   }
  }
 
+ /**
+  * Mở một thông báo: nếu đã đọc thì điều hướng ngay, nếu chưa thì đánh dấu đã đọc trước rồi điều hướng.
+  */
  function open(item) {
   if (activeRead?.pending) return;
   if (item.read) navigateToNotice(item);
   else void markRead([item], () => navigateToNotice(item));
  }
 
+ /**
+  * Tính đường dẫn đích theo hành động và vai trò (Staff: {@code /staff/cases}, {@code /staff/legal-documents}, {@code /staff/handover}; Legal: {@code /legal/...}) kèm tham số {@code caseId}, {@code lang} và {@code tab} (allocations, original-will-intakes, attendance), rồi gọi {@code onNavigate}.
+  */
  function navigateToNotice(item) {
    if (!Object.hasOwn(labels,item.action)) return;
    const intakeEvent=['VERIFICATION_CASE_CLAIMED','DEATH_DOCUMENT_RECORDED','ORIGINAL_WILL_RECEIVED','INTAKE_ATTACHMENT_UPLOADED','LEGAL_DEATH_DOCUMENT_DECIDED','WILL_COMPARISON_RECORDED'].includes(item.action);

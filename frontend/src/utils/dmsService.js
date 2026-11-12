@@ -19,6 +19,9 @@ import { isUuid, isUtcDate } from '../api/contracts.js';
  * - Production builds (import.meta.env.PROD === true) strictly lock out all simulation adapters.
  */
 
+/**
+ * Danh sách kịch bản mô phỏng (chỉ cho DEV preview/test) mà thanh công cụ preview cho phép chọn. Không bao giờ dùng ở production.
+ */
 export const DMS_SCENARIOS = [
   { id: 'monitoring', labelVi: 'Đang theo dõi (MONITORING)', labelEn: 'Active Monitoring (MONITORING)' },
   { id: 'not_configured', labelVi: 'Chưa cấu hình (Empty State)', labelEn: 'Not Configured (Empty)' },
@@ -33,6 +36,9 @@ export const DMS_SCENARIOS = [
   { id: 'loading', labelVi: 'Đang tải dữ liệu (Loading State)', labelEn: 'Loading Records (Loading)' },
 ];
 
+/**
+ * Các mức chu kỳ kiểm tra định kỳ (ngày) gợi ý sẵn trên giao diện cấu hình DMS.
+ */
 export const INTERVAL_PRESETS = [
   { days: 30, labelVi: '30 ngày', labelEn: '30 days' },
   { days: 60, labelVi: '60 ngày', labelEn: '60 days' },
@@ -40,9 +46,18 @@ export const INTERVAL_PRESETS = [
   { days: 180, labelVi: '180 ngày', labelEn: '180 days' },
 ];
 
+/**
+ * Chu kỳ kiểm tra mặc định (30 ngày).
+ */
 export const DEFAULT_INTERVAL_DAYS = 30;
+/**
+ * Thời gian ân hạn mặc định (7 ngày).
+ */
 export const DEFAULT_GRACE_PERIOD_DAYS = 7;
 
+/**
+ * Thông điệp UI song ngữ (vi/en) cho các trạng thái và lỗi của DMS (Dead Man's Switch).
+ */
 export const dmsStatusMessages = {
   vi: {
     intervalRequired: 'Vui lòng nhập chu kỳ kiểm tra định kỳ.',
@@ -109,6 +124,10 @@ export const dmsStatusMessages = {
  * @param {number|string} intervalInput
  * @param {'vi'|'en'} lang
  * @returns {Object} validation errors keyed by field
+ *
+ * Kiểm tra chu kỳ nhập theo ngày/giờ/phút ({days, hours, minutes}).
+ * Mỗi đơn vị phải là số nguyên không âm (ngày tối đa 180, giờ 0-23, phút 0-59), tổng phải > 0 và không vượt 180 ngày.
+ * @returns {Object} map lỗi theo trường (days, hours, minutes, duration, check_interval_days); rỗng nghĩa là hợp lệ.
  */
 export function validateDmsDuration(input = {}, lang = 'vi') {
   const msgs = dmsStatusMessages[lang] || dmsStatusMessages.vi;
@@ -179,6 +198,9 @@ export function validateDmsDuration(input = {}, lang = 'vi') {
   return errors;
 }
 
+/**
+ * Kiểm tra chu kỳ nhập một số ngày (số nguyên 1..180). Nếu truyền object thì chuyển cho validateDmsDuration. Trả map lỗi theo trường check_interval_days.
+ */
 export function validateDmsInterval(intervalInput, lang = 'vi') {
   if (typeof intervalInput === 'object' && intervalInput !== null) {
     return validateDmsDuration(intervalInput, lang);
@@ -216,6 +238,9 @@ export function validateDmsInterval(intervalInput, lang = 'vi') {
   return errors;
 }
 
+/**
+ * Định dạng chu kỳ DMS thành chuỗi như "30 ngày 2 giờ 15 phút" (hỗ trợ cả checkIntervalMinutes tổng); chưa cấu hình trả "Chưa cấu hình". Dùng bởi DMSOverviewPage và VaultSummary.
+ */
 export function formatDmsInterval(dmsData, lang = 'vi') {
   if (!dmsData) return lang === 'vi' ? 'Chưa cấu hình' : 'Not configured';
   let d = dmsData.days ?? (dmsData.checkIntervalDays || 0);
@@ -253,6 +278,8 @@ export function formatDmsInterval(dmsData, lang = 'vi') {
  * @param {string|null|undefined} isoString
  * @param {'vi'|'en'} lang
  * @returns {string}
+ *
+ * Định dạng chuỗi ISO thành ngày giờ theo ngôn ngữ (vi: HH:mm, dd/MM/yyyy). Trả "Chưa xác định" nếu rỗng và "Không hợp lệ" nếu sai.
  */
 export function formatDmsDate(isoString, lang = 'vi') {
   if (!isoString) {
@@ -302,6 +329,8 @@ export function formatDmsDate(isoString, lang = 'vi') {
  *
  * @param {Object} options
  * @returns {boolean}
+ *
+ * Cổng kiểm soát mô phỏng: luôn false khi có accessToken hoặc đang ở production; ngoài ra chỉ true khi isDevPreview hoặc isTest. Có scenario đơn lẻ không bật mô phỏng.
  */
 export function isSimulationPermitted(options = {}) {
   if (options.accessToken) return false;
@@ -324,6 +353,9 @@ export function isSimulationPermitted(options = {}) {
 // ============================================================================
 // MOCK ADAPTER (Strictly for DEV Preview & isolated test scenarios)
 // ============================================================================
+/**
+ * Adapter giả lập (chỉ DEV preview và test): fetch, save, checkIn trả dữ liệu mẫu hoặc ném lỗi theo kịch bản (401, 403, 404, 409 DMS_NOT_MONITORING, 422 BENEFICIARY_REQUIRED, mạng).
+ */
 export const mockDmsAdapter = {
   fetch(scenario = 'monitoring', lang = 'vi') {
     const msgs = dmsStatusMessages[lang] || dmsStatusMessages.vi;
@@ -477,6 +509,11 @@ export const mockDmsAdapter = {
 // ============================================================================
 // LIVE ADAPTER (Connects to Spring Boot Backend API)
 // ============================================================================
+/**
+ * Kiểm tra và chuẩn hóa phản hồi DMS của backend (GET/PUT /api/v1/dms, POST /api/v1/dms/check-in).
+ * Kiểm tra ownerId là UUID (và khớp options.ownerId nếu có), status thuộc MONITORING/TRIGGERED/GRACE_PERIOD_EXCEEDED, chu kỳ (checkIntervalDays/checkIntervalMinutes) nhất quán, gracePeriodDays/Minutes, các mốc thời gian UTC.
+ * Phân rã tổng số phút thành days/hours/minutes. @throws {ApiError} INVALID_RESPONSE.
+ */
 export function readDms(raw, options = {}) {
   const hasMinutes = Object.hasOwn(raw ?? {}, 'checkIntervalMinutes');
   const validDays = Number.isSafeInteger(raw?.checkIntervalDays) && raw.checkIntervalDays > 0;
@@ -520,11 +557,20 @@ export function readDms(raw, options = {}) {
     isSimulation: false,
   };
 }
+/**
+ * Adapter thật gọi backend DMS của chủ kho (ROLE_VAULT_OWNER): fetch, save, checkIn.
+ */
 export const liveDmsAdapter = {
+  /**
+   * GET /api/v1/dms: đọc cấu hình giám sát. Trả null khi 404 RESOURCE_NOT_FOUND (chưa cấu hình).
+   */
   async fetch(options = {}) {
     try { return readDms(await request('/dms', { ...options, expectedStatus: 200 }), options); }
     catch (error) { if (error.status === 404 && error.code === 'RESOURCE_NOT_FOUND') return null; throw error; }
   },
+  /**
+   * PUT /api/v1/dms: lưu chu kỳ. Body là {checkIntervalMinutes} cho chu kỳ có giờ/phút hoặc không chia hết ngày, ngược lại {checkIntervalDays}. Kết quả phải ở trạng thái MONITORING (nếu không ném INVALID_RESPONSE). Backend có thể trả ASSET_REQUIRED, WILL_REQUIRED, BENEFICIARY_REQUIRED, VAULT_NOT_EDITABLE.
+   */
   async save(payloadOrDays, options = {}) {
     let body;
     if (typeof payloadOrDays === 'object' && payloadOrDays !== null) {
@@ -550,6 +596,9 @@ export const liveDmsAdapter = {
     if (result.status !== 'MONITORING') throw new ApiError('INVALID_RESPONSE');
     return result;
   },
+  /**
+   * POST /api/v1/dms/check-in: xác nhận còn hoạt động. Backend trả 409 DMS_NOT_MONITORING nếu không còn ở trạng thái theo dõi; kết quả phải là MONITORING.
+   */
   async checkIn(options = {}) {
     const result = readDms(await request('/dms/check-in', { ...options, method: 'POST', expectedStatus: 200 }), options);
     if (result.status !== 'MONITORING') throw new ApiError('INVALID_RESPONSE');
@@ -558,14 +607,23 @@ export const liveDmsAdapter = {
 };
 /** Live actions for DmsGraceSettings (BE-03): PUT /dms with the current interval plus the grace duration.
  * Returns the raw response because the component validates it with readDms itself. */
+/**
+ * Hành động thật cho components/dms/DmsGraceSettings.jsx (BE-03): lưu thời gian ân hạn.
+ */
 export const liveDmsGraceActions = {
   durationUnit: 'minutes',
   policy: { minMinutes: 0, maxMinutes: 43200 },
+  /**
+   * PUT /api/v1/dms với {checkIntervalMinutes, gracePeriodMinutes}. Trả phản hồi thô vì component tự kiểm tra bằng readDms.
+   */
   async save(payload, options = {}) {
     const body = { checkIntervalMinutes: payload.checkIntervalMinutes, gracePeriodMinutes: payload.gracePeriodMinutes };
     return request('/dms', { ...options, method: 'PUT', expectedStatus: 200, body });
   },
 };
+/**
+ * Đổi mã (SAVED, CHECKED_IN, ASSET_REQUIRED, WILL_REQUIRED, BENEFICIARY_REQUIRED, DMS_NOT_MONITORING, VAULT_NOT_EDITABLE, UNAUTHENTICATED, ACCESS_DENIED, VALIDATION_FAILED...) thành thông điệp vi/en.
+ */
 export function getDmsMessage(code, lang = 'vi') {
   const vi = { SAVED: 'Đã lưu chu kỳ kiểm tra', CHECKED_IN: 'Đã xác nhận hoạt động',
     ASSET_REQUIRED: 'Cần có ít nhất một tài sản thừa kế trong kho trước khi bật giám sát.',
@@ -594,6 +652,8 @@ export function getDmsMessage(code, lang = 'vi') {
  * Fetch DMS configuration and monitor status for authenticated owner
  * @param {Object} options - { scenario, isDevPreview, isTest, testEnv, lang, fetchFn, vaultId }
  * @returns {Promise<Object|null>}
+ *
+ * Lấy cấu hình DMS: nếu isSimulationPermitted thì dùng dữ liệu mô phỏng (lưu qua previewState), ngược lại gọi liveDmsAdapter.fetch (GET /api/v1/dms). Dùng bởi DMSOverviewPage, VaultSummary.
  */
 export async function fetchDmsConfig(options = {}) {
   const lang = options.lang || 'vi';
@@ -612,6 +672,8 @@ export async function fetchDmsConfig(options = {}) {
  * @param {Object} input - { check_interval_days } or { checkIntervalDays }
  * @param {Object} options - { scenario, isDevPreview, isTest, testEnv, lang, fetchFn, vaultId }
  * @returns {Promise<Object>}
+ *
+ * Kiểm tra chu kỳ (ngày hoặc ngày/giờ/phút) rồi lưu: ném lỗi VALIDATION_FAILED (400, kèm fieldErrors) nếu sai; mô phỏng thì dùng mock, ngược lại gọi liveDmsAdapter.save (PUT /api/v1/dms; có giờ/phút thì gửi checkIntervalMinutes, không thì checkIntervalDays).
  */
 export async function saveDmsConfig(input = {}, options = {}) {
   const lang = options.lang || 'vi';
@@ -674,6 +736,8 @@ export async function saveDmsConfig(input = {}, options = {}) {
  * Execute DMS vitality check-in for authenticated owner
  * @param {Object} options - { scenario, isDevPreview, isTest, testEnv, lang, fetchFn, vaultId }
  * @returns {Promise<Object>}
+ *
+ * Xác nhận còn sống: mô phỏng thì dùng mock (giữ chu kỳ đã lưu), ngược lại gọi liveDmsAdapter.checkIn (POST /api/v1/dms/check-in).
  */
 export async function checkInDms(options = {}) {
   const lang = options.lang || 'vi';

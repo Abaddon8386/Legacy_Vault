@@ -33,30 +33,54 @@ public class LegalIntakeAttachmentController {
 		this.service = service;
 	}
 
+	/**
+	 * {@code GET /api/v1/legal-verifications/death-documents/{deathDocumentId}/attachments}
+	 * Liệt kê file đính kèm của giấy tờ chứng tử.
+	 *
+	 * @return danh sách {@link IntakeAttachmentResponse}
+	 */
 	@GetMapping("/death-documents/{deathDocumentId}/attachments")
 	public List<IntakeAttachmentResponse> deathDocumentAttachments(@PathVariable UUID deathDocumentId,
 			@AuthenticationPrincipal CustomUserPrincipal principal) {
 		return service.legalListForDeathDocument(deathDocumentId, principal);
 	}
 
+	/**
+	 * {@code GET .../death-documents/{deathDocumentId}/attachments/{attachmentId}/content}
+	 * Tải nội dung một file đính kèm của giấy tờ chứng tử (dạng attachment an toàn).
+	 */
 	@GetMapping("/death-documents/{deathDocumentId}/attachments/{attachmentId}/content")
 	public ResponseEntity<byte[]> deathDocumentAttachmentContent(@PathVariable UUID deathDocumentId,
 			@PathVariable UUID attachmentId, @AuthenticationPrincipal CustomUserPrincipal principal) {
 		return IntakeFileResponses.of(service.legalOpenDeathDocumentAttachment(deathDocumentId, attachmentId, principal));
 	}
 
+	/**
+	 * {@code GET .../verification-cases/{caseId}/original-will-intakes/{intakeId}/attachments}
+	 * Liệt kê file đính kèm của bản di chúc giấy gốc.
+	 */
 	@GetMapping("/verification-cases/{caseId}/original-will-intakes/{intakeId}/attachments")
 	public List<IntakeAttachmentResponse> originalWillAttachments(@PathVariable UUID caseId, @PathVariable UUID intakeId,
 			@AuthenticationPrincipal CustomUserPrincipal principal) {
 		return service.legalListForOriginalWill(caseId, intakeId, principal);
 	}
 
+	/**
+	 * {@code GET .../original-will-intakes/{intakeId}/attachments/{attachmentId}/content}
+	 * Tải nội dung file đính kèm của di chúc giấy gốc.
+	 */
 	@GetMapping("/verification-cases/{caseId}/original-will-intakes/{intakeId}/attachments/{attachmentId}/content")
 	public ResponseEntity<byte[]> originalWillAttachmentContent(@PathVariable UUID caseId, @PathVariable UUID intakeId,
 			@PathVariable UUID attachmentId, @AuthenticationPrincipal CustomUserPrincipal principal) {
 		return IntakeFileResponses.of(service.legalOpenOriginalWillAttachment(caseId, intakeId, attachmentId, principal));
 	}
 
+	/**
+	 * {@code GET .../verification-cases/{caseId}/basis-dossier/versions/{versionNo}/content}
+	 * Tải file của một phiên bản văn bản căn cứ đã được Staff chuyển cho Legal.
+	 *
+	 * @param versionNo số phiên bản, tối thiểu 1
+	 */
 	@GetMapping("/verification-cases/{caseId}/basis-dossier/versions/{versionNo}/content")
 	public ResponseEntity<byte[]> basisVersionContent(@PathVariable UUID caseId, @PathVariable @Min(1) int versionNo,
 			@AuthenticationPrincipal CustomUserPrincipal principal) {

@@ -23,6 +23,8 @@ import { LEGAL_NAVIGATION_REGISTRY } from '../../utils/legalNavigation.js';
  * - Routes are conditionally active only when their corresponding Jira capability has been implemented.
  * - Current active scope: PS-3 (Digital Heritage Vault).
  * - Future capability slots (Assets, Wills, Beneficiaries, DMS) are reserved at schema level but strictly not exposed in the UI.
+ *
+ * Danh mục điều hướng của chủ hầm/người thụ hưởng (xem ghi chú kiến trúc ở trên).
  */
 const NAVIGATION_REGISTRY = [
   {
@@ -76,6 +78,9 @@ const NAVIGATION_REGISTRY = [
   },
 ];
 
+/**
+ * Danh mục điều hướng của nhân viên: hồ sơ xác minh (cases), giấy tờ và phân bổ (legal-documents), bàn giao tài sản (asset-handover), xác nhận đã nhận (beneficiary-confirmation), đóng và lưu trữ (close-and-archive).
+ */
 const STAFF_NAVIGATION_REGISTRY = [
   { id: 'cases', labelVi: 'Hồ sơ xác minh', labelEn: 'Verification Cases', status: 'ACTIVE' },
   {
@@ -97,6 +102,14 @@ const STAFF_NAVIGATION_REGISTRY = [
 ];
 
 
+/**
+ * Khung giao diện chung (thanh bên, thanh trên, menu tài khoản, chuyển ngôn ngữ, drawer di động) cho mọi vai trò; nội dung màn hình truyền qua {@code children}. Dùng trong {@code App.jsx} và {@code StaffShell}.
+ * Nhãn, mục điều hướng và breadcrumb thay đổi theo {@code role} (OWNER, STAFF, LEGAL, ADMIN, BENEFICIARY). Với STAFF/LEGAL hiển thị chuông {@code WorkflowNotifications} (gọi {@code GET /workflow-notifications}).
+ * Không tự gọi API khác; đăng xuất, đổi tab và đổi ngôn ngữ đi qua callback.
+ *
+ * Props: {@code children}, {@code currentTab}, {@code onNavigateTab(tab)} (tab "home" là về trang chủ), {@code onLogout}, {@code onRefresh}, {@code isRefreshing} (hiện chưa dùng), {@code lang}, {@code onToggleLang}, {@code role}, {@code user}, {@code session}, {@code isAuthenticated}.
+ * State: {@code mobileMenuOpen}, {@code isAccountMenuOpen}, {@code isTabVisible}. Effect: theo dõi tab ẩn/hiện, đóng drawer khi cửa sổ rộng hơn 960px, đóng menu tài khoản khi bấm ra ngoài hoặc nhấn Escape.
+ */
 export default function AppShell({
   children,
   currentTab = 'vault',
@@ -179,6 +192,9 @@ export default function AppShell({
   }, [isAccountMenuOpen]);
 
   // Cursor-reactive spotlight tracking for sidebar nav item
+  /**
+   * Đặt biến CSS vị trí con trỏ để tạo hiệu ứng ánh sáng cho mục điều hướng (bỏ qua khi giảm chuyển động).
+   */
   const handleNavItemMouseMove = useCallback((e) => {
     if (
       typeof window !== 'undefined' &&
@@ -193,6 +209,9 @@ export default function AppShell({
     item.style.setProperty('--item-glow-opacity', '1');
   }, []);
 
+  /**
+   * Tắt hiệu ứng ánh sáng khi con trỏ rời mục điều hướng.
+   */
   const handleNavItemMouseLeave = useCallback((e) => {
     const item = e.currentTarget;
     item.style.setProperty('--item-glow-opacity', '0');
@@ -205,6 +224,9 @@ export default function AppShell({
   const isOwner = role === 'OWNER' || (!isStaff && !isLegal && !isAdmin && !isBeneficiary);
   const isOwnerOrBeneficiary = isOwner || isBeneficiary;
 
+  /**
+   * Về trang chủ: gọi {@code onNavigateTab("home")} nếu có, nếu không chuyển tới {@code /?lang=...}.
+   */
   const handleNavigateHome = useCallback(() => {
     if (typeof onNavigateTab === 'function') {
       onNavigateTab('home');

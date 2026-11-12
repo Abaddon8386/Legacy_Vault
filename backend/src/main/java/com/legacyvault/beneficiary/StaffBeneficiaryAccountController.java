@@ -32,18 +32,31 @@ public class StaffBeneficiaryAccountController {
 
 	private final BeneficiaryAccountService service;
 
+	/**
+	 * Cờ bật hai endpoint cũ, đọc từ cấu hình {@code legacyvault.beneficiary.legacy-counter-link-enabled}.
+	 */
 	private final boolean legacyEnabled;
 
+	/**
+	 * Hàm khởi tạo; đọc cờ {@code legacyEnabled} từ cấu hình (mặc định false).
+	 */
 	public StaffBeneficiaryAccountController(BeneficiaryAccountService service,
 			@Value("${legacyvault.beneficiary.legacy-counter-link-enabled:false}") boolean legacyEnabled) {
 		this.service = service;
 		this.legacyEnabled = legacyEnabled;
 	}
 
+	/**
+	 * @throws com.legacyvault.common.error.BusinessException {@code BENEFICIARY_LEGACY_LINK_DISABLED} (HTTP 410) khi cờ tắt
+	 */
 	private void requireLegacyEnabled() {
 		if (!legacyEnabled) throw new BusinessException(ErrorCode.BENEFICIARY_LEGACY_LINK_DISABLED);
 	}
 
+	/**
+	 * {@code POST /api/v1/staff/beneficiaries/{beneficiaryId}/account-link} (STAFF_EXECUTOR): liên kết tài khoản có sẵn theo email. Body {@code LinkRequest}.
+	 * @return {@code BeneficiaryAccountDtos.Response}
+	 */
 	@PostMapping("/account-link")
 	public BeneficiaryAccountDtos.Response link(@PathVariable UUID beneficiaryId,
 			@Valid @RequestBody BeneficiaryAccountDtos.LinkRequest request) {
@@ -51,6 +64,10 @@ public class StaffBeneficiaryAccountController {
 		return service.link(beneficiaryId, request);
 	}
 
+	/**
+	 * {@code POST /api/v1/staff/beneficiaries/{beneficiaryId}/account} (STAFF_EXECUTOR): tạo tài khoản mới tại quầy rồi liên kết. Body {@code CreateRequest}.
+	 * @return HTTP 201 với {@code BeneficiaryAccountDtos.Response}
+	 */
 	@PostMapping("/account")
 	public ResponseEntity<BeneficiaryAccountDtos.Response> create(@PathVariable UUID beneficiaryId,
 			@Valid @RequestBody BeneficiaryAccountDtos.CreateRequest request) {

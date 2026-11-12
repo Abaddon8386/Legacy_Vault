@@ -4,6 +4,24 @@ import { fetchStaffCases } from '../../pages/staff/staffCaseService.js';
 import { formatCaseReference } from '../../utils/caseReference.js';
 import './StaffCaseSelectorModal.css';
 
+/**
+ * Hộp thoại chọn hồ sơ xác minh từ hàng đợi của Staff, có lọc theo trạng thái (ALL/OPEN/CANCELLED/CLOSED),
+ * phân trang 5 dòng/trang, làm mới và đóng bằng phím Escape.
+ * Khi mở, gọi `fetchStaffCases` (`GET /api/v1/staff/verification-cases?page&size&status`) và hủy
+ * request cũ khi đổi trang/lọc/đóng. Lỗi 401 gọi `onUnauthorized`. Được dùng bởi `StaffSessionBoundary`,
+ * `BeneficiaryConfirmationPage`, `CloseAndArchivePage`.
+ *
+ * @param {object} props
+ * @param {boolean} props.isOpen hộp thoại có đang mở không.
+ * @param {Function} props.onClose đóng hộp thoại.
+ * @param {Function} props.onSelectCase nhận hồ sơ được chọn rồi hộp thoại tự đóng.
+ * @param {string|null} [props.accessToken] JWT của staff.
+ * @param {boolean} [props.isDevPreview=false] dùng dữ liệu mô phỏng thay vì API thật.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {string} [props.currentCaseId] hồ sơ đang chọn (được đánh dấu "Đang chọn").
+ * @param {Function|null} [props.onUnauthorized] gọi khi API trả 401.
+ * @returns {JSX.Element|null} null khi đóng.
+ */
 export default function StaffCaseSelectorModal({
   isOpen,
   onClose,
@@ -44,6 +62,7 @@ export default function StaffCaseSelectorModal({
     const c = new AbortController();
     controllerRef.current = c;
 
+    /** Tải một trang danh sách hồ sơ theo trang/lọc hiện tại và cập nhật `data`, `isLoading`, `error`. */
     async function loadCases() {
       setData(null);
       setIsLoading(true);

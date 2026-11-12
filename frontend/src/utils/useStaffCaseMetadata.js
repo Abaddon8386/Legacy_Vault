@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { loadStaffCase } from '../pages/staff/staffLiveService.js';
 
 // Optional display metadata; permissions and mutations remain server-controlled.
+/**
+ * Hook React lấy thông tin hiển thị (số hồ sơ, v.v.) của một hồ sơ nhân viên khi chưa được truyền sẵn.
+ * Tham số: caseId, provided (metadata đã có), accessToken, lang, preview. State: loaded (kết quả tải). Effect: nếu không phải preview, có token, chưa có caseNumber và caseId là UUID thì gọi loadStaffCase (staffLiveService.js, endpoint hồ sơ của nhân viên) và hủy bằng AbortController khi đổi/thoát; lỗi bị bỏ qua vì đây chỉ là dữ liệu hiển thị.
+ * Trả metadata hợp nhất (dữ liệu provided ưu tiên). Dùng bởi BeneficiaryConfirmationPage, ScopedAssetHandoverPage và StaffLegalDocumentsPage.
+ */
 export function useStaffCaseMetadata(caseId, provided, accessToken, lang, preview) {
   const [loaded, setLoaded] = useState(null);
   const known = provided && (!provided.caseId || provided.caseId === caseId) ? provided : null;

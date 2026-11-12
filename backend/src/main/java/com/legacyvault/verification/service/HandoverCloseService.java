@@ -9,6 +9,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.*;
 import java.time.*;
 import java.util.*;
+/**
+ * ST-28 (LV-CLOSE-001): đóng phiên bàn giao sau khi hoàn tất cả tài sản và người nhận.
+ *
+ * Được gọi bởi {@code HandoverCloseController} qua
+ * {@code /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/close} (POST, vai trò {@code STAFF_EXECUTOR}), trả {@link HandoverCloseResponse}.
+ * Cập nhật {@code handover_sessions} (COMPLETED), lưu {@link HandoverCompletionEvidence} và ghi audit {@code HANDOVER_SESSION_COMPLETED}.
+ */
 @Service
 public class HandoverCloseService {
 private final com.legacyvault.verification.group.GroupHandoverService group;
@@ -17,11 +24,25 @@ private final com.legacyvault.verification.group.GroupHandoverService group;
  private final HandoverSessionRepository sessions;
  private final HandoverCompletionEvidenceRepository evidence;
  private final AuditService audit;
+ /**
+  * Khởi tạo với bộ truy cập snapshot, service hoàn tất, repository phiên/bằng chứng, audit và bàn giao nhóm.
+  */
  public HandoverCloseService(HandoverCompletionAccess access,HandoverCompletionService completion,
   HandoverSessionRepository sessions,HandoverCompletionEvidenceRepository evidence,AuditService audit, com.legacyvault.verification.group.GroupHandoverService group){
 this.group=group;
   this.access=access;this.completion=completion;this.sessions=sessions;this.evidence=evidence;this.audit=audit;
  }
+ /**
+  * Đóng phiên. Idempotent: nếu phiên đã COMPLETED thì chỉ xác minh bằng chứng và trả kết quả. Ngược lại: khóa snapshot (cho phép phiên
+  * đã hoàn tất), kiểm tra bàn giao nhóm sẵn sàng, yêu cầu cổng hoàn tất kép đạt, đóng phiên, lưu bằng chứng (phiên bản, SHA-256, hash phạm vi,
+  * số tài sản, số người nhận) và ghi audit.
+  *
+  * @param caseId UUID công khai của ca
+  * @param sessionId UUID công khai của phiên
+  * @param actor Staff đang đăng nhập
+  * @return trạng thái phiên và thời điểm đóng
+  * @throws com.legacyvault.common.error.BusinessException HANDOVER_COMPLETION_PENDING, HANDOVER_SESSION_INVALID_STATE, LEGAL_DECISION_STALE
+  */
  @Transactional
  public HandoverCloseResponse close(UUID caseId,UUID sessionId,CustomUserPrincipal actor){
   var s=access.lock(caseId,sessionId,actor,true);
@@ -44,6 +65,14 @@ this.group=group;
     "beneficiaryCount",progress.beneficiaries().total()),"ST-28","LV-CLOSE-001"));
   return response(s.session());
  }
+ /**
+  * Yêu cầu phiên đã COMPLETED và bằng chứng đóng phiên khớp snapshot hiện tại (phiên bản, SHA-256, hash phạm vi).
+  * Cũng được {@link HandoverArchiveService} gọi. Phải có transaction sẵn ({@code Propagation.MANDATORY}).
+  *
+  * @return bằng chứng đóng phiên
+  * @throws com.legacyvault.common.error.BusinessException HANDOVER_SESSION_INVALID_STATE (chưa có bằng chứng hoặc phiên chưa hoàn tất),
+  *         LEGAL_DECISION_STALE (bằng chứng không còn khớp)
+  */
  @Transactional(propagation=Propagation.MANDATORY)
  public HandoverCompletionEvidence requireEvidence(HandoverCompletionAccess.Snapshot s){
   var e=evidence.findBySessionId(s.session().getId()).orElseThrow(()->new BusinessException(ErrorCode.HANDOVER_SESSION_INVALID_STATE));
@@ -53,6 +82,9 @@ this.group=group;
    throw new BusinessException(ErrorCode.LEGAL_DECISION_STALE);
   return e;
  }
+ /**
+  * Dựng response gồm UUID phiên, trạng thái và thời điểm đóng.
+  */
  private HandoverCloseResponse response(HandoverSession s){
   return new HandoverCloseResponse(s.getPublicId(),s.getStatus().name(),s.getClosedAt().toInstant(ZoneOffset.UTC));
  }

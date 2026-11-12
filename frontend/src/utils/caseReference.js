@@ -1,9 +1,15 @@
+/**
+ * Rút gọn mã hồ sơ dạng UUID thành 8 ký tự đầu + "…" + 4 ký tự cuối; chuỗi khác giữ nguyên; không phải chuỗi trả "—". Dùng bởi các component staff (StaffCaseContextBar, StaffCaseSelectorModal...).
+ */
 export function formatCaseReference(value) {
   if (typeof value !== 'string') return '—';
   return /^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i.test(value)
     ? `${value.slice(0, 8)}…${value.slice(-4)}` : value;
 }
 
+/**
+ * Mô tả phiên bàn giao của nhân viên dạng "Trạng thái · ngày giờ" (OPEN, COMPLETED, CANCELLED) theo ngôn ngữ vi/en; chưa có dữ liệu thì trả thông báo đang tải.
+ */
 export function formatStaffSession(session, lang = 'vi') {
   const en = lang === 'en';
   const statuses = en ? {OPEN: 'Open', COMPLETED: 'Completed', CANCELLED: 'Cancelled'}

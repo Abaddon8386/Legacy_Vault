@@ -23,13 +23,32 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-/** PS-102: COURT-only writes; optional will comparison never substitutes court validation.
- * Legacy NOTARIAL records remain readable without automatic conversion. Lock Vault -> Case -> Dossier. */
+/**
+ * PS-102: COURT-only writes; optional will comparison never substitutes court validation.
+ * Legacy NOTARIAL records remain readable without automatic conversion. Lock Vault -> Case -> Dossier.
+ *
+ * <p>PS-102 / ST-16 (LV-BASIS-001): Legal phân loại căn cứ pháp lý của một ca xác minh (COURT, NOTARIAL hoặc ON_HOLD)
+ * và mở hồ sơ căn cứ ({@code legal_basis_dossiers}) cho ca đó.
+ *
+ * Được gọi bởi {@code LegalBasisDossierController} qua
+ * {@code POST /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier} (vai trò {@code LEGAL_VERIFIER}),
+ * body {@link ClassifyBasisRequest}, trả {@link BasisDossierResponse}.
+ * Thứ tự khóa bắt buộc: Vault → VerificationCase → Dossier. Ghi audit {@code LEGAL_BASIS_CLASSIFIED}.
+ */
 @Service
 public class BasisClassificationService {
 
+    /**
+     * Loại thực thể ghi vào audit log.
+     */
     static final String ENTITY_TYPE = "LEGAL_BASIS_DOSSIER";
+    /**
+     * Mã bước quy trình ghi vào audit (ST-16: phân loại căn cứ).
+     */
     static final String STEP_ID = "ST-16";
+    /**
+     * Mã quy tắc nghiệp vụ ghi vào audit.
+     */
     static final String RULE_ID = "LV-BASIS-001";
 
     private final LegalCaseLookupRepository caseLookup;
@@ -41,6 +60,9 @@ public class BasisClassificationService {
     private final AuditService auditService;
     private final LegalBasisLockedState lockedState;
 
+    /**
+     * Khởi tạo service với các repository tra cứu/khóa ca, Vault, hồ sơ căn cứ và các thành phần phụ trợ (audit, view, trạng thái đã khóa).
+     */
     public BasisClassificationService(LegalCaseLookupRepository caseLookup, VerificationCaseRepository caseRepository,
             VaultRepository vaultRepository, LegalBasisDossierRepository dossiers, WillComparisonService willComparisons,
             BasisDossierViewService views, AuditService auditService, LegalBasisLockedState lockedState) {
@@ -54,6 +76,22 @@ public class BasisClassificationService {
         this.lockedState = lockedState;
     }
 
+    /**
+     * Phân loại căn cứ pháp lý cho ca và tạo hồ sơ căn cứ mới.
+     *
+     * Các bước: (1) kiểm tra request ({@link #validate}); (2) tìm ca theo UUID công khai; (3) khóa Vault rồi ca bằng
+     * {@code findByIdForUpdate}; (4) kiểm tra ca còn mở, Vault ở trạng thái WILL_VERIFICATION hoặc DOCUMENT_VERIFICATION
+     * và chưa có hồ sơ căn cứ; (5) lưu {@link LegalBasisDossier} với nhánh, lý do và trạng thái tranh chấp;
+     * (6) chuyển trạng thái Vault qua {@code markLegalBasisRouted(onHold)}; (7) ghi audit {@code LEGAL_BASIS_CLASSIFIED}
+     * (không ghi lý do phân loại); (8) trả hồ sơ qua {@link BasisDossierViewService#view}.
+     *
+     * @param caseId UUID công khai của ca xác minh
+     * @param principal Legal đang đăng nhập
+     * @param request nhánh ({@code COURT}/{@code NOTARIAL}/{@code ON_HOLD}) và lý do (tối đa 1000 ký tự)
+     * @return hồ sơ căn cứ vừa tạo (kèm lý do vì người xem là Legal)
+     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED (request sai), RESOURCE_NOT_FOUND,
+     *         BASIS_DOSSIER_INVALID_STATE (ca đóng hoặc Vault sai trạng thái), BASIS_DOSSIER_ALREADY_EXISTS
+     */
     @Transactional
     public BasisDossierResponse classify(UUID caseId, CustomUserPrincipal principal, ClassifyBasisRequest request) {
         Long legalUserId = CustomUserPrincipal.requireUserId(principal);
@@ -111,6 +149,13 @@ public class BasisClassificationService {
         return views.view(verificationCase, true);
     }
 
+    /**
+     * Suy ra trạng thái tranh chấp từ nhánh phân loại: NOTARIAL → không tranh chấp, COURT → có tranh chấp,
+     * ON_HOLD → chưa xác định. Cũng được {@link BasisReclassificationService} dùng lại.
+     *
+     * @param route nhánh được chọn
+     * @return hằng {@code DISPUTE_*} của {@link LegalBasisDossier}
+     */
     static String disputeStatusOf(ClassifyBasisRequest.Route route) {
         return switch (route) {
             case NOTARIAL -> LegalBasisDossier.DISPUTE_NONE;
@@ -119,6 +164,13 @@ public class BasisClassificationService {
         };
     }
 
+    /**
+     * Kiểm tra request: bắt buộc có nhánh và lý do, lý do sau khi trim không rỗng và không quá 1000 ký tự.
+     *
+     * @param request body từ client
+     * @return lý do đã trim
+     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED nếu không hợp lệ
+     */
     private static String validate(ClassifyBasisRequest request) {
         if (request == null || request.route() == null || request.routeReason() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);

@@ -31,12 +31,25 @@ import java.util.stream.Collectors;
  *
  * <p>TODO(open-question): tiến độ hồ sơ {@code DEATH_DOCS_COLLECTED} chưa có cột chứa (verification_cases.status chỉ
  * có OPEN/CANCELLED), nên service này chưa ghi tiến độ. Chờ nhóm chốt cột/bảng giữ trạng thái hồ sơ.
+ *
+ * <p>Bổ sung: được gọi bởi {@code StaffDeathDocumentController} (vai trò {@code STAFF_EXECUTOR}), tiền tố
+ * {@code /api/v1/staff/verification-cases/{caseId}/death-documents}: {@code POST} → {@link #record}, {@code GET} → {@link #list},
+ * {@code GET /{recordId}} → {@link #get}. Ghi bảng {@code death_document_records}, audit {@code DEATH_DOCUMENT_RECORDED} và thông báo cho Legal.
  */
 @Service
 public class DeathDocumentIntakeService {
 
+    /**
+     * Loại thực thể ghi vào audit log.
+     */
     static final String ENTITY_TYPE = "DEATH_DOCUMENT_RECORD";
+    /**
+     * Mã bước quy trình ghi vào audit (ST-11).
+     */
     static final String STEP_ID = "ST-11";
+    /**
+     * Mã quy tắc nghiệp vụ ghi vào audit.
+     */
     static final String RULE_ID = "LV-DEATH-002";
 
     private final StaffCaseLockRepository caseRepository;
@@ -47,6 +60,9 @@ public class DeathDocumentIntakeService {
     private final com.legacyvault.notification.WorkflowNotificationService notifications;
     private final com.legacyvault.verification.repository.LegalVerificationRepository decisions;
 
+    /**
+     * Khởi tạo với repository ca (có khóa), bản ghi giấy tờ khai tử, người dùng, audit, trạng thái đã khóa, thông báo và kết quả quyết định của Legal.
+     */
     public DeathDocumentIntakeService(
             StaffCaseLockRepository caseRepository,
             DeathDocumentRecordRepository recordRepository,
@@ -62,6 +78,18 @@ public class DeathDocumentIntakeService {
         this.decisions = decisions;
     }
 
+    /**
+     * Ghi nhận một giấy tờ khai tử vật lý đã nhận.
+     *
+     * Các bước: lấy Staff từ principal; khóa ca thuộc Staff ({@code findOwnedByStaffForUpdate}); yêu cầu ca còn mở; lưu
+     * {@link DeathDocumentRecord}; ghi audit (không ghi số giấy tờ, cơ quan cấp, ghi chú); gửi thông báo cho Legal.
+     *
+     * @param caseId UUID công khai của ca
+     * @param principal Staff đang đăng nhập
+     * @param request loại giấy tờ, cơ quan cấp, số, ngày cấp, tham chiếu chứng cứ, ghi chú
+     * @return bản ghi vừa tạo (kèm thông báo)
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND (ca không thuộc Staff), VERIFICATION_CASE_NOT_OPEN
+     */
     @Transactional
     public DeathDocumentRecordResponse record(
             UUID caseId,
@@ -113,6 +141,14 @@ public class DeathDocumentIntakeService {
         return DeathDocumentRecordResponse.from(saved, verificationCase.getPublicId(), principal.publicId()).withNotification(notification);
     }
 
+    /**
+     * Liệt kê các giấy tờ khai tử của ca (mới nhất trước) kèm quyết định mới nhất của Legal nếu có.
+     *
+     * @param caseId UUID công khai của ca
+     * @param principal Staff đang đăng nhập
+     * @return danh sách bản ghi
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND nếu ca không thuộc Staff
+     */
     @Transactional(readOnly = true)
     public List<DeathDocumentRecordResponse> list(UUID caseId, CustomUserPrincipal principal) {
         Long staffUserId = CustomUserPrincipal.requireUserId(principal);
@@ -131,6 +167,15 @@ public class DeathDocumentIntakeService {
                 .toList();
     }
 
+    /**
+     * Xem chi tiết một giấy tờ khai tử của ca kèm quyết định mới nhất của Legal.
+     *
+     * @param caseId UUID công khai của ca
+     * @param recordId UUID công khai của bản ghi
+     * @param principal Staff đang đăng nhập
+     * @return bản ghi
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND nếu ca hoặc bản ghi không tồn tại
+     */
     @Transactional(readOnly = true)
     public DeathDocumentRecordResponse get(UUID caseId, UUID recordId, CustomUserPrincipal principal) {
         Long staffUserId = CustomUserPrincipal.requireUserId(principal);
@@ -145,6 +190,11 @@ public class DeathDocumentIntakeService {
                 .withLegalDecision(decisionsOf(List.of(record)).get(record.getDeathDocumentRecordId()));
     }
 
+    /**
+     * Lấy quyết định mới nhất của Legal (APPROVED, REJECTED, NEEDS_CORRECTION) theo từng bản ghi giấy tờ.
+     *
+     * @return bản đồ ID bản ghi → quyết định (rỗng nếu không có bản ghi)
+     */
     private Map<Long, DeathDocumentRecordResponse.LegalDecision> decisionsOf(List<DeathDocumentRecord> records) {
         if (records.isEmpty()) return Map.of();
         var ids = records.stream().map(DeathDocumentRecord::getDeathDocumentRecordId).toList();
@@ -158,11 +208,19 @@ public class DeathDocumentIntakeService {
         return result;
     }
 
+    /**
+     * Tìm ca thuộc Staff, nếu không có thì coi như không tồn tại để không lộ thông tin.
+     *
+     * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND
+     */
     private VerificationCase requireOwnedCase(UUID caseId, Long staffUserId) {
         return caseRepository.findOwnedByStaff(caseId, staffUserId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
     }
 
+    /**
+     * Đổi ID nội bộ người nhận bản ghi sang UUID công khai bằng một truy vấn gộp.
+     */
     private Map<Long, UUID> publicIdsOf(List<DeathDocumentRecord> records) {
         List<Long> userIds = records.stream().map(DeathDocumentRecord::getReceivedByUserId).distinct().toList();
         if (userIds.isEmpty()) {
@@ -172,6 +230,9 @@ public class DeathDocumentIntakeService {
                 .collect(Collectors.toMap(User::getUserId, User::getPublicId, (a, b) -> a));
     }
 
+    /**
+     * @return chuỗi đã trim, hoặc null nếu null/rỗng
+     */
     private static String normalize(String value) {
         if (value == null) {
             return null;

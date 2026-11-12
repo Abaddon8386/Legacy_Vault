@@ -10,26 +10,62 @@ import java.util.Map;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
+/**
+ * Cài đặt {@link RecoveryMailTransport} gửi mail qua API Resend ({@code https://api.resend.com/emails}). Cũng được email xác minh
+ * dùng chung qua {@link #sendMessage}.
+ */
 @Component
 public class ResendRecoveryMailTransport implements RecoveryMailTransport {
+    /**
+     * Cấu hình nhà cung cấp, người gửi và allowlist.
+     */
     private final RecoveryConfiguration config;
+    /**
+     * Tuần tự hóa body JSON.
+     */
     private final ObjectMapper json;
+    /**
+     * HTTP client (timeout kết nối 5 giây, không theo redirect).
+     */
     private final HttpClient client;
+    /**
+     * Constructor chính do Spring dùng; tạo HttpClient không theo redirect.
+     *
+     * @param config cấu hình
+     * @param json   ObjectMapper
+     */
     @org.springframework.beans.factory.annotation.Autowired
     public ResendRecoveryMailTransport(RecoveryConfiguration config, ObjectMapper json) {
         this(config,json,HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
                 .followRedirects(HttpClient.Redirect.NEVER).build());
     }
+    /**
+     * Constructor cho test, cho phép tiêm HttpClient giả.
+     */
     ResendRecoveryMailTransport(RecoveryConfiguration config,ObjectMapper json,HttpClient client) {
         this.config=config; this.json=json; this.client=client;
     }
+    /**
+     * Gửi email khôi phục (tiêu đề và nội dung theo locale, nêu liên kết hết hạn sau 15 phút).
+     *
+     * @throws IllegalStateException nếu cấu hình chưa sẵn sàng hoặc gửi thất bại
+     */
     @Override public void send(String recipient, String locale, String credential) {
         if(!config.ready()) throw new IllegalStateException("Recovery delivery unavailable");
         boolean en="en".equals(locale);
         sendMessage(recipient,en?"Reset your LegacyVault password":"Đặt lại mật khẩu LegacyVault",
                 (en?"This link expires in 15 minutes. If you did not request it, ignore this email.\n":"Liên kết hết hạn sau 15 phút. Bỏ qua email nếu bạn không yêu cầu.\n")+config.link(credential));
     }
-    /** Single Resend call site, also used by PS-116. Same fixed endpoint, no redirects, recipient allowlist enforced. */
+    /**
+     * Điểm gọi Resend duy nhất, cũng dùng cho PS-116: endpoint cố định, không theo redirect, bắt buộc người nhận nằm trong
+     * allowlist. POST JSON {@code from/to/subject/text} với Bearer API key, timeout 10 giây.
+     *
+     * @param recipient địa chỉ nhận
+     * @param subject   tiêu đề
+     * @param text      nội dung văn bản
+     * @throws IllegalStateException nếu chưa cấu hình, người nhận không được phép, bị ngắt hoặc nhà cung cấp trả lỗi (thông báo
+     *         cố ý chung chung để không lộ URL/header)
+     */
     public void sendMessage(String recipient, String subject, String text) {
         if(!config.providerReady() || !config.permits(recipient)) throw new IllegalStateException("Recovery delivery unavailable");
         try {

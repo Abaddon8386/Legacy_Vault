@@ -4,6 +4,25 @@ import { Button } from '../../components/common/Button.jsx';
 import { Modal } from '../../components/common/Modal.jsx';
 import './PaymentCheckout.css';
 
+/**
+ * Khối mua/nâng cấp gói trọn đời qua VNPay sandbox cho chủ kho. Được `SubscriptionPage` render (có thể truyền `PlanView` để vẽ bảng gói riêng).
+ *
+ * API (qua `utils/paymentService.js`): `GET /api/v1/subscription-plans` (danh mục gói), `POST /api/v1/subscriptions/me/upgrade-quote` (báo giá, kiểm tra thanh toán khả dụng),
+ * `POST /api/v1/subscriptions/me/payments` (tạo giao dịch kèm `idempotencyKey`, trả URL VNPay rồi chuyển hướng trình duyệt),
+ * `GET /api/v1/subscriptions/me/payments/{id}` (đọc trạng thái) và `POST /api/v1/subscriptions/me/payments/{id}/return-failure` (báo kết quả hủy/thất bại có chữ ký).
+ *
+ * Cách hoạt động: khi trình duyệt quay lại từ VNPay với query `vnp_TxnRef`, effect đọc trạng thái giao dịch từ server (không tin tham số trả về),
+ * polling 3 giây tối đa 20 lần khi PENDING/EXPIRED; SUCCEEDED thì xóa query `vnp_*` và gọi `onPaid` để tải lại gói. Khóa idempotency được giữ khi lỗi mạng
+ * để thử lại không tạo giao dịch thứ hai.
+ *
+ * @param {object} props
+ * @param {string} props.accessToken JWT chủ kho.
+ * @param {'vi'|'en'} props.lang Ngôn ngữ.
+ * @param {object} props.currentPlan Gói hiện tại.
+ * @param {Function} props.onPaid Gọi khi thanh toán thành công.
+ * @param {Function} [props.PlanView] Component vẽ bảng gói, nhận prop `payment`.
+ * @param {object} [props.planViewProps] Props chuyển cho `PlanView`.
+ */
 export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid, PlanView, planViewProps }) {
   const [plans, setPlans] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -17,8 +36,14 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
   const alive = useRef(true);
   const dismissed = useRef(false);
   const onPaidRef = useRef(onPaid);
+  /**
+   * Giữ tham chiếu mới nhất của `onPaid` để effect polling không phải phụ thuộc vào nó.
+   */
   useEffect(() => { onPaidRef.current = onPaid; }, [onPaid]);
   const en = lang === 'en';
+  /**
+   * Effect tải danh mục gói (`GET /api/v1/subscription-plans`); lỗi bật `catalogError`, có thể thử lại qua `catalogRetry`.
+   */
   useEffect(() => {
     alive.current = true;
     const controller = new AbortController();
@@ -31,6 +56,10 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
     });
     return () => { alive.current = false; controller.abort(); };
   }, [accessToken, catalogRetry]);
+  /**
+   * Effect xử lý khi quay lại từ VNPay: đọc `vnp_TxnRef`/`vnp_ResponseCode`, gọi `readPayment` và polling trạng thái, hiển thị thông báo theo trạng thái
+   * server, báo thất bại có chữ ký qua `reportPaymentReturnFailure` (best effort), dọn query `vnp_*` khỏi URL.
+   */
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const reference = query.get('vnp_TxnRef');
@@ -51,6 +80,9 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
     dismissed.current = false;
     const controller = new AbortController();
     let timer, attempts = 0, settled = false;
+    /**
+     * Đọc trạng thái giao dịch từ server, hiện thông báo; SUCCEEDED thì gọi `onPaid`, PENDING/EXPIRED thì hẹn đọc lại sau 3 giây (tối đa 20 lần).
+     */
     const check = async () => {
       try {
         const p = await readPayment(id, { accessToken, signal: controller.signal });
@@ -84,6 +116,9 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
     }
     return () => { controller.abort(); clearTimeout(timer); };
   }, [accessToken, en]);
+  /**
+   * Đổi lỗi tạo thanh toán thành thông báo: SUBSCRIPTION_UPGRADE_UNAVAILABLE (chưa cấu hình VNPay), PAYMENT_REQUEST_CONFLICT (đang có giao dịch chờ) hoặc lỗi chung.
+   */
   const fail = error => {
     const code = error?.code;
     setMessage(code === 'SUBSCRIPTION_UPGRADE_UNAVAILABLE'
@@ -92,6 +127,11 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
         ? (en ? 'A checkout is already pending. Retry it or wait 15 minutes.' : 'Đang có giao dịch chờ. Hãy thử lại giao dịch đó hoặc đợi 15 phút.')
         : (en ? 'Unable to start payment. Refresh the catalog or retry.' : 'Chưa tạo được thanh toán. Hãy tải lại bảng giá hoặc thử lại.'));
   };
+  /**
+   * Chọn một gói: gọi `paymentQuote` (`POST /api/v1/subscriptions/me/upgrade-quote`); nếu thanh toán khả dụng thì mở modal xác nhận và giữ khóa idempotency cho gói đó.
+   *
+   * @param {object} plan Gói trong danh mục (code, version, priceVnd).
+   */
   const choose = async plan => {
     if (inFlight.current) return;
     inFlight.current = true; setBusy(true); setMessage('');
@@ -105,6 +145,9 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
     } catch (error) { if (alive.current) fail(error); }
     finally { inFlight.current = false; if (alive.current) setBusy(false); }
   };
+  /**
+   * Xác nhận thanh toán: `createPayment` (`POST /api/v1/subscriptions/me/payments`) rồi chuyển trình duyệt sang URL VNPay sandbox.
+   */
   const pay = async () => {
     if (inFlight.current) return;
     inFlight.current = true; setBusy(true);
@@ -115,8 +158,17 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
     finally { inFlight.current = false; if (alive.current) setBusy(false); }
   };
   const tier = ['BASIC', 'STANDARD', 'EXTENDED'];
+  /**
+   * Tên hiển thị của gói theo mã (BASIC, STANDARD, EXTENDED).
+   */
   const planName = code => ({ BASIC: en ? 'Basic' : 'Cơ bản', STANDARD: en ? 'Standard' : 'Tiêu chuẩn', EXTENDED: en ? 'Extended' : 'Mở rộng' }[code] || code);
+  /**
+   * Thử tải lại danh mục gói.
+   */
   const retryCatalog = () => { setCatalogLoading(true); setCatalogError(false); setCatalogRetry(value => value + 1); };
+  /**
+   * Đóng modal xác nhận (nếu không có request đang chạy) và đánh dấu đã đóng để polling nền không mở lại thông báo khi còn chờ.
+   */
   const close = () => { if (!inFlight.current) { dismissed.current = true; setSelection(null); setMessage(''); } };
   return <>
     {PlanView && <PlanView {...planViewProps} payment={{ plans, busy, onChoose: choose, catalogLoading, catalogError, retryCatalog }} />}

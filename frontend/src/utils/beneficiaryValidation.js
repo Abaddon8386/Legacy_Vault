@@ -13,8 +13,14 @@
  * - email: optional (valid email format if provided).
  */
 
+/**
+ * Được dùng bởi pages/trusteeBeneficiary/TrusteeBeneficiaryPage.jsx, RelatedPersonEditDialog.jsx và utils/trusteeBeneficiaryService.js (kiểm tra trước khi gọi API người thụ hưởng).
+ */
 import { EMAIL_REGEX, PHONE_REGEX } from './trusteeValidation.js';
 
+/**
+ * Thông điệp lỗi song ngữ (vi/en) của form người thụ hưởng.
+ */
 export const beneficiaryValidationMessages = {
   vi: {
     fullNameRequired: 'Vui lòng nhập họ và tên Người thụ hưởng.',
@@ -47,6 +53,8 @@ export const beneficiaryValidationMessages = {
  * @param {string} [values.email] - Optional
  * @param {'vi'|'en'} lang
  * @returns {Record<string, string>} Map of validation error messages
+ *
+ * Kiểm tra form người thụ hưởng theo quy tắc ở đầu file (họ tên bắt buộc <=150, quan hệ <=100, ngày sinh YYYY-MM-DD không ở tương lai, phone/email tùy chọn nhưng phải đúng định dạng). Trả về map {tênTrường: thông điệp lỗi theo ngôn ngữ}; rỗng nghĩa là hợp lệ.
  */
 export function validateBeneficiary(values = {}, lang = 'vi') {
   const msgs = beneficiaryValidationMessages[lang] || beneficiaryValidationMessages.vi;

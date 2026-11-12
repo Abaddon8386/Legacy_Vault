@@ -22,6 +22,11 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Quản lý phiên bàn giao (handover session) của một ca xác minh.
+ * Phạm vi: {@code /api/v1/staff/verification-cases/{caseId}/handover-sessions}.
+ * Quyền: {@code ROLE_STAFF_EXECUTOR}. Ủy quyền cho {@link HandoverSessionService}.
+ */
 @RestController
 @RequestMapping("/api/v1/staff/verification-cases/{caseId}/handover-sessions")
 @PreAuthorize("hasRole('STAFF_EXECUTOR')")
@@ -32,6 +37,10 @@ public class HandoverSessionController {
         this.service = service;
     }
 
+    /**
+     * {@code POST .../handover-sessions}: mở phiên bàn giao mới cho ca. Trả 201 Created, header
+     * {@code Location} trỏ tới phiên, body {@link HandoverSessionResponse}.
+     */
     @PostMapping
     public ResponseEntity<HandoverSessionResponse> open(@PathVariable UUID caseId,
             @AuthenticationPrincipal CustomUserPrincipal principal) {
@@ -41,6 +50,10 @@ public class HandoverSessionController {
         return ResponseEntity.created(location).body(response);
     }
 
+    /**
+     * {@code GET .../handover-sessions?status=}: liệt kê phiên của ca, lọc tùy chọn theo
+     * {@code HandoverSessionStatus}.
+     */
     @GetMapping
     public List<HandoverSessionResponse> list(@PathVariable UUID caseId,
             @RequestParam(required = false) HandoverSessionStatus status,
@@ -48,12 +61,19 @@ public class HandoverSessionController {
         return service.list(caseId, status, principal);
     }
 
+    /**
+     * {@code GET .../handover-sessions/{sessionId}}: đọc chi tiết một phiên.
+     */
     @GetMapping("/{sessionId}")
     public HandoverSessionResponse get(@PathVariable UUID caseId, @PathVariable UUID sessionId,
             @AuthenticationPrincipal CustomUserPrincipal principal) {
         return service.get(caseId, sessionId, principal);
     }
 
+    /**
+     * {@code PATCH .../handover-sessions/{sessionId}/status}: đổi trạng thái phiên. Body
+     * {@link HandoverSessionStatusRequest}; trả {@link HandoverSessionResponse} sau cập nhật.
+     */
     @PatchMapping("/{sessionId}/status")
     public HandoverSessionResponse updateStatus(@PathVariable UUID caseId, @PathVariable UUID sessionId,
             @Valid @RequestBody HandoverSessionStatusRequest request,

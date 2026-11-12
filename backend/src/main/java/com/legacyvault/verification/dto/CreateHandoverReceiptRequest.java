@@ -7,7 +7,15 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
 
-/** Client selects intended recipient/assets; the service validates them against approved allocations. */
+/**
+ * Client selects intended recipient/assets; the service validates them against approved allocations.
+ *
+ * Body của {@code POST .../handover-sessions/{sessionId}/receipts}.
+ *
+ * - {@code recipientId}: người nhận dự kiến.
+ * - {@code assetIds}: 1..100 tài sản bàn giao.
+ * - {@code supersedesReceiptId}: biên nhận cũ bị thay thế (tùy chọn).
+ */
 public record CreateHandoverReceiptRequest(
         @NotNull UUID recipientId,
         @NotEmpty @Size(max = 100) List<@NotNull UUID> assetIds,

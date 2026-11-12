@@ -2,9 +2,15 @@
  * Staff Legal Documents Validation & Client Role Guard — PS-31 / PS-96 / LV-BASIS-001
  */
 
+/**
+ * Dùng bởi App.jsx và pages/staff/StaffLegalDocumentsPage.jsx.
+ */
 import { staffLegalDocumentsI18n } from '../pages/staff/staffLegalDocumentsI18n.js';
 import { validateEvidenceFile } from './staffEvidenceUpload.js';
 
+/**
+ * Các khóa lỗi (i18n) của form tiếp nhận văn bản căn cứ pháp lý.
+ */
 export const STAFF_LEGAL_DOCS_ERROR_KEYS = {
   ISSUER_REQUIRED: 'issuerRequired',
   DOCUMENT_NUMBER_REQUIRED: 'documentNumberRequired',
@@ -14,6 +20,9 @@ export const STAFF_LEGAL_DOCS_ERROR_KEYS = {
   FILE_REQUIRED: 'fileRequired',
 };
 
+/**
+ * Chỉ ROLE_STAFF_EXECUTOR có session còn hạn mới được vào màn hình văn bản pháp lý của nhân viên.
+ */
 export function canAccessStaffLegalDocuments(session) {
   if (!session || !session.accessToken || typeof session.expiresAt !== 'number') {
     return false;
@@ -31,6 +40,9 @@ export function canAccessStaffLegalDocuments(session) {
   return roles.includes('STAFF_EXECUTOR');
 }
 
+/**
+ * Chọn trang đích sau đăng nhập theo vai trò (khi không đồng thời là chủ kho): pháp lý thì /legal/death-verification, nhân viên thì /staff/legal-documents, admin thì /admin, người thụ hưởng thì /shared-with-me; còn lại có vai trò thì /vault.
+ */
 export function resolvePostLoginRoute(user) {
   const roles = Array.isArray(user?.roles) ? user.roles : [];
   if (roles.includes('LEGAL_VERIFIER') && !roles.includes('VAULT_OWNER')) {
@@ -134,11 +146,17 @@ export function validateStaffLegalDocumentForm(formValues = {}, options = {}) {
   };
 }
 
+/**
+ * Đổi khóa lỗi thành thông điệp theo ngôn ngữ (staffLegalDocumentsI18n).
+ */
 export function getStaffLegalDocumentErrorMessage(errorKey, lang = 'vi') {
   const dictionary = staffLegalDocumentsI18n[lang] || staffLegalDocumentsI18n.vi;
   return dictionary[errorKey] || errorKey;
 }
 
+/**
+ * Đổi cả map khóa lỗi thành map thông điệp đã dịch.
+ */
 export function formatStaffLegalDocumentErrors(errors = {}, lang = 'vi') {
   const formatted = {};
   for (const [field, key] of Object.entries(errors)) {

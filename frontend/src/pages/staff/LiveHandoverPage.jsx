@@ -12,6 +12,13 @@ import { loadGroupHandover } from '../../services/groupHandoverService.js';
 import { workflowFailure } from '../../utils/workflowFeedback.js';
 import LegacyCounterBeneficiariesSection from './LegacyCounterBeneficiariesSection.jsx';
 
+/**
+ * Định dạng thời điểm ISO-8601 thành ngày giờ (dd/mm/yyyy hh:mm) theo ngôn ngữ.
+ *
+ * @param {string} value chuỗi thời gian từ backend.
+ * @param {boolean} en true cho định dạng en-GB, false cho vi-VN.
+ * @returns {string} chuỗi đã định dạng, hoặc "—" nếu không phân tích được.
+ */
 function sessionTime(value, en) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat(en ? 'en-GB' : 'vi-VN', {
@@ -19,6 +26,17 @@ function sessionTime(value, en) {
   }).format(date);
 }
 
+/**
+ * Chuyển lỗi API của các thao tác phiên bàn giao thành thông báo thân thiện (vi/en).
+ * Ưu tiên lỗi hết phiên đăng nhập (`staffAuthFeedback`), lỗi 404 (`workflowFailure`), hồ sơ đã đóng;
+ * sau đó tra theo mã lỗi như `HANDOVER_SESSION_ALREADY_OPEN`, `HANDOVER_SESSION_INVALID_STATE`,
+ * `RESOURCE_NOT_FOUND`, `INVALID_RESPONSE`, `LEGAL_APPROVAL_REQUIRED`, `LEGAL_WORKFLOW_ON_HOLD`.
+ *
+ * @param {Error} error lỗi (thường là `ApiError` có `code`, `status`).
+ * @param {boolean} en true để dùng tiếng Anh.
+ * @param {object} [caseItem] hồ sơ đang chọn, dùng để nhận biết hồ sơ đã đóng.
+ * @returns {string} thông báo hiển thị.
+ */
 function errorText(error, en, caseItem) {
   const auth = staffAuthFeedback(error, en ? 'en' : 'vi');
   if (auth) return `${auth.title}. ${auth.description}`;
@@ -48,6 +66,17 @@ function errorText(error, en, caseItem) {
   return texts[error?.code]?.[en ? 1 : 0] || (en ? 'Unable to complete the request. Reload to check the latest state before retrying.' : 'Chưa thực hiện được yêu cầu. Tải lại để kiểm tra trạng thái mới nhất trước khi thử lại.');
 }
 
+/**
+ * Danh sách chọn hồ sơ có tìm kiếm và phân trang (5 hồ sơ/trang) khi chưa có `caseId`.
+ * Gọi `fetchStaffCases` (`GET /api/v1/staff/verification-cases?page&size=5&q=`) mỗi khi đổi trang, từ khóa
+ * hoặc bấm tải lại; hủy request cũ bằng `AbortController`. Chọn một hồ sơ thì gọi `onChoose(caseId, item)`.
+ *
+ * @param {object} props
+ * @param {string} props.accessToken JWT của staff.
+ * @param {'vi'|'en'} props.lang ngôn ngữ.
+ * @param {Function} props.onChoose nhận `(caseId, caseItem)`.
+ * @param {Function} props.onError nhận lỗi tải danh sách.
+ */
 function CasePicker({ accessToken, lang, onChoose, onError }) {
   const en = lang === 'en';
   const [page, setPage] = useState(0);
@@ -68,6 +97,7 @@ function CasePicker({ accessToken, lang, onChoose, onError }) {
   const current = result?.requestPage === page && result?.retry === retry && result?.query === activeQuery ? result : null;
   const failed = error?.page === page && error?.retry === retry && error?.query === activeQuery ? error.err : null;
 
+  /** Gửi biểu mẫu tìm kiếm: về trang đầu và áp dụng từ khóa đã nhập. */
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(0);
@@ -102,6 +132,31 @@ function CasePicker({ accessToken, lang, onChoose, onError }) {
   </section>;
 }
 
+/**
+ * Quản lý các phiên bàn giao của một hồ sơ và bố cục các bước làm việc dạng tab:
+ * Phiên bàn giao, Người có mặt, Đối chiếu và liên kết, Bàn giao tài sản.
+ * - Tải danh sách phiên `GET /api/v1/staff/verification-cases/{caseId}/handover-sessions` (`listLiveSessions`) rồi
+ *   chi tiết phiên được chọn (`getLiveSession`, `GET .../handover-sessions/{sessionId}`); mặc định chọn phiên OPEN.
+ * - `act()` mở phiên mới (`openLiveSession`, `POST .../handover-sessions`) hoặc hủy phiên
+ *   (`cancelLiveSession`, `PATCH .../handover-sessions/{sessionId}/status` với `{status:'CANCELLED'}`), có khóa chống thao tác trùng.
+ * - Khi phiên OPEN, bọc nội dung bằng `StaffGroupHandover` (điểm danh người nhận), và dùng `layout` để xếp các tab;
+ *   các panel đều giữ mount (chỉ ẩn) để không mất dữ liệu đang nhập. Hỗ trợ điều hướng tab bằng phím mũi tên, Home, End.
+ * - Tab liên kết hiển thị `StaffCaseLinkPanel` (nếu có `counterLinkActions`) hoặc `LegacyCounterBeneficiariesSection`.
+ * Điều kiện mở phiên: hồ sơ đang mở, được giao cho staff, kho đã mở khóa và có phê duyệt Legal hiện hành
+ * (backend có thể trả `LEGAL_APPROVAL_REQUIRED`, `LEGAL_WORKFLOW_ON_HOLD`, `HANDOVER_SESSION_ALREADY_OPEN`).
+ *
+ * @param {object} props
+ * @param {string} props.caseId id hồ sơ.
+ * @param {object|null} props.caseItem hồ sơ đang chọn.
+ * @param {string|null} props.requestedSessionId id phiên yêu cầu từ URL.
+ * @param {string} props.accessToken JWT của staff.
+ * @param {'vi'|'en'} props.lang ngôn ngữ.
+ * @param {Function} props.onSession báo cho cha id phiên đang chọn (hoặc null).
+ * @param {Function} props.onError báo lỗi cho cha.
+ * @param {'sessions'|'accounts'} props.mode chế độ trang; `accounts` ẩn thao tác mở/hủy phiên.
+ * @param {Function} props.reload yêu cầu cha tải lại toàn bộ.
+ * @param {object} [props.counterLinkActions] hành động liên kết tài khoản tại quầy (`liveCounterLinkActions`).
+ */
 function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onSession, onError, mode, reload, counterLinkActions }) {
   const en = lang === 'en';
   const [state, setState] = useState({ loading: true, sessions: [], selected: null, error: null });
@@ -121,6 +176,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
   useEffect(() => { callbacks.current = { onSession, onError }; }, [onSession, onError]);
   useEffect(() => {
     const c = new AbortController(); controller.current = c; lock.current = true;
+    /** Tải danh sách phiên và phiên đang chọn; cập nhật state và báo `onSession`, lỗi thì báo `onError`. */
     async function load() {
       try {
         const sessions = await listLiveSessions(caseId, { accessToken, signal: c.signal });
@@ -138,6 +194,11 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
     return () => { c.abort(); controller.current?.abort(); };
     // The parent remounts this component for case, token and explicit reload changes.
   }, [caseId, accessToken, requestedSessionId]);
+  /**
+   * Chạy một hành động thay đổi phiên (mở hoặc hủy) có khóa chống chạy trùng, rồi đưa phiên trả về lên đầu danh sách.
+   *
+   * @param {Function} action hàm nhận `{accessToken, lang, signal}` và trả về phiên mới từ backend.
+   */
   async function act(action) {
     if (lock.current) return;
     lock.current = true; const c = new AbortController(); controller.current = c;
@@ -225,6 +286,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
         <button onClick={() => setConfirmCancel(false)}>{en ? 'Keep session' : 'Giữ phiên'}</button>
       </div>}
     </div>;
+  /** Tạo nội dung tab "Đối chiếu và liên kết": `StaffCaseLinkPanel` giới hạn theo người nhận của nhóm, hoặc phần quầy kiểu cũ. */
   const renderCounterCheck = (groupView) => counterLinkActions !== undefined ? <StaffCaseLinkPanel
       caseId={caseId}
       caseItem={caseItem}
@@ -236,6 +298,10 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
     /> : <LegacyCounterBeneficiariesSection caseId={caseId} caseItem={caseItem} selectedSessionId={selected?.sessionId} accessToken={accessToken} lang={lang} mode={mode} onError={onError} />;
   // Order of the work: open the session and record attendance, check identities, then hand over assets.
   // One tab per step; every panel stays mounted (hidden) so typed values and selections survive a tab change.
+  /**
+   * Bố cục 4 tab của phiên bàn giao (Phiên bàn giao, Người có mặt, Đối chiếu và liên kết, Bàn giao tài sản).
+   * Được truyền cho `StaffGroupHandover` làm `layout(attendance, delivery, groupView)`; tab chưa khả dụng bị khóa.
+   */
   const layout = (attendance, delivery, groupView) => {
     const tabs = [
       { id: 'sessions', label: en ? 'Sessions' : 'Phiên bàn giao', node: <div className="lv-session-panel lv-staff-glow">{sessionList}{sessionDetail}</div> },
@@ -277,10 +343,33 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
 }
 
 
+/**
+ * Trang "Phiên bàn giao tại quầy" (đường dẫn `/staff/handover`) và chế độ `accounts` "Tài khoản người thụ hưởng tại quầy".
+ * Bọc `LiveHandoverContent` với `key` là token để đổi phiên đăng nhập thì bỏ toàn bộ state/request cũ.
+ *
+ * @param {object} props xem `LiveHandoverContent`.
+ */
 export default function LiveHandoverPage(props) {
   // Replacing the authenticated token discards every state/request from the old session.
   return <LiveHandoverContent key={props.accessToken} {...props} />;
 }
+/**
+ * Nội dung trang bàn giao tại quầy dành cho Staff.
+ * - Đọc `caseId`/`sessionId` từ query string; nếu chưa có `caseId` hiển thị `CasePicker`.
+ * - Khi có `caseId` mà chưa có thông tin hồ sơ, tìm hồ sơ trong `fetchStaffCases` (`GET /api/v1/staff/verification-cases?size=50`).
+ * - Ở chế độ `accounts`, tải phạm vi người nhận của nhóm (`GET .../handover-sessions/{sessionId}/group-handover` qua `loadGroupHandover`)
+ *   để giới hạn việc liên kết tài khoản.
+ * - `keepContext` ghi `caseId`/`sessionId` vào URL và báo `onSelectSession`.
+ * - Hết phiên đăng nhập được xử lý bởi `useStaffSessionExpiry` (gọi `onLogout`).
+ *
+ * @param {object} props
+ * @param {string} props.accessToken JWT của staff.
+ * @param {'vi'|'en'} [props.lang='vi'] ngôn ngữ.
+ * @param {Function} props.onLogout đăng xuất khi phiên hết hạn.
+ * @param {Function} [props.onSelectSession] báo cho App id phiên đang chọn.
+ * @param {'sessions'|'accounts'} [props.mode='sessions'] chế độ hiển thị.
+ * @param {object} [props.counterLinkActions] hành động liên kết tài khoản tại quầy.
+ */
 function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSession, mode = 'sessions', counterLinkActions }) {
   const en = lang === 'en';
   const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
@@ -330,6 +419,7 @@ function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSessi
     return () => c.abort();
   }, [mode, counterLinkActions, caseId, isCaseClosed, requested, accessToken, revision, accountScopeKey]);
 
+  /** Đồng bộ `caseId` và `sessionId` vào query string (history.replaceState) và báo cho cha. */
   const keepContext = sessionId => {
     const url = new URL(window.location.href);
     if (caseId) url.searchParams.set('caseId', caseId); else url.searchParams.delete('caseId');

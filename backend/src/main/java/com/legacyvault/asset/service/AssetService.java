@@ -36,22 +36,53 @@ import com.legacyvault.subscription.service.OwnerQuotaService;
 import com.legacyvault.subscription.service.QuotaPolicy.Delta;
 
 /**
- * Tạo, liệt kê, xem và cập nhật Asset của Vault (PS-15, PS-16, ST-02). Ownership qua {@link VaultService};
+ * Tạo, liệt kê, xem và cập nhật Asset của Vault (PS-15, PS-16, ST-02). Được {@code AssetController}
+ * (và {@code AssetImageService} khi tạo Asset kèm ảnh) gọi. Ownership qua {@link VaultService};
  * payload mã hóa trước khi lưu và không bao giờ được trả ra hay ghi log. Tạo Asset không phải bàn giao.
+ *
+ * <p>Bảng: {@code assets}. Audit: {@code ASSET_CREATED}, {@code ASSET_UPDATED}, {@code ASSET_REVEALED}. Phụ thuộc:
+ * {@code EncryptionService}, {@code PasswordReauthService}, {@code OwnerQuotaService}.
  */
 @Service
 public class AssetService {
 
+	/**
+	 * Tên entity ghi vào audit event.
+	 */
 	static final String ENTITY_ASSET = "ASSET";
 
+	/**
+	 * Repository bảng {@code assets}.
+	 */
 	private final AssetRepository assetRepository;
+	/**
+	 * Kiểm tra ownership / trạng thái Vault.
+	 */
 	private final VaultService vaultService;
+	/**
+	 * Mã hóa / giải mã payload.
+	 */
 	private final EncryptionService encryptionService;
+	/**
+	 * Ghi audit.
+	 */
 	private final AuditService auditService;
+	/**
+	 * Xác thực lại mật khẩu cho reveal và update.
+	 */
 	private final PasswordReauthService reauthService;
+	/**
+	 * Khóa Owner, kiểm tra quota số Asset và dung lượng.
+	 */
 	private final OwnerQuotaService quotas;
+	/**
+	 * Dùng để refresh Asset với khóa ghi bi quan trước khi tính chênh lệch quota.
+	 */
 	private final EntityManager entities;
 
+	/**
+	 * Khởi tạo service với các phụ thuộc do Spring inject.
+	 */
 	public AssetService(AssetRepository assetRepository, VaultService vaultService,
 			EncryptionService encryptionService, AuditService auditService, PasswordReauthService reauthService,
 			OwnerQuotaService quotas, EntityManager entities) {
@@ -64,6 +95,18 @@ public class AssetService {
 		this.entities = entities;
 	}
 
+	/**
+	 * Tạo Asset ({@code POST /api/v1/vaults/{vaultId}/assets}).
+	 *
+	 * Các bước: khóa Owner -> Vault ACTIVE có khóa ghi -> {@code quotas.requireGrowth} (+1 Asset, + số byte payload) -> tạo entity,
+	 * mã hóa payload với associated data là public id -> lưu -> audit {@code ASSET_CREATED}.
+	 *
+	 * @param vaultId public id của Vault
+	 * @param ownerUserId id Owner đang đăng nhập
+	 * @param request dữ liệu tạo Asset
+	 * @return {@link AssetResponse} (không có payload)
+	 * @throws com.legacyvault.common.exception.BusinessException RESOURCE_NOT_FOUND, Vault không ACTIVE, hoặc lỗi vượt quota
+	 */
 	@Transactional
 	public AssetResponse createAsset(UUID vaultId, Long ownerUserId, CreateAssetRequest request) {
 		quotas.lockOwner(ownerUserId);
@@ -81,6 +124,13 @@ public class AssetService {
 		return AssetResponse.from(saved, vault.getPublicId());
 	}
 
+	/**
+	 * Liệt kê Asset của Vault ({@code GET .../assets}), sắp xếp {@code createdAt} giảm dần, bỏ loại DOCUMENT.
+	 *
+	 * @param page số trang (từ 0)
+	 * @param size kích thước trang
+	 * @return trang {@link AssetResponse}
+	 */
 	@Transactional(readOnly = true)
 	public PageResponse<AssetResponse> listAssets(UUID vaultId, Long ownerUserId, int page, int size) {
 		Vault vault = vaultService.requireOwnedVault(vaultId, ownerUserId);
@@ -90,6 +140,11 @@ public class AssetService {
 				asset -> AssetResponse.from(asset, vault.getPublicId()));
 	}
 
+	/**
+	 * Xem metadata một Asset ({@code GET .../assets/{assetId}}).
+	 *
+	 * @throws com.legacyvault.common.exception.BusinessException RESOURCE_NOT_FOUND nếu Vault/Asset không thuộc Owner
+	 */
 	@Transactional(readOnly = true)
 	public AssetResponse getAsset(UUID vaultId, UUID assetId, Long ownerUserId) {
 		Vault vault = vaultService.requireOwnedVault(vaultId, ownerUserId);
@@ -97,9 +152,14 @@ public class AssetService {
 	}
 
 	/**
-	 * Cập nhật một phần (PS-16): chỉ {@code name}, {@code description}, {@code payload}. Bắt buộc nhập lại mật khẩu đăng
-	 * nhập hiện tại (PS-111). Không có thay đổi thực sự thì không ghi DB, không audit. Audit chỉ ghi tên trường đã đổi,
+	 * Cập nhật một phần (PS-16, {@code PATCH .../assets/{assetId}}): chỉ {@code name}, {@code description}, {@code payload}. Bắt buộc nhập lại mật khẩu đăng
+	 * nhập hiện tại (PS-111). Không có thay đổi thực sự thì không ghi DB, không audit. Audit {@code ASSET_UPDATED} chỉ ghi tên trường đã đổi,
 	 * không ghi giá trị.
+	 *
+	 * <p>Thứ tự: xác thực mật khẩu trước mọi khóa bi quan (BCrypt chậm), sau đó khóa Owner, Vault, refresh Asset với
+	 * PESSIMISTIC_WRITE để tính chênh lệch quota theo payload đã commit.
+	 *
+	 * @throws com.legacyvault.common.exception.BusinessException RESOURCE_NOT_FOUND, lỗi mật khẩu (403/429) hoặc vượt quota
 	 */
 	@Transactional
 	public AssetResponse updateAsset(UUID vaultId, UUID assetId, Long ownerUserId, UpdateAssetRequest request) {
@@ -149,9 +209,12 @@ public class AssetService {
 	}
 
 	/**
-	 * Xem nội dung bảo mật (D-API-32): chỉ Owner của kho, kho còn {@code ACTIVE} và nhập đúng mật khẩu hiện tại.
+	 * Xem nội dung bảo mật (D-API-32, {@code POST .../assets/{assetId}/reveal}): chỉ Owner của kho, kho còn {@code ACTIVE} và nhập đúng mật khẩu hiện tại.
 	 * Thứ tự kiểm tra: ownership (404) -> trạng thái kho (409) -> mật khẩu/giới hạn (403/429), nên người lạ không thể
-	 * dùng việc dò mật khẩu để biết Asset có tồn tại. Giải mã chỉ trong bộ nhớ; audit không ghi nội dung.
+	 * dùng việc dò mật khẩu để biết Asset có tồn tại. Giải mã chỉ trong bộ nhớ; audit {@code ASSET_REVEALED} không ghi nội dung.
+	 *
+	 * @return {@link AssetSecretResponse}
+	 * @throws com.legacyvault.common.exception.BusinessException RESOURCE_NOT_FOUND (kể cả Asset chưa có payload), lỗi mật khẩu
 	 */
 	@Transactional
 	public AssetSecretResponse revealAsset(UUID vaultId, UUID assetId, Long ownerUserId, String password) {
@@ -170,17 +233,24 @@ public class AssetService {
 		return new AssetSecretResponse(asset.getPublicId(), payload);
 	}
 
-	/** Asset không tồn tại, thuộc Vault khác, hoặc là di chúc -> cùng 404 (D-API-07). */
+	/**
+	 * Asset không tồn tại, thuộc Vault khác, hoặc là di chúc -> cùng 404 RESOURCE_NOT_FOUND (D-API-07).
+	 */
 	private Asset requireAsset(Vault vault, UUID assetId) {
 		return assetRepository.findByPublicIdAndVaultIdAndAssetTypeNot(assetId, vault.getVaultId(), AssetType.DOCUMENT)
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 	}
 
-	/** Gắn ciphertext với đúng Asset (UUID công khai): chép sang bản ghi khác thì giải mã thất bại. */
+	/**
+	 * Gắn ciphertext với đúng Asset (UUID công khai): chép sang bản ghi khác thì giải mã thất bại.
+	 */
 	public static byte[] associatedData(Asset asset) {
 		return asset.getPublicId().toString().getBytes(StandardCharsets.UTF_8);
 	}
 
+	/**
+	 * Trim chuỗi; chuỗi null hoặc rỗng sau trim trả về null.
+	 */
 	private static String normalize(String value) {
 		if (value == null) {
 			return null;
