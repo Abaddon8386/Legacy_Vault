@@ -102,6 +102,13 @@ test('a lost reply at the reopening step does not contradict the server, which a
  const v=await mount();try{await act(async()=>v.host.querySelectorAll('input:not(:checked)').forEach(input=>input.click()));await fill(v.host,'Both attended');await click(v.host,'Request reopening');assert.match(v.host.textContent,/Reopening requested/);assert.doesNotMatch(v.host.textContent,/request not sent/);}finally{await v.close();}
 });
 
+test('the required mark sits on the reason label line, not as its own row of the label grid',async()=>{
+ const current=view('SUSPENDED',2,false);globalThis.fetch=async url=>url.endsWith('/group-handover')?json(current):json([{beneficiaryId:r,fullName:'Recipient An'},{beneficiaryId:q,fullName:'Recipient Binh'}]);
+ const v=await mount();try{const label=v.host.querySelector('textarea').parentElement;assert.equal(label.tagName,'LABEL');
+  assert.deepEqual([...label.children].map(node=>node.tagName),['SPAN','TEXTAREA']);
+  assert.ok(label.children[0].querySelector('.lv-required-mark'),'the asterisk is inside the label text');}finally{await v.close();}
+});
+
 test('the delivery step receives the recipient names next to the server view',async()=>{
  const current=view('READY',3,true);globalThis.fetch=async url=>url.endsWith('/group-handover')?json(current):json([{beneficiaryId:r,fullName:'Recipient An'},{beneficiaryId:q,fullName:'Recipient Binh'}]);
  const v=await mount({children:(groupView,people)=>React.createElement('p',{'data-names':true},groupView.requiredRecipientIds.map(id=>people.find(p=>p.beneficiaryId===id).fullName).join(' + '))});
