@@ -365,11 +365,12 @@ for (const lang of ['vi', 'en']) test(`AdminUsersPage hides lock and unlock cont
       const viewLabel = lang === 'en' ? 'View details' : 'Xem chi tiết';
       const lockLabel = lang === 'en' ? 'Lock account' : 'Khóa tài khoản';
       const unlockLabel = lang === 'en' ? 'Unlock account' : 'Mở khóa tài khoản';
+      const passwordLabel = lang === 'en' ? 'Change password for this account' : 'Đổi mật khẩu cho tài khoản này';
       // Row actions are icon buttons named by aria-label; locking is a per-row toggle, never a pair of buttons.
       const [activeRow, lockedRow] = [...view.host.querySelectorAll('tbody tr')];
       const rowButtons = (row) => [...row.querySelectorAll('button')];
-      assert.deepEqual(rowButtons(activeRow).map(label), [viewLabel, lockLabel]);
-      assert.deepEqual(rowButtons(lockedRow).map(label), [viewLabel, unlockLabel]);
+      assert.deepEqual(rowButtons(activeRow).map(label), [viewLabel, passwordLabel, lockLabel]);
+      assert.deepEqual(rowButtons(lockedRow).map(label), [viewLabel, passwordLabel, unlockLabel]);
       assert.ok(rowButtons(activeRow).every(button => !button.disabled), 'Active account actions are available');
       assert.ok(rowButtons(lockedRow).every(button => button.textContent.trim() === ''), 'icons only, no text labels');
       assert.equal(view.host.querySelector('.lv-admin-status-locked')?.textContent.trim(), lang === 'en' ? 'Locked' : 'Đã khóa');

@@ -1,6 +1,7 @@
 package com.legacyvault.admin.user.service;
 
 import com.legacyvault.admin.user.dto.AdminCreateUserRequest;
+import com.legacyvault.admin.user.dto.AdminResetPasswordRequest;
 import com.legacyvault.admin.user.dto.AdminUserResponse;
 import com.legacyvault.audit.AuditAction;
 import com.legacyvault.audit.AuditActorType;
@@ -21,6 +22,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -32,6 +35,7 @@ import java.util.stream.Collectors;
  * Admin-only account provisioning and role assignment. Only the Staff, Legal and Vault Owner roles can be
  * granted here; Admin accounts are never created or altered through this API, and an Admin cannot change
  * their own role. Roles are read from the database on every request, so a change applies immediately.
+ * An Admin can also set a new password for any other non-Admin account ({@link #resetPassword}).
  */
 @Service
 public class AdminUserManagementService {
@@ -131,6 +135,50 @@ public class AdminUserManagementService {
         record(lock ? AuditAction.ADMIN_USER_LOCKED : AuditAction.ADMIN_USER_UNLOCKED, adminUserId, target.getUserId(),
                 "{\"status\":\"" + from + "\"}", "{\"status\":\"" + to + "\"}", context);
         return query.getUser(publicId, null);
+    }
+
+    /**
+     * Sets a new password for the account whose e-mail is in the request, on behalf of an Admin.
+     *
+     * <p>Steps: normalise the e-mail and find the account (404 {@code RESOURCE_NOT_FOUND} if none or deleted); take
+     * the same row lock as the other admin state changes; refuse Admin accounts (including the caller, who must use
+     * the normal change-password flow) with 409 {@code ADMIN_ACCOUNT_PROTECTED}; refuse accounts that cannot sign in
+     * with a password (Google-only) with 409 {@code ADMIN_ACCOUNT_STATE_INVALID}; hash the new password with the
+     * application {@link PasswordEncoder}; advance {@code authVersion} so every token issued before the reset stops
+     * working (the user must sign in again with the new password); write an
+     * {@link AuditAction#ADMIN_USER_PASSWORD_RESET} audit record. The password itself is never stored in the audit
+     * trail, logs or the response.
+     *
+     * <p>Locked and pending accounts can be reset: the status is left unchanged, so a locked account stays locked.
+     *
+     * @param adminUserId id of the acting Admin
+     * @param request     target e-mail and the new (policy-checked) password
+     * @return the target account after the change
+     */
+    @Transactional
+    public AdminUserResponse resetPassword(Long adminUserId, AdminResetPasswordRequest request) {
+        String email = EmailNormalizer.normalize(request.email());
+        User found = users.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        if (found.getUserId().equals(adminUserId)) {
+            throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_PROTECTED);
+        }
+        User target = users.findLiveAccountForUpdate(found.getUserId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        if (userRoles.findByUserIdWithRole(target.getUserId()).stream()
+                .anyMatch(link -> "ROLE_ADMIN".equals(link.getRole().getRoleCode()))) {
+            throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_PROTECTED);
+        }
+        if (!target.isPasswordLoginAllowed()) {
+            throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_STATE_INVALID);
+        }
+        target.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        target.advanceAuthVersion(LocalDateTime.now(ZoneOffset.UTC));
+        users.flush();
+
+        record(AuditAction.ADMIN_USER_PASSWORD_RESET, adminUserId, target.getUserId(), null, null,
+                Map.of("result", "SUCCESS"));
+        return query.getUser(target.getPublicId(), null);
     }
 
     private static String assignable(String role) {

@@ -90,3 +90,15 @@ Không hỗ trợ: Admin chỉ chọn vai trò khi tạo tài khoản; không c�
 - `404 RESOURCE_NOT_FOUND`: không tồn tại hoặc đã xóa mềm.
 - Audit `ADMIN_USER_LOCKED` / `ADMIN_USER_UNLOCKED` (entity `USER`), lý do khóa nằm trong context.
 - Chưa xử lý: tác động lên giám sát DMS / hồ sơ đang xử lý của tài khoản bị khóa.
+
+## Đặt lại mật khẩu
+
+`POST /api/v1/admin/users/reset-password` với `{ "email": "user@example.com", "newPassword": "…" }` → `200` + user (không chứa mật khẩu).
+
+- Admin nhập email tài khoản đích và mật khẩu mới (8-72 ký tự, cùng chính sách với đăng ký). Email được chuẩn hóa trước khi tra cứu.
+- Mật khẩu được băm bằng `PasswordEncoder`; **`authVersion` tăng** nên mọi phiên cũ của tài khoản đó bị vô hiệu ngay, người dùng phải đăng nhập lại bằng mật khẩu mới.
+- Trạng thái tài khoản không đổi (tài khoản `LOCKED` vẫn `LOCKED`).
+- `404 RESOURCE_NOT_FOUND`: email không tồn tại hoặc tài khoản đã xóa mềm.
+- `409 ADMIN_ACCOUNT_PROTECTED`: đích là Admin hoặc chính người gọi (Admin tự đổi mật khẩu qua luồng đổi mật khẩu thông thường).
+- `409 ADMIN_ACCOUNT_STATE_INVALID`: tài khoản không có đăng nhập bằng mật khẩu (chỉ đăng nhập Google).
+- Audit `ADMIN_USER_PASSWORD_RESET` (entity `USER`), không ghi mật khẩu hay hash.

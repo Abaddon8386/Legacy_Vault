@@ -1,6 +1,7 @@
 package com.legacyvault.admin.user;
 
 import com.legacyvault.admin.user.dto.AdminCreateUserRequest;
+import com.legacyvault.admin.user.dto.AdminResetPasswordRequest;
 import com.legacyvault.admin.user.dto.AdminUserResponse;
 import com.legacyvault.admin.user.service.AdminUserManagementService;
 import com.legacyvault.admin.user.service.AdminUserQueryService;
@@ -207,6 +208,80 @@ class AdminUserManagementServiceTest {
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ADMIN_ACCOUNT_PROTECTED));
         assertThat(pending.getStatus()).isEqualTo("PENDING");
         assertThat(otherAdmin.getStatus()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void resetPasswordHashesTheNewPasswordRevokesSessionsAndAuditsWithoutTheSecret() {
+        User target = user(5L);
+        target.setEmail("owner@example.test");
+        target.setPasswordHash("old-hash");
+        long versionBefore = target.getAuthVersion();
+        AdminUserResponse expected = new AdminUserResponse(target.getPublicId(), "Owner", "owner@example.test",
+                List.of("ROLE_VAULT_OWNER"), Instant.now(), "ACTIVE", "ACTIVE", null);
+        when(users.findByEmail("owner@example.test")).thenReturn(Optional.of(target));
+        when(users.findLiveAccountForUpdate(5L)).thenReturn(Optional.of(target));
+        when(userRoles.findByUserIdWithRole(5L)).thenReturn(List.of(new UserRole(target, role(2L, "ROLE_VAULT_OWNER"))));
+        when(encoder.encode("N3w-Secret-Pass!")).thenReturn("new-hash");
+        when(query.getUser(target.getPublicId(), null)).thenReturn(expected);
+
+        AdminUserResponse result = service.resetPassword(ADMIN_ID,
+                new AdminResetPasswordRequest("  Owner@Example.test ", "N3w-Secret-Pass!"));
+
+        assertThat(result).isSameAs(expected);
+        assertThat(target.getPasswordHash()).isEqualTo("new-hash");
+        assertThat(target.getAuthVersion()).isEqualTo(versionBefore + 1);
+        assertThat(target.getPasswordResetAt()).isNotNull();
+        verify(audit).record(argThat(event -> event.action() == AuditAction.ADMIN_USER_PASSWORD_RESET
+                && event.actorUserId() == ADMIN_ID && event.entityId() == 5L
+                && !String.valueOf(event.context()).contains("N3w-Secret-Pass!")
+                && !String.valueOf(event.context()).contains("new-hash")));
+    }
+
+    @Test
+    void resetPasswordKeepsALockedAccountLocked() {
+        User target = user(5L);
+        target.setStatus("LOCKED");
+        when(users.findByEmail("owner@example.test")).thenReturn(Optional.of(target));
+        when(users.findLiveAccountForUpdate(5L)).thenReturn(Optional.of(target));
+        when(userRoles.findByUserIdWithRole(5L)).thenReturn(List.of());
+        when(encoder.encode(any())).thenReturn("new-hash");
+
+        service.resetPassword(ADMIN_ID, new AdminResetPasswordRequest("owner@example.test", "N3w-Secret-Pass!"));
+
+        assertThat(target.getStatus()).isEqualTo("LOCKED");
+        assertThat(target.getPasswordHash()).isEqualTo("new-hash");
+    }
+
+    @Test
+    void resetPasswordRejectsUnknownEmailAdminAccountsTheCallerAndPasswordlessAccounts() {
+        when(users.findByEmail("missing@example.test")).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.resetPassword(ADMIN_ID, new AdminResetPasswordRequest("missing@example.test", "N3w-Secret-Pass!")))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+
+        User otherAdmin = user(9L);
+        when(users.findByEmail("admin2@example.test")).thenReturn(Optional.of(otherAdmin));
+        when(users.findLiveAccountForUpdate(9L)).thenReturn(Optional.of(otherAdmin));
+        when(userRoles.findByUserIdWithRole(9L)).thenReturn(List.of(new UserRole(otherAdmin, role(1L, "ROLE_ADMIN"))));
+        assertThatThrownBy(() -> service.resetPassword(ADMIN_ID, new AdminResetPasswordRequest("admin2@example.test", "N3w-Secret-Pass!")))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ADMIN_ACCOUNT_PROTECTED));
+
+        when(users.findByEmail("me@example.test")).thenReturn(Optional.of(user(ADMIN_ID)));
+        assertThatThrownBy(() -> service.resetPassword(ADMIN_ID, new AdminResetPasswordRequest("me@example.test", "N3w-Secret-Pass!")))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ADMIN_ACCOUNT_PROTECTED));
+
+        User googleOnly = user(11L);
+        googleOnly.setPasswordLoginEnabled(false);
+        when(users.findByEmail("google@example.test")).thenReturn(Optional.of(googleOnly));
+        when(users.findLiveAccountForUpdate(11L)).thenReturn(Optional.of(googleOnly));
+        when(userRoles.findByUserIdWithRole(11L)).thenReturn(List.of());
+        assertThatThrownBy(() -> service.resetPassword(ADMIN_ID, new AdminResetPasswordRequest("google@example.test", "N3w-Secret-Pass!")))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ADMIN_ACCOUNT_STATE_INVALID));
+        verifyNoInteractions(audit);
+        verifyNoInteractions(encoder);
     }
 
     private static User user(long id) {

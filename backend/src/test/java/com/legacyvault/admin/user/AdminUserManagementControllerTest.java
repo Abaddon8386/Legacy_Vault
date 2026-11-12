@@ -108,6 +108,42 @@ class AdminUserManagementControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void onlyAdminsMayResetPasswordsAndInvalidBodiesNeverReachTheService() throws Exception {
+        String body = "{\"email\":\"owner@example.test\",\"newPassword\":\"N3w-Secret-Pass!\"}";
+        mvc.perform(post("/api/v1/admin/users/reset-password").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/admin/users/reset-password").with(auth("ROLE_VAULT_OWNER")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        for (String bad : List.of(
+                "{\"email\":\"not-an-email\",\"newPassword\":\"N3w-Secret-Pass!\"}",
+                "{\"email\":\"owner@example.test\",\"newPassword\":\"short\"}",
+                "{\"email\":\"\",\"newPassword\":\"N3w-Secret-Pass!\"}",
+                "{\"email\":\"owner@example.test\"}")) {
+            mvc.perform(post("/api/v1/admin/users/reset-password").with(auth("ROLE_ADMIN")).with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON).content(bad))
+                    .andExpect(status().isBadRequest());
+        }
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void adminResetsAPasswordAndTheResponseNeverEchoesIt() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.resetPassword(eq(1L), any())).thenReturn(new AdminUserResponse(id, "Owner",
+                "owner@example.test", List.of("ROLE_VAULT_OWNER"), Instant.parse("2026-11-11T00:00:00Z"), "ACTIVE", "ACTIVE", null));
+
+        mvc.perform(post("/api/v1/admin/users/reset-password").with(auth("ROLE_ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"owner@example.test\",\"newPassword\":\"N3w-Secret-Pass!\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicId").value(id.toString()))
+                .andExpect(jsonPath("$.password").doesNotExist())
+                .andExpect(jsonPath("$.newPassword").doesNotExist())
+                .andExpect(jsonPath("$.passwordHash").doesNotExist());
+    }
+
     private static org.springframework.test.web.servlet.request.RequestPostProcessor auth(String authority) {
         var principal = new CustomUserPrincipal(1L, UUID.randomUUID(), "admin@example.test");
         return authentication(new UsernamePasswordAuthenticationToken(principal, null,

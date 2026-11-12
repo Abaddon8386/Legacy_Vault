@@ -889,6 +889,34 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/users/reset-password:
+    post:
+      tags: [Admin]
+      summary: Admin đặt lại mật khẩu cho một tài khoản
+      description: |
+        Yêu cầu ROLE_ADMIN. Admin nhập email của tài khoản đích và mật khẩu mới (đúng chính sách mật khẩu như đăng ký,
+        8-72 ký tự). Server băm mật khẩu, **tăng authVersion** để mọi token đã phát hành của tài khoản đó bị vô hiệu
+        (người dùng phải đăng nhập lại bằng mật khẩu mới) và ghi audit ADMIN_USER_PASSWORD_RESET (không chứa mật khẩu).
+        Email được chuẩn hóa (NFKC, trim, chữ thường) trước khi tra cứu. Trạng thái tài khoản không đổi: tài khoản đang
+        LOCKED vẫn LOCKED. Không đặt lại được tài khoản ROLE_ADMIN hoặc chính người gọi (409 ADMIN_ACCOUNT_PROTECTED),
+        tài khoản chỉ đăng nhập bằng Google, không có mật khẩu (409 ADMIN_ACCOUNT_STATE_INVALID); email không tồn tại
+        hoặc đã xóa mềm trả 404 RESOURCE_NOT_FOUND. Phản hồi không bao giờ chứa mật khẩu.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminResetPasswordRequest' }
+      responses:
+        '200':
+          description: Tài khoản sau khi đặt lại mật khẩu.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/admin/users/{publicId}:
     get:
       tags: [Admin]
@@ -4448,6 +4476,12 @@ components:
         role:
           type: string
           enum: [ROLE_STAFF_EXECUTOR, ROLE_LEGAL_VERIFIER, ROLE_VAULT_OWNER]
+    AdminResetPasswordRequest:
+      type: object
+      required: [email, newPassword]
+      properties:
+        email: { type: string, format: email, maxLength: 254, description: 'Email của tài khoản đích' }
+        newPassword: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true }
     AdminUserPage:
       type: object
       required: [content, page, size, totalElements, totalPages]
