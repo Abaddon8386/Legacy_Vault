@@ -917,37 +917,6 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
-  /api/v1/admin/users/{publicId}/role:
-    put:
-      tags: [Admin]
-      summary: Admin đổi vai trò Staff, Legal hoặc Vault Owner của tài khoản
-      description: |
-        Yêu cầu ROLE_ADMIN. Thay thế các role Staff/Legal/Vault Owner hiện có bằng đúng role được gửi; các role khác
-        (ví dụ ROLE_BENEFICIARY) được giữ nguyên. Có hiệu lực ngay vì role được đọc từ DB ở mỗi request.
-        Không đổi được role của tài khoản ROLE_ADMIN hoặc của chính mình (409 ADMIN_ACCOUNT_PROTECTED), và không đổi
-        khỏi Vault Owner khi tài khoản đã có kho (409 ADMIN_OWNER_HAS_VAULT). Gửi lại role hiện tại là no-op.
-        Ghi audit ADMIN_USER_ROLE_CHANGED.
-      parameters:
-        - name: publicId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/AdminUpdateUserRoleRequest' }
-      responses:
-        '200':
-          description: Tài khoản sau khi đổi role.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AdminUser' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/admin/users/{publicId}:
     get:
       tags: [Admin]
@@ -4513,13 +4482,6 @@ components:
       properties:
         email: { type: string, format: email, maxLength: 254, description: 'Email của tài khoản đích' }
         newPassword: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true }
-    AdminUpdateUserRoleRequest:
-      type: object
-      required: [role]
-      properties:
-        role:
-          type: string
-          enum: [ROLE_STAFF_EXECUTOR, ROLE_LEGAL_VERIFIER, ROLE_VAULT_OWNER]
     AdminUserPage:
       type: object
       required: [content, page, size, totalElements, totalPages]

@@ -4,7 +4,6 @@ import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { adminI18n, adminRoleLabel } from './adminI18n.js';
 import {
   ASSIGNABLE_ADMIN_ROLES,
-  changeAdminUserRole,
   setAdminUserLocked,
   createAdminUser,
   resetAdminUserPassword,
@@ -199,57 +198,6 @@ export function CreateUserModal({ lang = 'vi', accessToken, onClose, onCreated, 
         <div className="lv-admin-modal-footer">
           <button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={onClose} disabled={busy}>{t.cancelBtn}</button>
           <button type="submit" className="lv-admin-btn lv-admin-btn-primary" disabled={busy}>{busy ? t.submitting : t.submitCreate}</button>
-        </div>
-      </form>
-    </ModalShell>
-  );
-}
-
-export function ChangeRoleModal({ lang = 'vi', accessToken, user, onClose, onChanged, onUnauthorized, onDenied }) {
-  const t = adminI18n[lang] || adminI18n.vi;
-  const uid = useId();
-  const current = user.roles.find((role) => ASSIGNABLE_ADMIN_ROLES.includes(role)) || '';
-  const [role, setRole] = useState(current);
-  const [submitError, setSubmitError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (busy) return;
-    if (!role) { setSubmitError(t.errRoleRequired); return; }
-    setBusy(true);
-    setSubmitError('');
-    try {
-      onChanged(await changeAdminUserRole(accessToken, user.id, role, { lang }));
-    } catch (error) {
-      setSubmitError(failureMessage(t, error, { onUnauthorized, onDenied }));
-      setBusy(false);
-    }
-  };
-
-  return (
-    <ModalShell titleId={`${uid}-title`} title={t.changeRoleTitle} closeLabel={t.closeModal} onClose={onClose}>
-      <form className="lv-admin-modal-form" onSubmit={submit} noValidate>
-        <div className="lv-admin-modal-body lv-admin-form-grid">
-          <p className="lv-admin-form-intro">{t.changeRoleIntro}</p>
-          <dl className="lv-admin-detail-list">
-            <div><dt>{t.thName}</dt><dd>{user.fullName || t.notAvailable}</dd></div>
-            <div><dt>{t.thEmail}</dt><dd>{user.email}</dd></div>
-            <div><dt>{t.currentRoles}</dt><dd>{user.roles.map((r) => adminRoleLabel(r, lang)).join(', ') || t.notAvailable}</dd></div>
-          </dl>
-          <div className="lv-admin-field lv-admin-form-field">
-            <label htmlFor={`${uid}-role`}>{t.newRole}<RequiredMark /></label>
-            <RoleSelect id={`${uid}-role`} t={t} lang={lang} value={role} onChange={setRole}
-              describedBy={role ? `${uid}-role-hint` : undefined} invalid={Boolean(submitError) && !role} />
-            {role && <small id={`${uid}-role-hint`} className="lv-admin-field-hint">{t[ROLE_HINT[role]]}</small>}
-          </div>
-          {submitError && <p className="lv-admin-form-error" role="alert">{submitError}</p>}
-        </div>
-        <div className="lv-admin-modal-footer">
-          <button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={onClose} disabled={busy}>{t.cancelBtn}</button>
-          <button type="submit" className="lv-admin-btn lv-admin-btn-primary" disabled={busy || !role || role === current}>
-            {busy ? t.submitting : t.submitChangeRole}
-          </button>
         </div>
       </form>
     </ModalShell>

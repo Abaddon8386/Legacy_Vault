@@ -43,15 +43,12 @@ class AdminUserManagementControllerTest {
     @MockitoBean com.legacyvault.user.repository.UserRoleRepository userRoleRepository;
 
     @Test
-    void onlyAdminsMayCreateAccountsOrChangeRoles() throws Exception {
+    void onlyAdminsMayCreateAccounts() throws Exception {
         UUID id = UUID.randomUUID();
         mvc.perform(post("/api/v1/admin/users").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(CREATE))
                 .andExpect(status().isUnauthorized());
         mvc.perform(post("/api/v1/admin/users").with(auth("ROLE_STAFF_EXECUTOR")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE))
-                .andExpect(status().isForbidden());
-        mvc.perform(put("/api/v1/admin/users/" + id + "/role").with(auth("ROLE_LEGAL_VERIFIER")).with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"STAFF_EXECUTOR\"}"))
                 .andExpect(status().isForbidden());
         verifyNoInteractions(service);
     }
@@ -83,21 +80,6 @@ class AdminUserManagementControllerTest {
                     .andExpect(status().isBadRequest());
         }
         verifyNoInteractions(service);
-    }
-
-    @Test
-    void adminChangesARole() throws Exception {
-        UUID id = UUID.randomUUID();
-        when(service.changeRole(eq(1L), eq(id), any())).thenReturn(new AdminUserResponse(id, "Someone",
-                "someone@example.test", List.of("ROLE_LEGAL_VERIFIER"), Instant.parse("2026-11-11T00:00:00Z"), "ACTIVE", "ACTIVE", null));
-
-        mvc.perform(put("/api/v1/admin/users/" + id + "/role").with(auth("ROLE_ADMIN")).with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"LEGAL_VERIFIER\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.roles[0]").value("ROLE_LEGAL_VERIFIER"));
-        mvc.perform(put("/api/v1/admin/users/not-a-uuid/role").with(auth("ROLE_ADMIN")).with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"LEGAL_VERIFIER\"}"))
-                .andExpect(status().isBadRequest());
     }
 
     @Test

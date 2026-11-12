@@ -2,7 +2,6 @@ package com.legacyvault.admin.user.service;
 
 import com.legacyvault.admin.user.dto.AdminCreateUserRequest;
 import com.legacyvault.admin.user.dto.AdminResetPasswordRequest;
-import com.legacyvault.admin.user.dto.AdminUpdateUserRoleRequest;
 import com.legacyvault.admin.user.dto.AdminUserResponse;
 import com.legacyvault.audit.AuditAction;
 import com.legacyvault.audit.AuditActorType;
@@ -91,45 +90,6 @@ public class AdminUserManagementService {
         record(AuditAction.ADMIN_USER_CREATED, adminUserId, saved.getUserId(), null,
                 "{\"roles\":" + json(List.of(roleCode)) + "}", Map.of("result", "SUCCESS", "role", roleCode));
         return query.getUser(saved.getPublicId(), null);
-    }
-
-    @Transactional
-    public AdminUserResponse changeRole(Long adminUserId, UUID publicId, AdminUpdateUserRoleRequest request) {
-        String newRole = assignable(request.role());
-        User found = users.findByPublicId(publicId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-        if (found.getUserId().equals(adminUserId)) {
-            throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_PROTECTED);
-        }
-        // The row lock serialises with vault creation, which locks the same row before it checks ownership.
-        User target = users.findActiveAccountForUpdate(found.getUserId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        List<UserRole> links = userRoles.findByUserIdWithRole(target.getUserId());
-        if (links.stream().anyMatch(link -> "ROLE_ADMIN".equals(link.getRole().getRoleCode()))) {
-            throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_PROTECTED);
-        }
-        List<UserRole> managed = links.stream()
-                .filter(link -> ASSIGNABLE.contains(link.getRole().getRoleCode())).toList();
-        List<String> before = managed.stream().map(link -> link.getRole().getRoleCode()).sorted().toList();
-        if (before.equals(List.of(newRole))) {
-            return query.getUser(publicId, null);
-        }
-        if (before.contains(OWNER) && !OWNER.equals(newRole) && vaults.existsByOwnerUserId(target.getUserId())) {
-            throw new BusinessException(ErrorCode.ADMIN_OWNER_HAS_VAULT);
-        }
-
-        Role role = requireRole(newRole);
-        userRoles.deleteAll(managed);
-        userRoles.flush();
-        UserRole link = new UserRole(target, role);
-        link.setAssignedByUserId(adminUserId);
-        userRoles.saveAndFlush(link);
-
-        record(AuditAction.ADMIN_USER_ROLE_CHANGED, adminUserId, target.getUserId(),
-                "{\"roles\":" + json(before) + "}", "{\"roles\":" + json(List.of(newRole)) + "}",
-                Map.of("result", "SUCCESS", "from", before, "to", newRole));
-        return query.getUser(publicId, null);
     }
 
     /**

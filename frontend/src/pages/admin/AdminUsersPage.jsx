@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Eye, KeyRound, Lock, LockOpen, Plus, UserCog } from 'lucide-react';
+import { Eye, KeyRound, Lock, LockOpen, Plus } from 'lucide-react';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n, adminRoleLabel } from './adminI18n.js';
 import { formatAdminTimestamp } from './adminPresentation.js';
 import { ADMIN_VAULT_STATUSES, PROCESSING_ACCOUNT_ROLES, fetchAdminUsers, fetchAdminUserDetail } from '../../utils/adminService.js';
-import { ChangeRoleModal, CreateUserModal, LockUserModal, ResetPasswordModal } from './AdminUserForms.jsx';
+import { CreateUserModal, LockUserModal, ResetPasswordModal } from './AdminUserForms.jsx';
 import './AdminPages.css';
 
 // The backend refuses to lock an ACTIVE account that is in a case or whose vault is archived; hide the actions up front.
@@ -36,7 +36,6 @@ export default function AdminUsersPage({
   const detailUser = detailSelection?.data === data ? detailSelection.record : null;
   const setDetailUser = (record) => setDetailSelection(record ? { record, data } : null);
   const [creating, setCreating] = useState(false);
-  const [roleTarget, setRoleTarget] = useState(null);
   const [lockTarget, setLockTarget] = useState(null);
   // null = dialog closed; { user: null } = opened from the header (any e-mail); { user } = opened from a table row.
   const [passwordTarget, setPasswordTarget] = useState(null);
@@ -60,11 +59,6 @@ export default function AdminUsersPage({
   const handlePasswordReset = () => {
     setPasswordTarget(null);
     setNotice(t.resetPasswordOk);
-  };
-  const handleRoleChanged = () => {
-    setRoleTarget(null);
-    setNotice(t.roleChangedOk);
-    handleReload();
   };
 
   const handleSearchSubmit = (e) => {
@@ -343,18 +337,6 @@ export default function AdminUsersPage({
                     {!user.roles.includes('ADMIN') && ['ACTIVE', 'LOCKED'].includes(user.status) && !manageBlocked(user) && (
                       <button
                         type="button"
-                        className="lv-admin-icon-btn"
-                        onClick={() => { setNotice(''); setRoleTarget(user); }}
-                        disabled={user.status === 'LOCKED'}
-                        aria-label={t.changeRoleBtn}
-                        title={user.status === 'LOCKED' ? t.roleUnavailableLocked : t.changeRoleBtn}
-                      >
-                        <UserCog size={18} aria-hidden="true" />
-                      </button>
-                    )}
-                    {!user.roles.includes('ADMIN') && ['ACTIVE', 'LOCKED'].includes(user.status) && !manageBlocked(user) && (
-                      <button
-                        type="button"
                         className={`lv-admin-icon-btn${user.status === 'LOCKED' ? ' lv-admin-icon-btn--locked' : ''}`}
                         onClick={() => { setNotice(''); setLockTarget({ user, lock: user.status !== 'LOCKED' }); }}
                         aria-label={user.status === 'LOCKED' ? t.unlockBtn : t.lockBtn}
@@ -406,8 +388,6 @@ export default function AdminUsersPage({
         onCreated={handleCreated} onUnauthorized={onUnauthorized} onDenied={deny} />}
       {passwordTarget && <ResetPasswordModal key={passwordTarget.user?.id || 'any'} lang={lang} accessToken={accessToken} user={passwordTarget.user}
         onClose={() => setPasswordTarget(null)} onDone={handlePasswordReset} onUnauthorized={onUnauthorized} onDenied={deny} />}
-      {roleTarget && <ChangeRoleModal key={roleTarget.id} lang={lang} accessToken={accessToken} user={roleTarget}
-        onClose={() => setRoleTarget(null)} onChanged={handleRoleChanged} onUnauthorized={onUnauthorized} onDenied={deny} />}
 
       {lockTarget && <LockUserModal key={`${lockTarget.user.id}-${lockTarget.lock}`} lang={lang} accessToken={accessToken}
         user={lockTarget.user} lock={lockTarget.lock} onClose={() => setLockTarget(null)} onDone={handleLockDone}

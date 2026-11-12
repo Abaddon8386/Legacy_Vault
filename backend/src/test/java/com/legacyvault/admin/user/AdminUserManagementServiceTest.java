@@ -2,7 +2,6 @@ package com.legacyvault.admin.user;
 
 import com.legacyvault.admin.user.dto.AdminCreateUserRequest;
 import com.legacyvault.admin.user.dto.AdminResetPasswordRequest;
-import com.legacyvault.admin.user.dto.AdminUpdateUserRoleRequest;
 import com.legacyvault.admin.user.dto.AdminUserResponse;
 import com.legacyvault.admin.user.service.AdminUserManagementService;
 import com.legacyvault.admin.user.service.AdminUserQueryService;
@@ -101,97 +100,6 @@ class AdminUserManagementServiceTest {
                 .isInstanceOfSatisfying(BusinessException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.EMAIL_ALREADY_EXISTS));
         verify(users, never()).saveAndFlush(any());
-    }
-
-    @Test
-    void changeRoleReplacesOnlyManagedRolesAndKeepsBeneficiary() {
-        UUID publicId = UUID.randomUUID();
-        User target = user(5L);
-        Role beneficiary = role(1L, "ROLE_BENEFICIARY");
-        Role owner = role(2L, "ROLE_VAULT_OWNER");
-        Role legal = role(3L, "ROLE_LEGAL_VERIFIER");
-        UserRole ownerLink = new UserRole(target, owner);
-        when(users.findByPublicId(publicId)).thenReturn(Optional.of(target));
-        when(users.findActiveAccountForUpdate(5L)).thenReturn(Optional.of(target));
-        when(userRoles.findByUserIdWithRole(5L)).thenReturn(List.of(new UserRole(target, beneficiary), ownerLink));
-        when(vaults.existsByOwnerUserId(5L)).thenReturn(false);
-        when(roles.findByRoleCode("ROLE_LEGAL_VERIFIER")).thenReturn(Optional.of(legal));
-
-        service.changeRole(ADMIN_ID, publicId, new AdminUpdateUserRoleRequest("LEGAL_VERIFIER"));
-
-        verify(userRoles).deleteAll(List.of(ownerLink));
-        ArgumentCaptor<UserRole> added = ArgumentCaptor.forClass(UserRole.class);
-        verify(userRoles).saveAndFlush(added.capture());
-        assertThat(added.getValue().getRole()).isSameAs(legal);
-        verify(audit).record(argThat(event -> event.action() == AuditAction.ADMIN_USER_ROLE_CHANGED
-                && event.stateBefore().contains("ROLE_VAULT_OWNER") && event.stateAfter().contains("ROLE_LEGAL_VERIFIER")));
-    }
-
-    @Test
-    void changeRoleToTheSameRoleIsANoOp() {
-        UUID publicId = UUID.randomUUID();
-        User target = user(5L);
-        when(users.findByPublicId(publicId)).thenReturn(Optional.of(target));
-        when(users.findActiveAccountForUpdate(5L)).thenReturn(Optional.of(target));
-        when(userRoles.findByUserIdWithRole(5L))
-                .thenReturn(List.of(new UserRole(target, role(3L, "ROLE_LEGAL_VERIFIER"))));
-
-        service.changeRole(ADMIN_ID, publicId, new AdminUpdateUserRoleRequest("ROLE_LEGAL_VERIFIER"));
-
-        verify(userRoles, never()).deleteAll(any());
-        verify(userRoles, never()).saveAndFlush(any());
-        verifyNoInteractions(audit);
-    }
-
-    @Test
-    void ownerWithAVaultCannotBeMovedAwayFromTheOwnerRole() {
-        UUID publicId = UUID.randomUUID();
-        User target = user(5L);
-        when(users.findByPublicId(publicId)).thenReturn(Optional.of(target));
-        when(users.findActiveAccountForUpdate(5L)).thenReturn(Optional.of(target));
-        when(userRoles.findByUserIdWithRole(5L))
-                .thenReturn(List.of(new UserRole(target, role(2L, "ROLE_VAULT_OWNER"))));
-        when(vaults.existsByOwnerUserId(5L)).thenReturn(true);
-
-        assertThatThrownBy(() -> service.changeRole(ADMIN_ID, publicId, new AdminUpdateUserRoleRequest("STAFF_EXECUTOR")))
-                .isInstanceOfSatisfying(BusinessException.class,
-                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ADMIN_OWNER_HAS_VAULT));
-        verify(userRoles, never()).deleteAll(any());
-    }
-
-    @Test
-    void adminAccountsAndTheCallerThemselvesAreProtected() {
-        UUID selfId = UUID.randomUUID();
-        when(users.findByPublicId(selfId)).thenReturn(Optional.of(user(ADMIN_ID)));
-        assertThatThrownBy(() -> service.changeRole(ADMIN_ID, selfId, new AdminUpdateUserRoleRequest("STAFF_EXECUTOR")))
-                .isInstanceOfSatisfying(BusinessException.class,
-                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ADMIN_ACCOUNT_PROTECTED));
-
-        UUID otherAdminId = UUID.randomUUID();
-        User otherAdmin = user(9L);
-        when(users.findByPublicId(otherAdminId)).thenReturn(Optional.of(otherAdmin));
-        when(users.findActiveAccountForUpdate(9L)).thenReturn(Optional.of(otherAdmin));
-        when(userRoles.findByUserIdWithRole(9L)).thenReturn(List.of(new UserRole(otherAdmin, role(4L, "ROLE_ADMIN"))));
-        assertThatThrownBy(() -> service.changeRole(ADMIN_ID, otherAdminId, new AdminUpdateUserRoleRequest("STAFF_EXECUTOR")))
-                .isInstanceOfSatisfying(BusinessException.class,
-                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ADMIN_ACCOUNT_PROTECTED));
-        verify(userRoles, never()).deleteAll(any());
-    }
-
-    @Test
-    void unknownOrInactiveTargetIsNotFound() {
-        UUID missing = UUID.randomUUID();
-        when(users.findByPublicId(missing)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.changeRole(ADMIN_ID, missing, new AdminUpdateUserRoleRequest("STAFF_EXECUTOR")))
-                .isInstanceOfSatisfying(BusinessException.class,
-                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
-
-        UUID inactive = UUID.randomUUID();
-        when(users.findByPublicId(inactive)).thenReturn(Optional.of(user(6L)));
-        when(users.findActiveAccountForUpdate(6L)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.changeRole(ADMIN_ID, inactive, new AdminUpdateUserRoleRequest("STAFF_EXECUTOR")))
-                .isInstanceOfSatisfying(BusinessException.class,
-                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
     }
 
     @Test
