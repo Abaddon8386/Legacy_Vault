@@ -227,7 +227,7 @@ public class AuthService {
         String normalizedEmail = EmailNormalizer.normalize(request.email());
 
         // Atomic check + count before any password work, so parallel requests cannot all slip under the limit.
-        long attemptId = loginAttemptLimiter.reserveAttempt(normalizedEmail, clientIp);
+        loginAttemptLimiter.reserveAttempt(normalizedEmail, clientIp);
 
         User user = userRepository.findByEmail(normalizedEmail).orElse(null);
 
@@ -235,6 +235,14 @@ public class AuthService {
         // which emails exist.
         String hashToCheck = user != null ? user.getPasswordHash() : dummyPasswordHash();
         boolean passwordMatches = passwordEncoder.matches(request.password(), hashToCheck);
+
+        // A locked account is only disclosed to someone who proved knowledge of its password, so a wrong password
+        // or an unknown email still gets the same generic failure and locked emails cannot be enumerated.
+        if (user != null && passwordMatches && user.isPasswordLoginAllowed() && user.getDeletedAt() == null
+                && "LOCKED".equals(user.getStatus())) {
+            auditService.recordLoginFailure(user.getUserId());
+            throw new BusinessException(ErrorCode.ACCOUNT_LOCKED_BY_ADMIN);
+        }
 
         if (user == null
                 || !"ACTIVE".equals(user.getStatus())
@@ -247,8 +255,8 @@ public class AuthService {
         }
 
         LoginResponse response = issueLoginResponseForActiveUser(user);
-        // Only failures stay counted: a successful login gives its reservation back.
-        loginAttemptLimiter.releaseAttempt(attemptId);
+        // A successful login proves the password, so the earlier failures of this email no longer count.
+        loginAttemptLimiter.clearFailures(normalizedEmail);
         return response;
     }
 

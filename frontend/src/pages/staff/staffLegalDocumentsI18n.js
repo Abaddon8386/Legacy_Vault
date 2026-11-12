@@ -20,7 +20,7 @@ export const staffLegalDocumentsI18n = {
     activeCaseHeading: 'Hồ sơ đang xử lý',
 
     // Trạng thái hồ sơ
-    dossierSectionTitle: 'Thông tin hồ sơ và phiên bản lưu trữ',
+    dossierSectionTitle: 'Văn bản phân chia',
     dossierStatusLabel: 'Trạng thái hồ sơ:',
     routeLabel: 'Nguồn giấy tờ đã nộp:',
     dossierVersionLabel: 'Phiên bản hồ sơ lưu trữ:',
@@ -61,8 +61,6 @@ export const staffLegalDocumentsI18n = {
     formDesc: 'Ghi loại giấy tờ thực tế được nộp và đính kèm bản số hóa. Phân bổ được lập ở bước riêng sau khi Ban Pháp lý duyệt căn cứ.',
     legalBasisTypeLabel: 'Loại văn bản căn cứ',
     typeNotarialPartition: 'Văn bản thỏa thuận phân chia di sản công chứng',
-    typeCourtJudgment: 'Bản án có hiệu lực pháp luật của Tòa án',
-    typeCourtDecision: 'Quyết định công nhận thỏa thuận của Tòa án',
 
     // Cơ quan ban hành
     issuerLabel: 'Cơ quan ban hành',
@@ -71,7 +69,7 @@ export const staffLegalDocumentsI18n = {
 
     // Số hiệu văn bản
     documentNumberLabel: 'Số hiệu văn bản',
-    documentNumberPlaceholder: 'VD: 118/2026/VB-CC, 45/2026/QĐ-TA...',
+    documentNumberPlaceholder: 'VD: 45/2026/QĐ-TA',
     documentNumberHint: 'Số hiệu chính thức ghi trên văn bản căn cứ',
 
     // Ngày ban hành
@@ -87,25 +85,25 @@ export const staffLegalDocumentsI18n = {
     notarizedAtLabel: 'Ngày công chứng',
 
     // Tham chiếu chứng từ & ghi chú
-    evidenceReferenceLabel: 'Mã tham chiếu hồ sơ giấy (không bắt buộc)',
-    evidenceReferencePlaceholder: 'VD: HS-GIAY-2026-09, Ngăn lưu trữ B-12...',
+    evidenceReferenceLabel: 'Mã tham chiếu hồ sơ giấy',
+    evidenceReferencePlaceholder: 'VD: HS-GIAY-2026-09',
     evidenceReferenceHint: 'Mã số biên nhận lưu trữ hoặc vị trí lưu trữ bản gốc giấy tại văn phòng',
-    notesLabel: 'Ghi chú bổ sung (không bắt buộc)',
+    notesLabel: 'Ghi chú bổ sung',
     notesPlaceholder: 'Nội dung ghi chú hoặc lưu ý đặc biệt về văn bản...',
 
     // Tệp số hóa chứng cứ
     fileUploadLabel: 'Tệp số hóa văn bản căn cứ',
 
     // Nút hành động
-    btnSubmitVersion: 'Lưu và chuyển giấy tờ cho Ban Pháp lý',
+    btnSubmitVersion: 'Lưu và chuyển',
     submittingVersion: 'Đang tiếp nhận và tải tệp lên...',
     btnForwardToLegal: 'Chuyển Ban Pháp lý',
     forwardingToLegal: 'Đang chuyển cho Ban Pháp lý...',
     btnForwardHelper: 'Chỉ khả dụng khi hồ sơ đã có phiên bản mới nhất chưa chuyển',
 
     // Phản hồi hành động
-    uploadSuccessNotice: 'Tiếp nhận văn bản thành công. Phiên bản số hóa đã được lưu trữ an toàn.',
-    forwardSuccessNotice: 'Đã chuyển thành công phiên bản mới nhất cho Ban Pháp lý thẩm định.',
+    uploadSuccessNotice: 'Đã tiếp nhận văn bản',
+    forwardSuccessNotice: 'Đã chuyển Ban Pháp lý',
     versionStaleError: 'Phiên bản cần chuyển không phải phiên bản mới nhất của hồ sơ (BASIS_VERSION_STALE).',
     dossierStateInvalid: 'Trạng thái hồ sơ hoặc ca xác minh không cho phép thao tác này.',
 
@@ -178,7 +176,7 @@ export const staffLegalDocumentsI18n = {
     activeCaseHeading: 'Active Case',
 
     // Stored dossier and version section
-    dossierSectionTitle: 'Stored Dossier & Version Records',
+    dossierSectionTitle: 'Distribution document',
     dossierStatusLabel: 'Dossier Status:',
     routeLabel: 'Legal Basis Route:',
     dossierVersionLabel: 'Stored Dossier Version:',
@@ -219,8 +217,6 @@ export const staffLegalDocumentsI18n = {
     formDesc: 'Upload documents requested by the Legal Department.',
     legalBasisTypeLabel: 'Document Basis Type',
     typeNotarialPartition: 'Notarized Estate Partition Agreement',
-    typeCourtJudgment: 'Legally Effective Court Judgment',
-    typeCourtDecision: 'Court Settlement Decision',
 
     // Issuing authority
     issuerLabel: 'Issuing Authority',
@@ -229,7 +225,7 @@ export const staffLegalDocumentsI18n = {
 
     // Document number
     documentNumberLabel: 'Document Number',
-    documentNumberPlaceholder: 'e.g. 118/2026/VB-CC, 45/2026/QD-TA...',
+    documentNumberPlaceholder: 'e.g. 45/2026/QD-TA',
     documentNumberHint: 'Official reference number printed on the legal document',
 
     // Issuance date
@@ -245,25 +241,25 @@ export const staffLegalDocumentsI18n = {
     notarizedAtLabel: 'Notarization Date',
 
     // References & notes
-    evidenceReferenceLabel: 'Physical Record Reference (optional)',
-    evidenceReferencePlaceholder: 'e.g. HS-PHYS-2026-09, Storage Locker B-12...',
+    evidenceReferenceLabel: 'Physical Record Reference',
+    evidenceReferencePlaceholder: 'e.g. HS-PHYS-2026-09',
     evidenceReferenceHint: 'Physical receipt docket code or storage location of original paper documents',
-    notesLabel: 'Additional Notes (optional)',
+    notesLabel: 'Additional Notes',
     notesPlaceholder: 'Enter any additional remarks or observations...',
 
     // File upload
     fileUploadLabel: 'Digitized Document File',
 
     // Action buttons
-    btnSubmitVersion: 'Save and send documents to Legal Department',
+    btnSubmitVersion: 'Save and send',
     submittingVersion: 'Intaking and uploading file...',
     btnForwardToLegal: 'Send to Legal Department',
     forwardingToLegal: 'Forwarding to Legal Department...',
     btnForwardHelper: 'Only available when the dossier has a latest version that has not yet been forwarded',
 
     // Feedback
-    uploadSuccessNotice: 'Document intake successful. The digitized version has been securely stored.',
-    forwardSuccessNotice: 'The latest version was successfully forwarded to Legal Department for verification.',
+    uploadSuccessNotice: 'Document received',
+    forwardSuccessNotice: 'Sent to Legal',
     versionStaleError: 'The version being forwarded is not the latest version of the dossier (BASIS_VERSION_STALE).',
     dossierStateInvalid: 'The dossier or verification case state does not permit this action.',
 

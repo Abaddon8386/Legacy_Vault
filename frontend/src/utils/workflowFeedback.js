@@ -26,7 +26,7 @@ export function staffSessionPrerequisite(item, lang = 'vi') {
     AWAITING_ALLOCATIONS: ['Chờ Staff lập phân bổ tài sản', 'Awaiting Staff asset allocations', 'Căn cứ đã duyệt. Staff lập phân bổ rồi gửi Legal kiểm tra.', 'The basis is accepted. Staff prepares allocations and sends them to Legal.'],
     ALLOCATIONS_UNDER_REVIEW: ['Chờ Legal kiểm tra phân bổ', 'Awaiting Legal allocation review', 'Staff đã gửi phân bổ. Legal kiểm tra từng tài sản và người nhận.', 'Staff submitted allocations. Legal checks each asset and recipient.'],
     FINAL_APPROVAL: ['Chờ Legal phê duyệt hồ sơ', 'Awaiting final Legal approval', 'Phân bổ đã được chấp thuận. Legal cần ghi quyết định phê duyệt cuối.', 'Allocations are accepted. Legal must record the final approval decision.'],
-    REJECTED: ['Chờ Legal mở bước bổ sung hoặc sửa phân bổ', 'Awaiting Legal supplementation or corrections', 'Legal đã từ chối phiên bản hồ sơ. Chờ Legal gửi yêu cầu bổ sung giấy tờ hoặc sửa phân bổ.', 'Legal rejected this document version. Await Legal requesting document supplementation or allocation corrections.'],
+    REJECTED: ['Chờ Legal yêu cầu bổ sung giấy tờ', 'Awaiting Legal document supplementation', 'Legal đã từ chối phiên bản hồ sơ. Chờ Legal gửi yêu cầu bổ sung giấy tờ.', 'Legal rejected this document version. Await Legal requesting document supplementation.'],
     APPROVED: ['Chờ Legal mở khóa kho', 'Awaiting Legal unlocking', 'Hồ sơ đã phê duyệt. Legal cần xác nhận mở khóa riêng trước khi Staff mở phiên.', 'The case is approved. Legal must separately unlock the vault before Staff opens a session.'],
   }[item?.distributionWorkflow?.phase];
   if (phase) return {kind:'waiting', title:phase[en ? 1 : 0], description:phase[en ? 3 : 2], destination:'basis'};

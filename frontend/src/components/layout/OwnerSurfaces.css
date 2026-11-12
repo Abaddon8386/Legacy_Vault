@@ -10,6 +10,11 @@
   transition: border-color 240ms ease, box-shadow 240ms ease;
 }
 
+/* Keep an open calendar above sibling cards despite their isolated stacking contexts. */
+:is(.lv-owner-surfaces, .lv-staff-surfaces, .lv-legal-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card):has(.lv-datepicker-toggle-btn[aria-expanded="true"]) {
+  z-index: 3;
+}
+
 /* The masked layer draws only the outline and never intercepts a control. */
 :is(.lv-owner-surfaces, .lv-staff-surfaces, .lv-legal-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card)::after {
   content: '';
@@ -28,8 +33,9 @@
 :is(.lv-owner-surfaces, .lv-staff-surfaces, .lv-legal-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card):nth-child(2n)::after { animation-delay: -3s; }
 :is(.lv-owner-surfaces, .lv-staff-surfaces, .lv-legal-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card):nth-child(3n)::after { animation-delay: -6s; }
 
+/* Hover spotlight: Owner and Admin only. Staff and Legal records are not tinted gold on hover; their outline keeps drifting. */
 @media (hover: hover) and (pointer: fine) {
-  :is(.lv-owner-surfaces, .lv-staff-surfaces, .lv-legal-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card)::before {
+  :is(.lv-owner-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card)::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -40,12 +46,12 @@
     opacity: 0;
     transition: opacity 240ms ease;
   }
-  :is(.lv-owner-surfaces, .lv-staff-surfaces, .lv-legal-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card):hover {
+  :is(.lv-owner-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card):hover {
     border-color: #b48a39;
     box-shadow: 0 8px 28px #715c241c, 0 0 22px #c5a05930;
   }
-  :is(.lv-owner-surfaces, .lv-staff-surfaces, .lv-legal-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card):hover::before { opacity: 1; }
-  :is(.lv-owner-surfaces, .lv-staff-surfaces, .lv-legal-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card):hover::after {
+  :is(.lv-owner-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card):hover::before { opacity: 1; }
+  :is(.lv-owner-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card):hover::after {
     animation: none;
     opacity: 1;
     background: radial-gradient(360px circle at var(--surface-x, 50%) var(--surface-y, 50%), #9f7120, #e5bf65 35%, #c5a05944 80%);

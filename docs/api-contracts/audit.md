@@ -64,7 +64,7 @@ Nhờ chuẩn hóa tập trung này, các caller như PS-33 Cancel Alert không 
 | Tệp đính kèm giấy tờ tiếp nhận | `INTAKE_ATTACHMENT_UPLOADED`; `EVIDENCE_FILE_READ` (mỗi lần đọc nội dung tệp đính kèm hoặc file phiên bản căn cứ; không ghi tên file/nội dung) | PS-103 |
 | Xác nhận lại mật khẩu | `REAUTH_FAILED` (mỗi lần sai khi xem/sửa nội dung bảo mật hoặc đổi email/password; là bộ đếm giới hạn dùng chung) | PS-16, PS-79, PS-111 |
 | Will | `WILL_UPLOADED`, `WILL_VERSION_ADDED`, `WILL_FILE_OPENED` | PS-17, PS-18 |
-| Trustee | `TRUSTEE_APPOINTED`, `TRUSTEE_UPDATED`, `TRUSTEE_REVOKED`, `TRUSTEE_CONTACT_RECORDED` | PS-19, PS-44 |
+| Trustee | `TRUSTEE_APPOINTED`, `TRUSTEE_UPDATED`, `TRUSTEE_REVOKED`, `TRUSTEE_CONTACT_RECORDED`, `CASE_CONTACTS_VIEWED` | PS-19, PS-44 |
 | Beneficiary | `BENEFICIARY_ADDED`, `BENEFICIARY_UPDATED` | PS-20 |
 | Identity verification | `BENEFICIARY_IDENTITY_VERIFIED` | PS-45 |
 | Guardian của Beneficiary | `BENEFICIARY_GUARDIAN_RECORDED`, `BENEFICIARY_GUARDIAN_REVOKED` (ID công khai của Beneficiary, revision; không tên/email/điện thoại guardian) | PS-113 |

@@ -1,7 +1,6 @@
 import { deliveryReadiness, deliveryBlockedReason } from '../../utils/deliveryReadiness.js';
 import { useState, useId, useEffect, useRef } from 'react';
 import {
-  ShieldAlert,
   AlertTriangle,
   CheckCircle2,
   Package,
@@ -20,12 +19,13 @@ import {
 } from '../../utils/scopedAssetHandoverValidation.js';
 import {
   fetchEligibleAssets,
+  fetchBeneficiaryConfirmations,
   deliverAssets,
   isCounterHandoverSimulationPermitted,
 } from './handoverSessionService.js';
 import { scopedAssetHandoverI18n } from './scopedAssetHandoverI18n.js';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
-import { fetchStaffCaseBeneficiaries } from './liveHandoverService.js';
+import { fetchStaffCaseBeneficiaries, counterLinkTabUrl } from './liveHandoverService.js';
 import { fetchStaffAssetCatalog } from './staffLegalDocumentsService.js';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
@@ -76,6 +76,7 @@ function ScopedAssetHandoverPageContext({
   const [sessionId, setSessionId] = useState(initialSession);
   const [scopeData, setScopeData] = useState(initialScope);
   const [candidates, setCandidates] = useState(initialCandidates);
+  const [sessionRecipients, setSessionRecipients] = useState([]);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   // Bước 1: Người nhận được chọn
@@ -142,6 +143,7 @@ function ScopedAssetHandoverPageContext({
       setScopeData(null);
       setLoadedScopeKey(null);
       setCandidates(null);
+      setSessionRecipients([]);
       setSelectedRecipientId('');
       setSelectedAssetIds(new Set());
       setShowReviewModal(false);
@@ -153,10 +155,11 @@ function ScopedAssetHandoverPageContext({
           lang,
           signal: controller.signal,
         };
-        const [assets, people, catalog] = await Promise.all([
+        const [assets, people, catalog, confirmations] = await Promise.all([
           fetchEligibleAssets(caseReference, sessionId, options),
           effectiveIsDevPreview && !effectiveAccessToken ? Promise.resolve([]) : fetchStaffCaseBeneficiaries(caseReference, options).catch(() => []),
           effectiveIsDevPreview && !effectiveAccessToken ? Promise.resolve([]) : fetchStaffAssetCatalog(caseReference, options).catch(() => []),
+          effectiveIsDevPreview && !effectiveAccessToken ? Promise.resolve([]) : fetchBeneficiaryConfirmations(caseReference, sessionId, options),
         ]);
         if (!Array.isArray(assets)) throw new Error(en ? 'Invalid handover data.' : 'Dữ liệu bàn giao không hợp lệ.');
 
@@ -177,6 +180,21 @@ function ScopedAssetHandoverPageContext({
             };
           });
 
+          // Đọc theo DTO BeneficiaryConfirmationResponse của BE:
+          // { confirmationId, sessionId, beneficiaryId, status, confirmedBy, confirmedAt, receiptReference, hasSignedFile }
+          const validConfirmations = (Array.isArray(confirmations) ? confirmations : []).filter(
+            (item) => item && item.beneficiaryId && !item.assetId
+          );
+          const normalizedSessionRecipients = validConfirmations.map((item) => {
+            const person = (Array.isArray(people) ? people : []).find((p) => p && p.beneficiaryId === item.beneficiaryId);
+            const confirmationStatus = String(item.status || item.confirmationStatus || 'PENDING').toUpperCase();
+            return {
+              id: item.beneficiaryId,
+              name: person?.fullName || item.beneficiaryName || null,
+              status: confirmationStatus,
+            };
+          });
+
           // Endpoint này chỉ trả các tài sản thuộc phạm vi Legal đã phê duyệt
           const generatedScope = {
             isApproved: true,
@@ -187,14 +205,33 @@ function ScopedAssetHandoverPageContext({
           };
 
           setCandidates(formattedCandidates);
+          setSessionRecipients(normalizedSessionRecipients);
           setScopeData(generatedScope);
           setLoadedScopeKey(scopeKey);
 
           const recIds = Array.from(
             new Set(formattedCandidates.map((c) => c.beneficiaryId).filter(Boolean))
           );
-          if (recIds.length === 1) {
-            setSelectedRecipientId(recIds[0]);
+          const allRecIds = Array.from(
+            new Set([
+              ...recIds,
+              ...normalizedSessionRecipients.map((r) => r.id).filter(Boolean),
+            ])
+          );
+          if (allRecIds.length === 1) {
+            setSelectedRecipientId(allRecIds[0]);
+          } else if (recIds.length === 1) {
+            const soleEligibleHasUndelivered = formattedCandidates.some(
+              (c) => c.beneficiaryId === recIds[0] && c.handoverStatus !== HANDOVER_STATUS.DELIVERED
+            );
+            const nextPendingRecipient = normalizedSessionRecipients.find(
+              (r) => !recIds.includes(r.id) && r.status !== 'CONFIRMED'
+            );
+            if (!soleEligibleHasUndelivered && nextPendingRecipient) {
+              setSelectedRecipientId(nextPendingRecipient.id);
+            } else {
+              setSelectedRecipientId(recIds[0]);
+            }
           }
         }
       } catch (err) {
@@ -218,20 +255,36 @@ function ScopedAssetHandoverPageContext({
     };
   }, [caseReference, sessionId, effectiveAccessToken, effectiveIsDevPreview, lang, en, refreshTrigger, scopeKey]);
 
-  // Gom danh sách người nhận duy nhất từ danh sách tài sản đã duyệt
-  const uniqueRecipients = Array.from(
-    new Map(
-      (eligible || [])
-        .filter((c) => c.beneficiaryId)
-        .map((c) => [
-          c.beneficiaryId,
-          {
-            id: c.beneficiaryId,
-            name: c.beneficiaryName || null,
-          },
-        ])
-    ).values()
-  );
+  // Gom danh sách người nhận duy nhất từ danh sách tài sản đã duyệt và người thụ hưởng trong phiên
+  const recipientMap = new Map();
+  (eligible || [])
+    .filter((c) => c.beneficiaryId)
+    .forEach((c) => {
+      recipientMap.set(c.beneficiaryId, {
+        id: c.beneficiaryId,
+        name: c.beneficiaryName || null,
+        hasEligibleAssets: true,
+      });
+    });
+  if (hasCurrentScope) {
+    (sessionRecipients || []).forEach((r) => {
+      if (!r?.id) return;
+      const existing = recipientMap.get(r.id);
+      if (existing) {
+        recipientMap.set(r.id, {
+          ...existing,
+          name: existing.name || r.name || null,
+        });
+      } else if (r.status !== 'CONFIRMED') {
+        recipientMap.set(r.id, {
+          id: r.id,
+          name: r.name || null,
+          hasEligibleAssets: false,
+        });
+      }
+    });
+  }
+  const uniqueRecipients = Array.from(recipientMap.values());
 
   // Khi đổi người nhận: xóa selection tài sản, đóng modal review nếu đang mở
   const handleSelectRecipient = (recipientId) => {
@@ -342,7 +395,7 @@ function ScopedAssetHandoverPageContext({
 
       if (confirmedDeliveredAssetIds.size === assetIdsToDeliver.length) {
         setActionSuccess(
-          (t.deliverySuccessBatch || 'Đã ghi nhận bàn giao thành công {count} tài sản cho người nhận.').replace(
+          (t.deliverySuccessBatch || 'Đã bàn giao {count} tài sản').replace(
             '{count}',
             String(confirmedDeliveredAssetIds.size)
           )
@@ -440,6 +493,7 @@ function ScopedAssetHandoverPageContext({
           setSessionId('');
           setScopeData(null);
           setCandidates(null);
+          setSessionRecipients([]);
           setSelectedRecipientId('');
           setSelectedAssetIds(new Set());
           setShowReviewModal(false);
@@ -504,13 +558,13 @@ function ScopedAssetHandoverPageContext({
           )}
         </div>
 
-        {(!isLoading && !scopeValidation.isValid) ? (
+        {(!isLoading && !scopeValidation.isValid && uniqueRecipients.length === 0) ? (
           <div className="lv-handover-scope-empty" role="status">
             <Package size={32} className="lv-handover-scope-empty__icon" aria-hidden="true" />
             <h3>{hasCurrentScope && scopeValidation.isApproved ? (en ? 'No recipients ready for handover yet' : 'Chưa có người nhận đủ điều kiện bàn giao') : t.scopeMissingTitle}</h3>
             <p>{hasCurrentScope && scopeValidation.isApproved ? (en ? 'Ask the recipient to submit the case number from Shared with me, then verify their account at the counter. Reload this page after verification.' : 'Người nhận cần nhập mã hồ sơ trong Tài sản thụ hưởng. Staff đối chiếu và xác nhận tài khoản tại quầy, rồi tải lại danh sách tài sản.') : t.scopeMissingDesc}</p>
             {caseReference && sessionId ? (
-              <a className="lv-btn-navigate-cases" href={`/staff/beneficiary-accounts?caseId=${encodeURIComponent(caseReference)}&sessionId=${encodeURIComponent(sessionId)}&lang=${lang}`}>
+              <a className="lv-btn-navigate-cases" href={counterLinkTabUrl(caseReference, sessionId, lang)}>
                 {en ? 'Verify recipient accounts' : 'Đối chiếu tài khoản người nhận'}
               </a>
             ) : onNavigateCases && (
@@ -541,7 +595,10 @@ function ScopedAssetHandoverPageContext({
               <option value="">{t.selectRecipientPlaceholder}</option>
               {uniqueRecipients.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.name || `${en ? 'Recipient' : 'Người nhận'} — ${t.recipientMetadataPending}`}
+                  {(r.name || `${en ? 'Recipient' : 'Người nhận'} — ${t.recipientMetadataPending}`) +
+                    (!r.hasEligibleAssets
+                      ? (en ? ' — Pending counter verification & account link' : ' — Chưa đối chiếu & liên kết tài khoản')
+                      : '')}
                 </option>
               ))}
             </select>
@@ -578,7 +635,25 @@ function ScopedAssetHandoverPageContext({
         ) : recipientAssets.length === 0 ? (
           <div className="lv-handover-scope-empty" role="status">
             <Package size={32} className="lv-handover-scope-empty__icon" aria-hidden="true" />
-            <p>{t.emptyAssets}</p>
+            {selectedRecipientObj && !selectedRecipientObj.hasEligibleAssets ? (
+              <>
+                <h3>
+                  {en
+                    ? 'Account not linked yet'
+                    : 'Chưa liên kết tài khoản'}
+                </h3>
+                {caseReference && sessionId && (
+                  <a
+                    className="lv-btn-navigate-cases"
+                    href={counterLinkTabUrl(caseReference, sessionId, lang)}
+                  >
+                    {en ? 'Verify account →' : 'Đối chiếu tài khoản →'}
+                  </a>
+                )}
+              </>
+            ) : (
+              <p>{t.emptyAssets}</p>
+            )}
           </div>
         ) : (
           <div className="lv-handover-table-wrapper">
@@ -743,12 +818,6 @@ function ScopedAssetHandoverPageContext({
                     );
                   })}
                 </ul>
-              </div>
-
-              {/* Cảnh báo quy tắc nghiệp vụ */}
-              <div className="lv-review-warning-box" role="alert">
-                <ShieldAlert size={18} className="lv-review-warning-icon" aria-hidden="true" />
-                <p>{t.reviewModalNotice}</p>
               </div>
             </div>
 

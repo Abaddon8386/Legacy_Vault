@@ -19,7 +19,7 @@ class AdminAuditOpenApiContractTest {
         var overview=(Map<?,?>)paths.get("/api/v1/admin/audit-logs");assertEquals(Set.of("get"),overview.keySet());
         var schemas=(Map<?,?>)((Map<?,?>)root.get("components")).get("schemas");
         var properties=(Map<?,?>)((Map<?,?>)schemas.get("AdminAuditEvent")).get("properties");
-        assertEquals(Set.of("id","occurredAt","actor","action","entityType","vaultId"),properties.keySet());
+        assertEquals(Set.of("id","occurredAt","actor","action","entityType","vaultId","ownerId","caseId","caseNumber","staffId"),properties.keySet());
     }
     private void references(Object node,Map<?,?> root) {
         if(node instanceof Map<?,?> map) {

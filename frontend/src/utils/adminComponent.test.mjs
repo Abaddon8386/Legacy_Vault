@@ -315,7 +315,7 @@ test('AdminUsersPage user detail modal displays read-only information', async ()
 
       // Click "Xem chi tiết"
       const detailBtn = [...view.host.querySelectorAll('button')].find((b) =>
-        b.textContent.includes('Xem chi tiết')
+        b.getAttribute('aria-label') === 'Xem chi tiết'
       );
       assert.ok(detailBtn);
       await act(async () => { detailBtn.click(); });
@@ -341,7 +341,7 @@ test('AdminUsersPage user detail modal displays read-only information', async ()
   }
 });
 
-for (const lang of ['vi', 'en']) test(`AdminUsersPage shows unavailable lock/unlock actions before interaction (${lang})`, async () => {
+for (const lang of ['vi', 'en']) test(`AdminUsersPage hides lock and unlock controls but displays account status (${lang})`, async () => {
   const prevFetch = globalThis.fetch;
   const mockUsers = [
     { fullName: 'Active account', email: 'active@example.com', roles: ['VAULT_OWNER'], status: 'ACTIVE' },
@@ -360,23 +360,22 @@ for (const lang of ['vi', 'en']) test(`AdminUsersPage shows unavailable lock/unl
   try {
     const view = await mount(AdminUsersPage, { lang, accessToken: 'test-token', fetchOnMount: true });
     try {
-      const notice = view.host.querySelector('#admin-lock-policy-notice');
-      assert.match(notice.textContent, lang === 'en' ? /currently unavailable/ : /hiện chưa khả dụng/);
-      const labels = lang === 'en' ? ['Lock account', 'Unlock account'] : ['Khóa tài khoản', 'Mở khóa'];
-      for (const label of labels) {
-        const button = [...view.host.querySelectorAll('button')].find(candidate => candidate.textContent.trim() === label);
-        assert.ok(button);
-        assert.equal(button.disabled, true);
-        assert.equal(button.getAttribute('aria-describedby'), notice.id);
-        assert.equal(button.title, notice.textContent);
-        await act(async () => button.click());
-      }
-      assert.equal(view.host.querySelector('[role="dialog"]'), null);
-      assert.equal(requests, 1, 'Unavailable actions must not make requests');
-      const details = [...view.host.querySelectorAll('button')].filter(button =>
-        button.textContent.trim() === (lang === 'en' ? 'View details' : 'Xem chi tiết'));
-      assert.equal(details.length, 2);
-      assert.ok(details.every(button => !button.disabled), 'Read-only details remain available');
+      assert.equal(view.host.querySelector('#admin-lock-policy-notice'), null);
+      const label = (button) => button.getAttribute('aria-label');
+      const viewLabel = lang === 'en' ? 'View details' : 'Xem chi tiết';
+      const roleLabel = lang === 'en' ? 'Change role' : 'Đổi vai trò';
+      const lockLabel = lang === 'en' ? 'Lock account' : 'Khóa tài khoản';
+      const unlockLabel = lang === 'en' ? 'Unlock account' : 'Mở khóa tài khoản';
+      // Row actions are icon buttons named by aria-label; locking is a per-row toggle, never a pair of buttons.
+      const [activeRow, lockedRow] = [...view.host.querySelectorAll('tbody tr')];
+      const rowButtons = (row) => [...row.querySelectorAll('button')];
+      assert.deepEqual(rowButtons(activeRow).map(label), [viewLabel, roleLabel, lockLabel]);
+      assert.deepEqual(rowButtons(lockedRow).map(label), [viewLabel, roleLabel, unlockLabel]);
+      assert.ok(rowButtons(activeRow).every(button => !button.disabled), 'Active account actions are available');
+      assert.equal(rowButtons(lockedRow)[1].disabled, true, 'role change is blocked while locked');
+      assert.ok(rowButtons(lockedRow).every(button => button.textContent.trim() === ''), 'icons only, no text labels');
+      assert.equal(view.host.querySelector('.lv-admin-status-locked')?.textContent.trim(), lang === 'en' ? 'Locked' : 'Đã khóa');
+      assert.equal(requests, 1);
     } finally {
       await view.close();
     }
@@ -406,7 +405,7 @@ test('AdminLogsPage renders immutable audit records, SYSTEM actor, and forbids e
       await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
 
       assert.ok(view.host.querySelector('#admin-logs-title'));
-      assert.ok(view.host.textContent.includes('Hệ thống (SYSTEM)'));
+      assert.ok(view.host.textContent.includes('Hệ thống'));
       assert.ok(view.host.textContent.includes(actorId));
       assert.ok(view.host.textContent.includes('DMS_TRIGGERED'));
       assert.ok(view.host.textContent.includes('VAULT_CREATED'));
@@ -458,7 +457,7 @@ test('AdminLogsPage renders immutable audit records, SYSTEM actor, and forbids e
 // 4. AppShell Admin Navigation Regression Tests
 // ==========================================
 
-test('AppShell renders all 4 Admin tabs and preserves 14 render sites including Shared with me', async () => {
+test('AppShell renders all 4 Admin tabs and preserves 13 render sites including Shared with me', async () => {
   const activeSession = {
     accessToken: 'test-admin-token',
     user: {
@@ -493,8 +492,8 @@ test('AppShell renders all 4 Admin tabs and preserves 14 render sites including 
   const appShellMatches = appJsx.match(/<AppShell\b[^>]*>/gs) || [];
   assert.equal(
     appShellMatches.length,
-    14,
-    'Expected 14 AppShell render sites after personal portal unification including the Shared with me route from develop'
+    13,
+    'Expected 13 AppShell render sites after personal portal unification including the Shared with me route from develop'
   );
 });
 
@@ -506,3 +505,109 @@ function wireUser(value, index = 0) {
     createdAt: value.createdAt || '2026-10-20T10:00:00Z' };
 }
 function userPage(users) { return { content: users.map(wireUser), page: 0, size: 10, totalElements: users.length, totalPages: users.length ? 1 : 0 }; }
+
+for (const lang of ['vi', 'en']) test(`account and owner vault columns filter independently and reset on role changes (${lang})`, async () => {
+  const previous = globalThis.fetch;
+  const requests = [];
+  const row = { publicId: userId, fullName: 'Owner fixture', email: 'owner@example.test', roles: ['ROLE_VAULT_OWNER', 'ROLE_BENEFICIARY'], status: 'LOCKED', vaultStatus: 'IN_PROCESS', createdAt: '2026-10-20T10:00:00Z' };
+  globalThis.fetch = async url => {
+    const params = new URL(url, 'http://local').searchParams;
+    if (!url.includes('/admin/users?')) return connectivityJson(row);
+    requests.push(params);
+    const page = Number(params.get('page'));
+    return connectivityJson({content: [row], page, size: 10, totalElements: 11, totalPages: 2});
+  };
+  const view = await mount(AdminUsersPage, {lang, accessToken: 'test', fetchOnMount: true});
+  const change = async (select, value) => act(async () => {
+    select.value = value;
+    select.dispatchEvent(new window.Event('change', {bubbles: true}));
+  });
+  const vaultLabel = lang === 'vi' ? 'Tình trạng kho' : 'Vault status';
+  const accountLabel = lang === 'vi' ? 'Trạng thái tài khoản' : 'Account status';
+  try {
+    assert.equal(view.host.querySelector(`select[aria-label="${vaultLabel}"]`), null);
+    assert.equal(view.host.querySelectorAll('thead th').length, 6);
+    assert.ok([...view.host.querySelectorAll('thead th')].some(th => th.textContent === accountLabel));
+    const role = view.host.querySelectorAll('select')[0];
+    const account = view.host.querySelectorAll('select')[1];
+    await change(account, 'PENDING');
+    await change(role, 'VAULT_OWNER');
+    assert.deepEqual([...account.options].map(option => option.value), ['', 'ACTIVE', 'LOCKED']);
+    assert.equal(account.value, '');
+    assert.equal(requests.at(-1).has('status'), false);
+    assert.equal(view.host.querySelectorAll('thead th').length, 7);
+    assert.equal(view.host.querySelectorAll('tbody tr')[0].children.length, 7);
+    const vault = view.host.querySelector(`select[aria-label="${vaultLabel}"]`);
+    assert.deepEqual([...vault.options].map(option => option.value), ['', 'NO_VAULT', 'ACTIVE', 'IN_PROCESS', 'ARCHIVED']);
+    assert.match(view.host.querySelector('.lv-admin-vault-in_process').textContent, lang === 'vi' ? /Đang xử lý/ : /In process/);
+    await change(account, 'LOCKED');
+    await change(vault, 'IN_PROCESS');
+    assert.equal(requests.at(-1).get('status'), 'LOCKED');
+    assert.equal(requests.at(-1).get('vaultStatus'), 'IN_PROCESS');
+    const next = [...view.host.querySelectorAll('button')].find(button => button.textContent === (lang === 'vi' ? 'Trang sau' : 'Next'));
+    await act(async () => next.click());
+    assert.equal(requests.at(-1).get('page'), '1');
+    await change(vault, 'ARCHIVED');
+    assert.equal(requests.at(-1).get('page'), '0');
+    assert.equal(requests.at(-1).get('vaultStatus'), 'ARCHIVED');
+    await act(async () => view.host.querySelector('tbody button').click());
+    const dialog = view.host.querySelector('[role=dialog]');
+    assert.ok(dialog.textContent.includes(vaultLabel));
+    assert.match(dialog.textContent, lang === 'vi' ? /Đã khóa/ : /Locked/);
+    await act(async () => dialog.querySelector('button').click());
+    await change(role, 'BENEFICIARY');
+    assert.equal(view.host.querySelectorAll('thead th').length, 6);
+    assert.equal(view.host.querySelector(`select[aria-label="${vaultLabel}"]`), null);
+    assert.equal(requests.at(-1).has('vaultStatus'), false);
+    assert.equal(requests.at(-1).get('status'), 'LOCKED');
+    await change(role, 'VAULT_OWNER');
+    assert.equal(view.host.querySelector(`select[aria-label="${vaultLabel}"]`).value, '');
+    assert.equal(requests.at(-1).has('vaultStatus'), false);
+    const reset = [...view.host.querySelectorAll('button')].find(button => button.textContent === (lang === 'vi' ? 'Xóa bộ lọc' : 'Clear filters'));
+    await act(async () => reset.click());
+    assert.equal(view.host.querySelectorAll('thead th').length, 6);
+    assert.equal(requests.at(-1).has('status'), false);
+    assert.equal(requests.at(-1).has('role'), false);
+    await change(account, 'DELETED');
+    await change(role, 'VAULT_OWNER');
+    assert.equal(account.value, '');
+    assert.equal(requests.at(-1).has('status'), false);
+  } finally { await view.close(); globalThis.fetch = previous; }
+});
+
+for (const role of ['BENEFICIARY', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER']) {
+  for (const lang of ['vi', 'en']) test(`processing account status is displayed and filtered for ${role} (${lang})`, async () => {
+    const previous = globalThis.fetch;
+    const requests = [];
+    const row = {publicId: userId, fullName: 'Actor', email: 'actor@example.test', roles: ['ROLE_' + role], status: 'ACTIVE', accountStatus: 'IN_PROCESS', createdAt: '2026-10-20T10:00:00Z'};
+    globalThis.fetch = async url => {
+      requests.push(new URL(url, 'http://local'));
+      const otherRole=new URL(url,'http://local').searchParams.get('role')==='ROLE_VAULT_OWNER';
+      return connectivityJson(url.includes('/admin/users?') ? {content:otherRole?[]:[row],page:0,size:10,totalElements:otherRole?0:1,totalPages:otherRole?0:1} : row);
+    };
+    const view = await mount(AdminUsersPage, {lang, accessToken:'test', fetchOnMount:true});
+    const change = async (select,value) => act(async () => {select.value=value;select.dispatchEvent(new window.Event('change',{bubbles:true}));});
+    try {
+      const roleSelect=view.host.querySelectorAll('select')[0];
+      const statusSelect=view.host.querySelectorAll('select')[1];
+      await change(roleSelect,role);
+      assert.deepEqual([...statusSelect.options].map(option=>option.value),['','ACTIVE','LOCKED','IN_PROCESS']);
+      assert.equal(view.host.querySelectorAll('thead th').length,6);
+      assert.equal(view.host.querySelector('.lv-admin-status-in_process').textContent.trim(),lang==='vi'?'Đang xử lý':'In process');
+      await change(statusSelect,'IN_PROCESS');
+      assert.equal(requests.at(-1).searchParams.get('role'),'ROLE_'+role);
+      assert.equal(requests.at(-1).searchParams.get('status'),'IN_PROCESS');
+      assert.equal(requests.at(-1).searchParams.has('vaultStatus'),false);
+      await act(async()=>view.host.querySelector('tbody button').click());
+      assert.equal(requests.at(-1).searchParams.get('role'),'ROLE_'+role);
+      const dialog=view.host.querySelector('[role=dialog]');
+      assert.match(dialog.textContent,lang==='vi'?/Đang xử lý/:/In process/);
+      await act(async()=>dialog.querySelector('button').click());
+      await change(roleSelect,'VAULT_OWNER');
+      assert.equal(statusSelect.value,'');
+      assert.equal(requests.at(-1).searchParams.has('status'),false);
+      assert.equal([...statusSelect.options].some(option=>option.value==='IN_PROCESS'),false);
+      assert.equal(view.host.querySelector('[role=alert]'),null);
+    } finally {await view.close();globalThis.fetch=previous;}
+  });
+}

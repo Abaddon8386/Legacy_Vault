@@ -5,6 +5,9 @@ import App from './App.jsx'
 import { liveCaseLinkActions, liveCounterLinkActions } from './utils/caseLinkService.js'
 import { liveDmsGraceActions } from './utils/dmsService.js'
 import SessionExpiryNotice from './components/common/SessionExpiryNotice.jsx'
+import { installPressFeedback } from './utils/pressFeedback.js'
+
+installPressFeedback()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

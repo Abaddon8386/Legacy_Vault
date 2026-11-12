@@ -795,13 +795,14 @@ paths:
     get:
       tags: [Admin]
       summary: Tra cứu tài khoản (PS-109, chỉ đọc)
-      description: Yêu cầu ROLE_ADMIN. Chỉ trả publicId, fullName, email, roles, createdAt và trạng thái hiệu lực; không trả khóa DB hoặc credential.
+      description: Yêu cầu ROLE_ADMIN. Chỉ trả publicId, fullName, email, roles, createdAt, trạng thái xác thực gốc, trạng thái hiển thị và nhóm tình trạng kho của Owner; không trả khóa DB hoặc credential.
       parameters:
         - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
         - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
-        - { name: query, in: query, schema: { type: string, maxLength: 100 }, description: Tìm chuỗi con theo tên/email }
-        - { name: role, in: query, schema: { type: string, maxLength: 50 } }
-        - { name: status, in: query, schema: { type: string, enum: [PENDING, ACTIVE, DELETED] } }
+        - { name: query, in: query, schema: { type: string, maxLength: 100 }, description: 'Tìm chuỗi con theo tên/email; nếu là UUID đầy đủ (36 ký tự) thì còn tìm đúng tài khoản có publicId đó' }
+        - { name: role, in: query, schema: { type: string, maxLength: 50 }, description: Owner/Beneficiary/Legal/Staff chỉ lấy tài khoản gốc ACTIVE hoặc LOCKED chưa soft-delete; không lọc vai trò vẫn tra cứu được tài khoản cũ }
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, ACTIVE, LOCKED, IN_PROCESS, DELETED] }, description: Lọc accountStatus trước phân trang; Owner chỉ nhận ACTIVE/LOCKED; Beneficiary/Legal/Staff nhận ACTIVE/LOCKED/IN_PROCESS; tổ hợp không hợp lệ trả 400 }
+        - { name: vaultStatus, in: query, schema: { type: string, enum: [NO_VAULT, ACTIVE, IN_PROCESS, ARCHIVED] }, description: Chỉ dùng cùng role=ROLE_VAULT_OWNER; lọc trước phân trang }
       responses:
         '200':
           description: Trang tài khoản theo envelope phân trang chung.
@@ -811,11 +812,120 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Admin]
+      summary: Admin tạo tài khoản Staff, Legal hoặc Vault Owner
+      description: |
+        Yêu cầu ROLE_ADMIN. Tài khoản được tạo ở trạng thái ACTIVE với đúng một role trong
+        ROLE_STAFF_EXECUTOR, ROLE_LEGAL_VERIFIER, ROLE_VAULT_OWNER; không thể tạo ROLE_ADMIN hoặc ROLE_BENEFICIARY.
+        Email được chuẩn hóa như đăng ký thường. Mật khẩu ban đầu do Admin đặt, không bao giờ được trả lại.
+        Ghi audit ADMIN_USER_CREATED. Email trùng trả 409 EMAIL_ALREADY_EXISTS; role không hợp lệ trả 400 ADMIN_ROLE_NOT_ASSIGNABLE.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCreateUserRequest' }
+      responses:
+        '201':
+          description: Tài khoản đã tạo; chỉ trả các trường allow-list.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/users/{publicId}/lock:
+    post:
+      tags: [Admin]
+      summary: Admin khóa tài khoản
+      description: |
+        Yêu cầu ROLE_ADMIN. Chuyển ACTIVE sang LOCKED và thu hồi mọi token đã phát hành (tăng authVersion), nên mở khóa
+        về sau không làm phiên cũ sống lại. Tài khoản bị khóa không đăng nhập được và mọi request đang dùng token đều bị 401.
+        Không khóa được tài khoản ROLE_ADMIN hoặc chính mình (409 ADMIN_ACCOUNT_PROTECTED); tài khoản không ở ACTIVE
+        (ví dụ PENDING) trả 409 ADMIN_ACCOUNT_STATE_INVALID; tài khoản có kho đang xác minh/bàn giao hoặc đã lưu trữ trả
+        409 ADMIN_ACCOUNT_IN_HANDOVER; khóa lại tài khoản đã khóa là no-op. Ghi audit ADMIN_USER_LOCKED.
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminLockUserRequest' }
+      responses:
+        '200':
+          description: Tài khoản sau khi khóa.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/users/{publicId}/unlock:
+    post:
+      tags: [Admin]
+      summary: Admin mở khóa tài khoản
+      description: |
+        Yêu cầu ROLE_ADMIN. Chuyển LOCKED sang ACTIVE; token phát hành trước lúc khóa vẫn vô hiệu. Cùng các ràng buộc
+        bảo vệ như khóa; mở khóa tài khoản đang ACTIVE là no-op. Ghi audit ADMIN_USER_UNLOCKED.
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Tài khoản sau khi mở khóa.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/MalformedRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/users/{publicId}/role:
+    put:
+      tags: [Admin]
+      summary: Admin đổi vai trò Staff, Legal hoặc Vault Owner của tài khoản
+      description: |
+        Yêu cầu ROLE_ADMIN. Thay thế các role Staff/Legal/Vault Owner hiện có bằng đúng role được gửi; các role khác
+        (ví dụ ROLE_BENEFICIARY) được giữ nguyên. Có hiệu lực ngay vì role được đọc từ DB ở mỗi request.
+        Không đổi được role của tài khoản ROLE_ADMIN hoặc của chính mình (409 ADMIN_ACCOUNT_PROTECTED), và không đổi
+        khỏi Vault Owner khi tài khoản đã có kho (409 ADMIN_OWNER_HAS_VAULT). Gửi lại role hiện tại là no-op.
+        Ghi audit ADMIN_USER_ROLE_CHANGED.
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminUpdateUserRoleRequest' }
+      responses:
+        '200':
+          description: Tài khoản sau khi đổi role.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/admin/users/{publicId}:
     get:
       tags: [Admin]
       summary: Tra cứu chi tiết tài khoản theo public ID (PS-109, chỉ đọc)
       parameters:
+        - { name: role, in: query, schema: { type: string, maxLength: 50 }, description: Tính accountStatus nhất quán với danh sách; Owner/Beneficiary/Legal/Staff loại PENDING và DELETED với lỗi 404; bỏ role để tra cứu tài khoản cũ }
         - name: publicId
           in: path
           required: true
@@ -1285,6 +1395,7 @@ paths:
                 user: { id: 3f2b8c1e-0a4d-4c8e-9b1a-6a1d2f3e4b5c, fullName: Nguyen Van A, email: user@example.com, roles: [VAULT_OWNER] }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/InvalidCredentials' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /api/v1/auth/google:
     post:
@@ -4133,6 +4244,9 @@ paths:
         - { name: action, in: query, description: AuditAction enum name or LEGACY_EVENT; unknown values rejected, schema: { type: string } }
         - { name: actorId, in: query, description: Public user UUID, schema: { type: string, format: uuid } }
         - { name: actorKind, in: query, schema: { type: string, enum: [USER, SYSTEM, DELETED_USER, UNKNOWN] } }
+        - { name: actorRole, in: query, description: Role the actor held (the role shown on the event), schema: { type: string, enum: [VAULT_OWNER, STAFF_EXECUTOR, LEGAL_VERIFIER, BENEFICIARY, ADMIN] } }
+        - { name: vaultId, in: query, description: Public vault UUID, schema: { type: string, format: uuid } }
+        - { name: caseNumber, in: query, description: Case reference HS-yyyy-nnnnnn; matches events attributed to that case, schema: { type: string, pattern: '^HS-[0-9]{4}-[0-9]{6}$' } }
       responses:
         '200':
           description: Whitelisted metadata page; no-store
@@ -4321,7 +4435,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
     TooManyRequests:
-      description: TOO_MANY_ATTEMPTS — nhập sai mật khẩu xác nhận quá số lần cho phép (D-API-32)
+      description: "TOO_MANY_ATTEMPTS — nhập sai mật khẩu quá số lần cho phép (xác nhận mật khẩu D-API-32, hoặc đăng nhập: sai 5 lần thì email bị khóa 15 phút kể từ lần sai thứ 5; một IP vượt 30 lần sai/15 phút thì trả `RATE_LIMITED`)"
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
@@ -4334,14 +4448,44 @@ components:
   schemas:
     AdminUser:
       type: object
-      required: [publicId, fullName, email, roles, createdAt, status]
+      required: [publicId, fullName, email, roles, createdAt, status, accountStatus, vaultStatus]
       properties:
         publicId: { type: string, format: uuid }
         fullName: { type: string }
         email: { type: string, format: email }
         roles: { type: array, items: { type: string } }
         createdAt: { type: string, format: date-time, description: UTC }
-        status: { type: string, enum: [PENDING, ACTIVE, DELETED] }
+        status: { type: string, enum: [PENDING, ACTIVE, LOCKED, DELETED] }
+        accountStatus:
+          type: string
+          enum: [PENDING, ACTIVE, LOCKED, IN_PROCESS, DELETED]
+          description: Trạng thái hiển thị theo vai trò đang lọc; IN_PROCESS chỉ được suy ra khi status gốc là ACTIVE và có kho liên quan đang xử lý. Không dùng để xác thực.
+        vaultStatus:
+          type: [string, "null"]
+          enum: [NO_VAULT, ACTIVE, IN_PROCESS, ARCHIVED, null]
+          description: Nhóm tình trạng kho của Owner; null với vai trò khác hoặc trạng thái kho chưa được nhận diện. Không thay đổi trạng thái tài khoản.
+    AdminLockUserRequest:
+      type: object
+      properties:
+        reason: { type: string, maxLength: 255, description: 'Lý do khóa (tùy chọn), ghi vào audit' }
+    AdminCreateUserRequest:
+      type: object
+      required: [fullName, email, password, role]
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 150 }
+        email: { type: string, format: email, maxLength: 254 }
+        phone: { type: string, pattern: '^$|^\+?[0-9]{8,15}$' }
+        password: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true }
+        role:
+          type: string
+          enum: [ROLE_STAFF_EXECUTOR, ROLE_LEGAL_VERIFIER, ROLE_VAULT_OWNER]
+    AdminUpdateUserRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [ROLE_STAFF_EXECUTOR, ROLE_LEGAL_VERIFIER, ROLE_VAULT_OWNER]
     AdminUserPage:
       type: object
       required: [content, page, size, totalElements, totalPages]
@@ -4800,10 +4944,16 @@ components:
             - GOOGLE_IDENTITY_MISMATCH
             - PASSWORD_NOT_SET
             - PASSWORD_ALREADY_SET
+            - ACCOUNT_LOCKED_BY_ADMIN
             - ACCESS_DENIED
             - RESOURCE_NOT_FOUND
             - METHOD_NOT_ALLOWED
             - EMAIL_ALREADY_EXISTS
+            - ADMIN_ROLE_NOT_ASSIGNABLE
+            - ADMIN_ACCOUNT_PROTECTED
+            - ADMIN_OWNER_HAS_VAULT
+            - ADMIN_ACCOUNT_STATE_INVALID
+            - ADMIN_ACCOUNT_IN_HANDOVER
             - PAYLOAD_TOO_LARGE
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR
@@ -5137,12 +5287,12 @@ components:
         notification: { $ref: '#/components/schemas/WorkflowNotificationReceipt' }
     RecordOriginalWillRequest:
       type: object
-      required: [deliveredByName]
+      required: [deliveredByName, conditionNotes]
       properties:
         deliveredByName: { type: string, minLength: 1, maxLength: 150 }
         deliveredByRelationship: { type: string, maxLength: 100, nullable: true }
         evidenceReference: { type: string, maxLength: 500, nullable: true, description: Mã biên nhận/vị trí lưu, không phải file }
-        conditionNotes: { type: string, maxLength: 1000, nullable: true }
+        conditionNotes: { type: string, minLength: 1, maxLength: 1000, description: "Tình trạng bản gốc, bắt buộc và không chỉ gồm khoảng trắng" }
     OriginalWillIntakeResponse:
       type: object
       required: [id, caseId, deliveredByName, receivedBy, receivedAt]
@@ -5935,6 +6085,8 @@ components:
       properties:
         kind: { type: string, enum: [USER, SYSTEM, DELETED_USER, UNKNOWN] }
         userId: { type: string, format: uuid, nullable: true, description: Public user UUID; never a DB key }
+        name: { type: string, nullable: true, description: Current full name of an existing account (kind USER); never an email }
+        role: { type: string, nullable: true, enum: [VAULT_OWNER, STAFF_EXECUTOR, LEGAL_VERIFIER, BENEFICIARY, ADMIN], description: Role the actor held when the event was recorded; null for SYSTEM or an unknown role }
     AdminAuditEvent:
       type: object
       required: [id, occurredAt, actor, action, entityType, vaultId]
@@ -5945,6 +6097,10 @@ components:
         action: { type: string, description: Known AuditAction or LEGACY_EVENT }
         entityType: { type: string, description: Allowlisted label or OTHER }
         vaultId: { type: string, format: uuid, nullable: true, description: Public vault UUID }
+        ownerId: { type: string, format: uuid, nullable: true, description: Public user UUID of the vault owner }
+        caseId: { type: string, format: uuid, nullable: true, description: Public UUID of the case opened for this vault at or before the event; null before any case }
+        caseNumber: { type: string, nullable: true, description: 'Case reference HS-yyyy-nnnnnn' }
+        staffId: { type: string, format: uuid, nullable: true, description: Public user UUID of the Staff assigned to that case }
     AdminAuditPage:
       type: object
       required: [content, page, size, totalElements, totalPages]

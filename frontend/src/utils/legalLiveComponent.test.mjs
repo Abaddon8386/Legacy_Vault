@@ -38,8 +38,8 @@ test('paper intake histories never bleed into another paper and a recorded concl
  let writes=0;const old={id:a,originalWillIntakeId:a,version:1,result:'MATCH',comparedAt:now};
  globalThis.fetch=async(_url,init)=>{if(init.method==='POST')writes++;return json({caseId:a,vaultStatus:'WILL_VERIFICATION',approvalBlocked:false,originalWillIntakes:[{id:b,receivedAt:'2026-10-31T08:00:00Z'},{id:a,receivedAt:now}],wills:[{id:a,versions:[{version:1,sha256:digest}]}],comparisons:[old]});};
  const v=await mount({...base,step:'will-document-verification'});try{const select=getSelect(v.host,'Original intake');assert.match(select.querySelector(`option[value="${b}"]`).textContent,/Intake 2/);assert.match(select.querySelector(`option[value="${a}"]`).textContent,/Intake 1/);
- await change(select,b);assert.match(v.host.textContent,/No conclusion has been recorded/);assert.equal(v.host.querySelector('.lv-legal-history-item'),null);await choose(v.host,'MISMATCH');await change(v.host.querySelector('textarea'),'New paper draft');await change(select,a);assert.match(v.host.textContent,/Saved conclusion/);assert.equal(v.host.querySelector('form'),null);assert.equal(writes,0);
- await change(select,b);assert.equal(chosen(v.host),'');assert.equal(v.host.querySelector('.lv-legal-history-item'),null);
+ await change(select,b);assert.match(v.host.textContent,/No conclusion has been recorded/);assert.equal(v.host.querySelector('.lv-legal-history-item'),null);await choose(v.host,'MISMATCH');await change(v.host.querySelector('textarea'),'New paper draft');await change(select,a);assert.match(v.host.textContent,/Saved conclusion/);assert.equal(v.host.querySelector('form'),null);assert.equal(v.host.querySelector('.lv-legal-workspace').classList.contains('is-single-column'),true);assert.equal(writes,0);
+ await change(select,b);assert.equal(chosen(v.host),'');assert.equal(v.host.querySelector('.lv-legal-history-item'),null);assert.equal(v.host.querySelector('.lv-legal-workspace').classList.contains('is-single-column'),false);assert.ok(v.host.querySelector('.lv-legal-action-panel'));
  }finally{await v.close();}
 });
 
@@ -154,6 +154,8 @@ test('Saving automatically refreshes parent context and document while preservin
         vaultStatus: 'DOCUMENT_VERIFICATION', ...decision });
     }
     if (url.endsWith('/attachments')) return json([]);
+    // The stage chip also reads the distribution workflow; it is not a document read.
+    if (url.includes('/distribution-workflow')) return new Response(JSON.stringify({ code: 'RESOURCE_NOT_FOUND' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
     documentReads++;
     return json(detail(a, saved ? { vaultStatus: 'DOCUMENT_VERIFICATION', decisions: [decision] } : {}));
   };
@@ -165,10 +167,10 @@ test('Saving automatically refreshes parent context and document while preservin
     await submit(view.host);
     const previousReads = documentReads;
     assert.equal(contextReads, 2, 'The refresh must read the parent case context, not only the document');
-    assert.equal(view.host.querySelector('.lv-legal-case-banner'), null, 'Old status must disappear while revalidating');
+    assert.equal(view.host.querySelector('.lv-staff-context-bar'), null, 'Old status must disappear while revalidating');
     assert.equal(view.host.querySelector('form'), null, 'No decision may be submitted during context revalidation');
     await act(async () => finishContext(context()));
-    assert.match(view.host.querySelector('.lv-legal-case-status').textContent, /Document verification/);
+    assert.match(view.host.querySelector('.lv-staff-context-badge').textContent, /Document verification/);
     assert.equal(getSelect(view.host, 'Death document'), undefined);
     assert.equal(view.host.querySelector('textarea').value, 'Reviewed');
     assert.equal(documentReads, previousReads + 1);
@@ -190,7 +192,7 @@ for (const status of [403, 500]) test(`Retry revalidates parent context and hide
     await selectDocument(view.host, a);
     await click(view.host, 'Try again');
     assert.equal(contextReads, 2);
-    assert.equal(view.host.querySelector('.lv-legal-case-banner'), null);
+    assert.equal(view.host.querySelector('.lv-staff-context-bar'), null);
     assert.equal(view.host.querySelector('form'), null);
     assert.ok(view.host.querySelector('[role=alert]'));
   } finally { await view.close(); }
@@ -440,4 +442,21 @@ test('Legal can refresh newly uploaded death documents while preserving an unfin
     assert.equal(view.host.querySelector('textarea').value, 'Please clarify the issuing authority');
     assert.equal(chosen(view.host), 'REQUEST_MORE');
   } finally { await view.close(); }
+});
+
+test('the shared case bar and refresh stay in one inline row without changing the refresh operation', async () => {
+  let reads=0;
+  globalThis.fetch=async url=>url.endsWith('/attachments')?json([]):json(detail());
+  const view=await mount({...base,contextLoader:async()=>{reads++;return {caseId:a,caseNumber:'CASE-352',deathDocuments:[{id:a}]};}});
+  try {
+    const row=view.host.querySelector('.lv-legal-context-row');
+    assert.ok(row.querySelector('.lv-staff-context-bar'));
+    // The refresh is the floating pill beside, not inside, the case bar.
+    assert.equal(view.host.querySelectorAll('.lv-legal-context-actions button').length,1);
+    assert.equal(row.querySelectorAll('.lv-legal-context-actions').length,0);
+    const before=reads;
+    await click(view.host,'Refresh documents and case');
+    assert.equal(reads,before+1);
+    assert.ok(view.host.querySelector('.lv-legal-context-row .lv-staff-context-bar'));
+  } finally {await view.close();}
 });

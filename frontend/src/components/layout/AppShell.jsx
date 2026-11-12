@@ -93,7 +93,6 @@ const STAFF_NAVIGATION_REGISTRY = [
     status: 'ACTIVE',
   },
   { id: 'beneficiary-confirmation', jiraTicket: 'PS-54', labelVi: 'Xác nhận đã nhận tài sản', labelEn: 'Asset receipt confirmation', status: 'ACTIVE' },
-  { id: 'completion-progress', jiraTicket: 'PS-55', labelVi: 'Tiến độ hoàn tất', labelEn: 'Completion Progress', status: 'ACTIVE' },
   { id: 'close-and-archive', jiraTicket: 'PS-56', labelVi: 'Đóng và lưu trữ hồ sơ', labelEn: 'Close & Archive', status: 'ACTIVE' },
 ];
 
@@ -116,8 +115,22 @@ export default function AppShell({
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [prevTab, setPrevTab] = useState(currentTab);
   const [prevMobileMenuOpen, setPrevMobileMenuOpen] = useState(mobileMenuOpen);
+  const [isTabVisible, setIsTabVisible] = useState(
+    typeof document !== 'undefined' ? document.visibilityState !== 'hidden' : true
+  );
   const accountFooterRef = useRef(null);
   const badgeButtonRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const handleVisibilityChange = () => {
+      setIsTabVisible(document.visibilityState !== 'hidden');
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // Close account menu during render when currentTab or mobileMenuOpen changes
   if (currentTab !== prevTab) {
@@ -208,7 +221,7 @@ export default function AppShell({
           ? 'Cổng Thẩm định Pháp lý'
           : 'Quản lý di sản số',
       navSectionTitle: isStaff
-        ? ''
+        ? 'THỰC THI HỒ SƠ'
         : isLegal
           ? 'THẨM ĐỊNH PHÁP LÝ'
           : 'QUẢN LÝ DI SẢN',
@@ -218,7 +231,7 @@ export default function AppShell({
           ? 'Cổng Pháp lý'
           : 'Bảng điều khiển',
       breadcrumbCurrent: isStaff
-        ? (currentTab === 'close-and-archive' ? 'Đóng và lưu trữ hồ sơ' : currentTab === 'completion-progress' ? 'Tiến độ hoàn tất' : currentTab === 'beneficiary-confirmation' ? 'Xác nhận đã nhận tài sản' : currentTab === 'asset-handover' ? 'Bàn giao tài sản' : currentTab === 'cases' ? 'Hồ sơ xác minh' : 'Hồ sơ căn cứ pháp lý')
+        ? (currentTab === 'close-and-archive' ? 'Đóng và lưu trữ hồ sơ' : currentTab === 'beneficiary-confirmation' ? 'Xác nhận đã nhận tài sản' : currentTab === 'asset-handover' ? 'Bàn giao tài sản' : currentTab === 'cases' ? 'Hồ sơ xác minh' : 'Hồ sơ căn cứ pháp lý')
         : isLegal
           ? 'Xác minh tử vong'
           : 'Kho di sản cá nhân',
@@ -243,7 +256,7 @@ export default function AppShell({
           ? 'Legal Verification Portal'
           : 'Digital Heritage Sanctuary',
       navSectionTitle: isStaff
-        ? ''
+        ? 'CASE EXECUTION'
         : isLegal
           ? 'LEGAL VERIFICATION'
           : 'HERITAGE PORTAL',
@@ -253,7 +266,7 @@ export default function AppShell({
           ? 'Legal Portal'
           : 'Dashboard',
       breadcrumbCurrent: isStaff
-        ? (currentTab === 'close-and-archive' ? 'Close & Archive' : currentTab === 'completion-progress' ? 'Completion Progress' : currentTab === 'beneficiary-confirmation' ? 'Asset receipt confirmation' : currentTab === 'asset-handover' ? 'Asset Handover' : currentTab === 'cases' ? 'Verification Cases' : 'Legal Basis Documents')
+        ? (currentTab === 'close-and-archive' ? 'Close & Archive' : currentTab === 'beneficiary-confirmation' ? 'Asset receipt confirmation' : currentTab === 'asset-handover' ? 'Asset Handover' : currentTab === 'cases' ? 'Verification Cases' : 'Legal Basis Documents')
         : isLegal
           ? 'Death Verification'
           : 'Personal Heritage Vault',
@@ -350,6 +363,16 @@ export default function AppShell({
         className={`lv-shell-sidebar ${mobileMenuOpen ? 'is-open' : ''}`}
         aria-label="Điều hướng chính"
       >
+        {/* Animated Gradient Mesh Background */}
+        <div
+          className={`lv-sidebar-mesh-bg ${!isTabVisible ? 'is-paused' : ''}`}
+          aria-hidden="true"
+        >
+          <div className="lv-sidebar-mesh-orb lv-mesh-orb-1" aria-hidden="true" />
+          <div className="lv-sidebar-mesh-orb lv-mesh-orb-2" aria-hidden="true" />
+          <div className="lv-sidebar-mesh-orb lv-mesh-orb-3" aria-hidden="true" />
+        </div>
+
         {/* Brand Header */}
         <div className="lv-sidebar-brand">
           <div className="lv-brand-logo-wrap" aria-hidden="true">
@@ -411,12 +434,6 @@ export default function AppShell({
                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                         <circle cx="9" cy="7" r="4" />
                         <polyline points="16 11 18 13 22 9" />
-                      </svg>
-                    ) : item.id === 'completion-progress' ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 20V10" />
-                        <path d="M18 20V4" />
-                        <path d="M6 20v-4" />
                       </svg>
                     ) : item.id === 'close-and-archive' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

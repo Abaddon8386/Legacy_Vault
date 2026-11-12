@@ -9,7 +9,7 @@ export default function LegalAllocations({ version, lang }) {
     <p>{en ? `Document version ${version.version}` : `Phiên bản văn bản ${version.version}`}{version.documentNumber ? ` · ${version.documentNumber}` : ''}</p>
     {!allocations?.length ? <p>{en ? 'No allocation details are available in this version.' : 'Phiên bản này chưa có thông tin phân bổ để hiển thị.'}</p>
       : <>
-        {allocations.some(item => item.accountLinked === false) && <p className="lv-legal-help">{en ? 'You can review and approve this case before the recipient has linked an account. Staff will confirm their account before handing over assets.' : 'Bạn vẫn có thể thẩm định và phê duyệt khi người nhận chưa liên kết tài khoản. Nhân viên sẽ xác nhận tài khoản trước khi bàn giao tài sản.'}</p>}
+        {allocations.some(item => item.accountLinked === false) && <p className="lv-legal-help">{en ? 'A recipient without a linked account can still be approved; Staff confirms the account before handover' : 'Người nhận chưa liên kết tài khoản vẫn được duyệt, Staff xác nhận tài khoản trước khi bàn giao'}</p>}
         <table role="table">
           <caption>{en ? `Allocations in document version ${version.version}` : `Phân bổ trong văn bản phiên bản ${version.version}`}</caption>
           <thead role="rowgroup"><tr role="row">{headings.map(heading => <th key={heading} role="columnheader" scope="col">{heading}</th>)}</tr></thead>

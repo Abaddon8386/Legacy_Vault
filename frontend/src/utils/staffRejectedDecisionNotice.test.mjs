@@ -192,7 +192,7 @@ test('PS-138: StaffLegalDocumentsPage renders StaffLegalDecisionNotice from doss
   try {
     assert.match(v.host.textContent, /Legal đã từ chối phiên bản hồ sơ này/);
     assert.match(v.host.textContent, /Thiếu con dấu công chứng trên trang cuối/);
-    assert.match(v.host.textContent, /chỉ gửi thay đổi sau khi Legal mở bước bổ sung/);
+    assert.match(v.host.textContent, /chỉ gửi thay đổi sau khi Legal yêu cầu bổ sung giấy tờ/);
 
     const historyBtn = v.host.querySelector('.lv-distribution-context button');
     assert.ok(historyBtn, 'History button must be rendered');

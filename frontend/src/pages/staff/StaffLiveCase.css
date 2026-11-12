@@ -1,4 +1,4 @@
-﻿.lv-staff-live { max-width: 960px; margin: auto; padding: 24px; }
+.lv-staff-live { max-width: 960px; margin: auto; padding: 24px; }
 .lv-staff-live button:where(:not([class^=lv-datepicker])), .lv-staff-live input:where(:not([class^=lv-datepicker])), .lv-staff-live select { font: inherit; padding: 10px; border: 1px solid #b7c1b9; border-radius: 8px; }
 .lv-staff-live button:where(:not([class^=lv-datepicker])) { margin: 8px 8px 8px 0; cursor: pointer; }
 .lv-staff-live button:disabled { cursor: default; opacity: .55; }
@@ -169,7 +169,8 @@
 .lv-staff-live button:where(:not([class^=lv-datepicker])) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; box-sizing: border-box; min-height: 44px; font-size: 14px; }
 .lv-staff-live label { font-size: 14px; }
 .lv-staff-live progress { accent-color: #204f40; }
-.lv-staff-live .lv-staff-live__back { margin: 0; font-weight: 600; }
+.lv-staff-live .lv-staff-live__claim:where(:not([class^=lv-datepicker])) { margin: 4px 0 8px; padding: 10px 24px; min-height: 48px; font-size: 16px; font-weight: 700; background: #215443; color: #fff; border-color: #215443; box-shadow: 0 2px 8px rgba(33, 84, 67, .28); }
+.lv-staff-live .lv-staff-live__claim:where(:not([class^=lv-datepicker])):hover:not(:disabled) { background: #1a4435; }
 
 .lv-staff-live .lv-intake-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 20px 0; padding: 20px 24px; border: 1px solid #e2e5dc; border-radius: 16px; background: #fff; }
 .lv-staff-live .lv-intake-heading h1 { margin: 0 0 6px; font: 600 clamp(26px, 2.3vw, 34px)/1.3 var(--lv-font-serif, 'Playfair Display', Georgia, serif); font-variant-numeric: lining-nums; color: #203e33; }
@@ -181,9 +182,12 @@
 
 /* The tick already says done and aria-current already says viewing: keep both for screen readers only. */
 
-.lv-staff-live .lv-intake-tabs { display: flex; gap: 4px; margin: 20px 0 16px; border-bottom: 1px solid #e2e5dc; }
-.lv-staff-live .lv-intake-tabs button { margin: 0 0 -1px; padding: 0 14px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: #52675b; font-size: 16px; font-weight: 500; }
-.lv-staff-live .lv-intake-tabs button[aria-pressed=true] { border-bottom-color: #204f40; color: #164639; font-weight: 600; }
+.lv-staff-live .lv-intake-tabs { display: flex; justify-content: flex-start; align-items: center; gap: 8px; margin: 16px 0 20px; border-bottom: 1px solid var(--lv-border-subtle, #e2e5dc); overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.lv-staff-live .lv-intake-tabs::-webkit-scrollbar { display: none; }
+.lv-staff-live .lv-intake-tabs button { flex: 0 0 auto; width: auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 -1px; padding: 0 16px; min-height: 44px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--lv-control-text, #52675b); font-family: inherit; font-size: 16px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: color 0.18s ease, border-color 0.18s ease; }
+.lv-staff-live .lv-intake-tabs button:hover:not(:disabled) { color: var(--lv-action-primary-hover, #0c2b22); background: transparent; }
+.lv-staff-live .lv-intake-tabs button:focus-visible { outline: 2px solid var(--lv-action-focus, #164639); outline-offset: 2px; }
+.lv-staff-live .lv-intake-tabs button[aria-pressed=true] { border-bottom: 2px solid var(--lv-action-primary, #164639); color: var(--lv-action-primary, #164639); font-weight: 600; }
 .lv-staff-live .lv-intake-tabs button[aria-pressed=true]:disabled { opacity: 1; }
 
 .lv-staff-live .lv-staff-live__records-section { margin: 0 0 24px; }
@@ -201,7 +205,7 @@
 .lv-staff-live .lv-staff-record-reason { margin: 0; color: #52675b; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lv-staff-live .lv-staff-record-status { padding: 4px 10px; border-radius: 999px; font-size: 14px; font-weight: 600; white-space: nowrap; background: #eef0eb; color: #52675b; }
 .lv-staff-live .lv-staff-record-status.is-pending { background: var(--lv-status-await-bg); color: var(--lv-status-await-text); border: 1px solid var(--lv-status-await-border); }
-.lv-staff-live .lv-staff-record-status.is-positive { background: var(--lv-status-done-bg); color: var(--lv-status-done-text); }
+.lv-staff-live .lv-staff-record-status.is-positive { background: var(--lv-status-approved-bg); color: var(--lv-status-approved-text); }
 .lv-staff-live .lv-staff-record-status.is-negative { background: #fbeae8; color: #9b2c26; }
 .lv-staff-live .lv-staff-record-status.is-warning { background: #fff3d6; color: #6b4200; }
 .lv-staff-live .lv-staff-btn-toggle-att { min-width: 136px; }
@@ -235,3 +239,22 @@
   .lv-staff-live > .lv-staff-live__records-section { grid-column: 1; }
   .lv-staff-live > form { grid-column: 2; }
 }
+
+/* Legal's decision is the one thing Staff must act on: show it as a coloured callout (bar + tint) in the open row, and as a tinted reason line in the closed row. */
+.lv-staff-live .lv-staff-records-list .lv-staff-attachments-pane :is(.lv-intake-decision, .lv-staff-outcome):not(.is-pending) {
+  margin: 0 0 16px; padding: 16px 18px; border: 1px solid color-mix(in srgb, var(--decision-bar, #7b8a80) 25%, transparent); border-inline-start: 5px solid var(--decision-bar, #7b8a80);
+  border-radius: 10px; background: var(--decision-bg, #f2f4f0); color: var(--decision-ink, #2f3f36);
+}
+.lv-staff-live .lv-staff-records-list :is(.is-rejected, .is-negative):is(.lv-intake-decision, .lv-staff-outcome) { --decision-bar: #b3382f; --decision-bg: #fcefed; --decision-ink: #7f1f19; }
+.lv-staff-live .lv-staff-records-list :is(.is-needs_correction, .is-warning):is(.lv-intake-decision, .lv-staff-outcome) { --decision-bar: #c98a12; --decision-bg: #fff6df; --decision-ink: #6b4200; }
+.lv-staff-live .lv-staff-records-list :is(.is-approved, .is-positive):is(.lv-intake-decision, .lv-staff-outcome) { --decision-bar: #247a52; --decision-bg: #eaf5ee; --decision-ink: #17503a; }
+.lv-staff-live .lv-staff-attachments-pane .lv-intake-decision p { font-size: 17px; font-weight: 600; line-height: 1.5; color: var(--decision-ink, inherit); }
+.lv-staff-live .lv-staff-attachments-pane .lv-intake-decision p > strong:first-child { display: block; margin-bottom: 2px; font-size: 14px; font-weight: 700; }
+.lv-staff-live .lv-staff-attachments-pane .lv-intake-decision time { margin-top: 8px; color: var(--decision-ink, #52675b); opacity: .8; }
+.lv-staff-live .lv-staff-record-item:is(.is-negative, .is-warning, .is-positive) .lv-staff-record-reason {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-top: 8px; padding: 8px 12px; border-inline-start: 4px solid var(--decision-bar, #7b8a80);
+  border-radius: 8px; background: var(--decision-bg, #f2f4f0); color: var(--decision-ink, #2f3f36); font-weight: 600; white-space: normal;
+}
+.lv-staff-live .lv-staff-record-item.is-negative .lv-staff-record-reason { --decision-bar: #b3382f; --decision-bg: #fcefed; --decision-ink: #7f1f19; }
+.lv-staff-live .lv-staff-record-item.is-warning .lv-staff-record-reason { --decision-bar: #c98a12; --decision-bg: #fff6df; --decision-ink: #6b4200; }
+.lv-staff-live .lv-staff-record-item.is-positive .lv-staff-record-reason { --decision-bar: #247a52; --decision-bg: #eaf5ee; --decision-ink: #17503a; }

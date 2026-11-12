@@ -416,3 +416,40 @@
 @media (prefers-reduced-motion: reduce) {
   .hn-login-page *, .hn-login-page *::before, .hn-login-page *::after { animation: none !important; transition: none !important; }
 }
+
+/* Fit the sign-in card on one short screen (laptops, small windows) so it does not need scrolling. */
+@media (max-height: 820px) {
+  .hn-login-page.lv-auth-page { padding: 48px 24px 12px; }
+  .hn-login-page .lv-auth-card { padding: 14px 36px 16px; }
+  .hn-login-page .hn-login-form-topbar { margin-bottom: 0; }
+  .hn-login-page .lv-auth-brand { margin: 0 0 6px; }
+  .hn-login-page .hn-login-form-title { margin: 0 0 4px; }
+  .hn-login-page .hn-login-form-sub { margin: 0 0 12px; }
+  .hn-login-page .hn-login-field-group { margin-bottom: 10px; }
+  .hn-login-page .hn-login-label { margin-bottom: 4px; }
+  .hn-login-page .hn-login-input { min-height: 42px; padding-top: 8px; padding-bottom: 8px; }
+  .hn-login-page .hn-login-forgot-password { min-height: 30px; }
+  .hn-login-page .hn-login-cta-btn { min-height: 42px; padding-top: 10px; padding-bottom: 10px; }
+  .hn-login-page .hn-login-divider { margin: 10px 0 8px; }
+  .hn-login-page .hn-login-status-box { margin-top: 10px; }
+  .hn-login-page .hn-login-form-footer { margin-top: 8px; padding-top: 10px; }
+}
+/* Mid-height laptops have spare room: give the card a little more air than the tightest layout. */
+@media (min-height: 740px) and (max-height: 820px) {
+  .hn-login-page .lv-auth-card { padding: 26px 40px 28px; }
+  .hn-login-page .lv-auth-brand { margin: 0 0 12px; }
+  .hn-login-page .hn-login-form-title { margin: 0 0 8px; }
+  .hn-login-page .hn-login-form-sub { margin: 0 0 20px; }
+  .hn-login-page .hn-login-field-group { margin-bottom: 16px; }
+  .hn-login-page .hn-login-label { margin-bottom: 6px; }
+  .hn-login-page .hn-login-input { min-height: 46px; }
+  .hn-login-page .hn-login-cta-btn { min-height: 46px; }
+  .hn-login-page .hn-login-divider { margin: 16px 0 14px; }
+  .hn-login-page .hn-login-form-footer { margin-top: 14px; padding-top: 14px; }
+}
+@media (max-height: 640px) {
+  .hn-login-page.lv-auth-page { padding-top: 40px; padding-bottom: 8px; }
+  .hn-login-page .lv-auth-card { padding-top: 10px; padding-bottom: 10px; }
+  .hn-login-page .hn-login-form-sub { margin-bottom: 8px; }
+  .hn-login-page .hn-login-field-group { margin-bottom: 6px; }
+}

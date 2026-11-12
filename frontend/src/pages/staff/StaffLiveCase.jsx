@@ -11,10 +11,14 @@ import {
 import { formatFileSize, EVIDENCE_UPLOAD_I18N } from '../../utils/staffEvidenceUpload.js';
 import { formatIsoToDisplay } from '../../utils/datePickerHelpers.js';
 import EvidenceFileUploader from '../../components/common/EvidenceFileUploader.jsx';
+import StaffContactPanel from './StaffContactPanel.jsx';
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.jsx';
 import { DatePicker } from '../../components/common/DatePicker.jsx';
-import { ArrowLeft, ChevronDown, RefreshCw } from 'lucide-react';
+import { ChevronDown, RefreshCw } from 'lucide-react';
+import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
+import { useDistributionWorkflow } from '../../workflows/useDistributionWorkflow.js';
+import { staffStage } from '../../utils/staffStage.js';
 import './StaffLiveCase.css';
 import { WillComparisonOutcome } from '../../components/staff/StaffDocumentOutcome.jsx';
 
@@ -25,7 +29,7 @@ const labels = {
   deliveredByName: ['Họ tên người nộp', 'Delivered by'], deliveredByRelationship: ['Mối quan hệ', 'Relationship'],
   conditionNotes: ['Tình trạng bản gốc', 'Original condition'],
 };
-const requiredFields = ['documentType', 'issuingAuthority', 'documentNumber', 'issuedDate', 'deliveredByName'];
+const requiredFields = ['documentType', 'issuingAuthority', 'documentNumber', 'issuedDate', 'deliveredByName', 'conditionNotes'];
 const fields = {
   'death-documents': ['documentType', 'issuingAuthority', 'documentNumber', 'issuedDate', 'evidenceReference', 'notes'],
   'original-will-intakes': ['deliveredByName', 'deliveredByRelationship', 'evidenceReference', 'conditionNotes'],
@@ -91,7 +95,27 @@ export default function StaffLiveCase(props) {
 function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized }) {
   const en = lang === 'en';
   const [data, setData] = useState(null);
-  const [kind, setKind] = useState('death-documents');
+  const [contactsOpen, setContactsOpen] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'contacts');
+  // Keep the chosen tab in the address, so a reload opens the same tab.
+  const rememberTab = value => {
+    if (typeof window === 'undefined') return;
+    try {
+      const url = new URL(window.location.href);
+      // Only entering or leaving the Contacts tab touches the address; the document tabs keep their existing behaviour.
+      if (value === 'contacts') url.searchParams.set('tab', 'contacts');
+      else if (url.searchParams.get('tab') === 'contacts') { if (value) url.searchParams.set('tab', value); else url.searchParams.delete('tab'); }
+      else return;
+      window.history.replaceState(window.history.state, '', url.pathname + url.search);
+    } catch { /* The tab still works when the address cannot be updated. */ }
+  };
+  const distribution = useDistributionWorkflow({ caseId, workspace: 'STAFF', accessToken, lang, enabled: Boolean(data), onUnauthorized });
+  const [kind, setKind] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const param = new URLSearchParams(window.location.search).get('tab') || new URLSearchParams(window.location.search).get('kind');
+      if (param === 'original-will-intakes' || param === 'original-will') return 'original-will-intakes';
+    }
+    return 'death-documents';
+  });
   const [drafts, setDrafts] = useState({});
   const [records, setRecords] = useState([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
@@ -250,7 +274,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       const receipt = await uploadStaffDocumentAttachment(caseId, kind, recordId, file, { accessToken, lang, signal: c.signal });
       if (c.signal.aborted) return;
       setSelectedRecordFiles(prev => ({ ...prev, [recordId]: null }));
-      setNotice(`${en ? 'File attached successfully' : 'Đã đính kèm tệp'}: ${receipt.fileName}.${workflowNotificationFeedback(receipt, 'LEGAL', lang)}`);
+      setNotice(`${en ? 'File attached' : 'Đã đính kèm tệp'}: ${receipt.fileName}${workflowNotificationFeedback(receipt, 'LEGAL', lang)}`);
       publishStaffWorkflowChange();
       loadRecordAttachments(recordId);
     } catch (err) {
@@ -325,14 +349,13 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
   const currentPage = Math.min(documentPage, pageCount);
   const visibleRecords = numberedRecords.slice((currentPage-1)*5, currentPage*5);
   return <section className="lv-staff-live" aria-busy={busy || recordsLoading}>
-    <button type="button" className="lv-staff-live__back" onClick={onBack}><ArrowLeft size={16} aria-hidden="true" />{en ? 'Back to cases' : 'Về danh sách hồ sơ'}</button>
-    <header className="lv-intake-heading lv-staff-glow">
-      <div className="lv-intake-hero-content">
-      <h1>{data?.caseNumber || (en ? 'Verification case' : 'Hồ sơ xác minh')}</h1>
-      <div className="lv-intake-context"><strong>{data?.vaultName}</strong>{data?.ownerName && <span className="lv-intake-owner">{en ? 'Owner: ' : 'Chủ sở hữu: '}{data.ownerName}</span>}</div>
-      </div>
-      {data?.status && <span className={`lv-intake-status ${closed ? 'is-closed' : ''}`}>{data.status === 'OPEN' ? (en ? 'Open' : 'Đang mở') : data.status === 'CLOSED' ? (en ? 'Closed' : 'Đã đóng') : (en ? 'Cancelled' : 'Đã hủy')}</span>}
-    </header>
+    <StaffCaseContextBar
+      caseId={caseId}
+      caseItem={data}
+      stage={staffStage(distribution.data, en)}
+      onChangeCase={onBack}
+      lang={lang}
+    />
     {busy &&<div role="status"><progress aria-label={en ? 'Processing' : 'Đang xử lý'} /> {en ? 'Processing…' : 'Đang xử lý…'}</div>}
     {error && <FeedbackNotice className="lv-feedback--floating" tone="error" title={en ? 'Action not completed' : 'Chưa thể hoàn tất'} action={<button type="button" onClick={() => setError('')}>{en ? 'Close' : 'Đóng'}</button>}>{intakeFeedback(error, en)}</FeedbackNotice>}
     {notice && <FeedbackNotice className="lv-feedback--floating" tone="success">{notice}</FeedbackNotice>}
@@ -340,18 +363,22 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       const value = await loadStaffCase(caseId, options);
       if (!signal.aborted) setData(value);
     })}>{en ? 'Retry loading case' : 'Thử tải lại hồ sơ'}</button>}
-    {data?.assignmentStatus !== 'ASSIGNED_TO_CURRENT_STAFF' && <button disabled={busy || closed || (data?.assignmentStatus && data.assignmentStatus !== 'UNASSIGNED_CLAIMABLE')} onClick={async () => {
+    {data?.assignmentStatus !== 'ASSIGNED_TO_CURRENT_STAFF' && <button className="lv-staff-live__claim" disabled={busy || closed || (data?.assignmentStatus && data.assignmentStatus !== 'UNASSIGNED_CLAIMABLE')} onClick={async () => {
       let claimed = false;
       await run(async (options, signal) => {
         const value = await claimStaffCase(caseId, options);
-        if (!signal.aborted) { setData(value); setNotice((en ? 'Case assigned to you.' : 'Đã nhận hồ sơ.') + workflowNotificationFeedback(value,'LEGAL',lang)); publishStaffWorkflowChange(); claimed = true; }
+        if (!signal.aborted) { setData(value); setNotice((en ? 'Case assigned to you' : 'Đã nhận hồ sơ') + workflowNotificationFeedback(value,'LEGAL',lang)); publishStaffWorkflowChange(); claimed = true; }
       });
       // The list was read before the case was assigned (not-assigned error); reload it now.
       // Must run after `run` finishes: documentsWritePending blocks reads while it is active.
       if (claimed) loadDocuments(kind);
     }}>{en ? 'Claim case' : 'Nhận hồ sơ'}</button>}
     <div className="lv-intake-tabs" role="group" aria-label={en ? 'Record category' : 'Nhóm giấy tờ'}>
-      {documentKinds.map(([nextKind, vi, english]) => <button key={nextKind} type="button" aria-pressed={kind === nextKind} disabled={busy || recordsLoading} onClick={() => {
+      {/* Staff reaches the executor and family first, then they bring the documents recorded in the other tabs. */}
+      <button type="button" aria-pressed={contactsOpen} onClick={() => { setContactsOpen(true); rememberTab('contacts'); }}>{en ? 'Contacts' : 'Liên hệ'}</button>
+      {documentKinds.map(([nextKind, vi, english]) => <button key={nextKind} type="button" aria-pressed={!contactsOpen && kind === nextKind} disabled={busy || recordsLoading} onClick={() => {
+        setContactsOpen(false);
+        rememberTab(nextKind === 'original-will-intakes' ? 'original-will' : null);
         if (kind === nextKind) return;
         abortAttachments();
         setStagedFile(null);
@@ -367,6 +394,9 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       }}>{en ? english : vi}</button>)}
     </div>
 
+    {contactsOpen && <StaffContactPanel key={String(data?.assignmentStatus)} caseId={caseId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized}
+      assigned={data ? data.assignmentStatus === 'ASSIGNED_TO_CURRENT_STAFF' : null} />}
+    {!contactsOpen && <>
     <div className="lv-staff-live__records-section lv-staff-glow">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
         <h2>{en ? 'Received documents' : 'Giấy tờ đã tiếp nhận'}{recordsLoaded && !recordsError && !recordsLoading && <span className="lv-intake-count">{records.length}</span>}</h2>
@@ -387,10 +417,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
 
       {recordsError && (
         <p role="alert">
-          {intakeFeedback(recordsError, en)}{' '}
-          <button type="button" onClick={() => loadDocuments(kind)}>
-            {en ? 'Refresh' : 'Làm mới'}
-          </button>
+          {intakeFeedback(recordsError, en)}
         </p>
       )}
 
@@ -530,7 +557,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
           const attachmentReceipt = await uploadStaffDocumentAttachment(caseId, kind, saved.id, file, options);
           if (!signal.aborted) {
             setStagedFile(null);
-            setNotice((en ? 'Document saved with its attachment.' : 'Đã tiếp nhận giấy tờ và lưu tệp đính kèm.') + workflowNotificationFeedback(attachmentReceipt, 'LEGAL', lang));
+            setNotice((en ? 'Document saved with its file' : 'Đã tiếp nhận giấy tờ và tệp') + workflowNotificationFeedback(attachmentReceipt, 'LEGAL', lang));
             publishStaffWorkflowChange();
             loadRecordAttachments(saved.id);
           }
@@ -540,11 +567,11 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
             setSelectedRecordFiles(prev => ({ ...prev, [saved.id]: file }));
             loadRecordAttachments(saved.id);
             setUploadAttErrors(prev => ({...prev, [saved.id]: attErr.code || 'UPLOAD_FAILED'}));
-            setNotice(en ? 'Document saved. Please retry attaching the file in the document list.' : 'Đã tiếp nhận giấy tờ. Vui lòng tải lại tệp đính kèm tại giấy tờ vừa lưu trong danh sách.');
+            setNotice(en ? 'Document saved, retry attaching the file from the list' : 'Đã tiếp nhận giấy tờ, hãy đính kèm lại tệp từ danh sách');
           }
         }
       } else {
-        setNotice((en ? 'Document saved successfully.' : 'Đã tiếp nhận giấy tờ thành công.') + workflowNotificationFeedback(saved, 'LEGAL', lang));
+        setNotice((en ? 'Document saved' : 'Đã tiếp nhận giấy tờ') + workflowNotificationFeedback(saved, 'LEGAL', lang));
       }
     }); }}>
       <fieldset disabled={busy || closed || !writeReady}>
@@ -571,6 +598,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
         <button type="submit">{en ? 'Record intake' : 'Tiếp nhận giấy tờ'}</button>
       </fieldset>
     </form>}
+    </>}
 
     <EvidencePreviewModal
       isOpen={Boolean(previewModal?.isOpen)}

@@ -36,8 +36,6 @@ import ScopedAssetHandoverPage from './pages/staff/ScopedAssetHandoverPage.jsx';
 import { canAccessScopedAssetHandover } from './utils/scopedAssetHandoverValidation.js';
 import BeneficiaryConfirmationPage from './pages/staff/BeneficiaryConfirmationPage.jsx';
 import { canAccessBeneficiaryConfirmation } from './utils/beneficiaryConfirmationValidation.js';
-import CompletionProgressPage from './pages/staff/CompletionProgressPage.jsx';
-import { canAccessCompletionProgress } from './utils/completionProgressValidation.js';
 import CloseAndArchivePage from './pages/staff/CloseAndArchivePage.jsx';
 import './pages/staff/StaffWorkspace.css';
 import { canAccessCloseArchive } from './utils/closeAndArchiveValidation.js';
@@ -884,7 +882,6 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
           onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
           onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/handover'))}
           onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
-          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
           onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
         >
           <StaffSessionBoundary caseId={staffCaseId} sessionId={staffSessionId} accessToken={session?.accessToken} lang={lang} preview={preview} revision={refreshTrigger} onCaseChange={handleSelectStaffCase} onSessionChange={handleSelectStaffSession} onUnauthorized={logout} requireSession={false}>
@@ -950,7 +947,6 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
           onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
           onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/handover'))}
           onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
-          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
           onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
         >
           <StaffCaseDashboard
@@ -1057,8 +1053,8 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
   const isAccountProfileRoute = path === '/account/profile';
   const isAccountEditRoute = path === '/account/edit';
   const isStaffBeneficiaryConfirmationRoute = path === '/staff/beneficiary-confirmation';
-  const isStaffCompletionProgressRoute = path === '/staff/completion-progress';
-  const isStaffCloseArchiveRoute = path === '/staff/close-and-archive';
+  // The old progress page is now a summary at the top of Close & Archive; its address still opens that page.
+  const isStaffCloseArchiveRoute = path === '/staff/close-and-archive' || path === '/staff/completion-progress';
   const isStaffAssetHandoverRoute = path === '/staff/asset-handover';
   const isLegalDeathRoute = path === '/legal' || path === '/legal/death-verification';
   const isLegalWillRoute = path === '/legal/will-document-verification';
@@ -1092,8 +1088,6 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
       }
     } else if (targetTab === 'beneficiary-confirmation') {
       navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'));
-    } else if (targetTab === 'completion-progress') {
-      navigateTo(buildStaffRoute('/staff/completion-progress'));
     } else if (targetTab === 'close-and-archive') {
       navigateTo(buildStaffRoute('/staff/close-and-archive'));
     } else if (targetTab === 'death-verification') {
@@ -1327,7 +1321,6 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
           onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
           onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/handover'))}
           onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
-          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
           onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
         >
           <StaffSessionBoundary caseId={staffCaseId} sessionId={staffSessionId} accessToken={session?.accessToken} lang={lang} preview={preview} revision={refreshTrigger} onCaseChange={handleSelectStaffCase} onSessionChange={handleSelectStaffSession} onUnauthorized={logout} operation="delivery">
@@ -1375,50 +1368,6 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
         >
           <StaffSessionBoundary caseId={staffCaseId} sessionId={staffSessionId} accessToken={session?.accessToken} lang={lang} preview={preview} revision={refreshTrigger} onCaseChange={handleSelectStaffCase} onSessionChange={handleSelectStaffSession} onUnauthorized={logout}>
           <BeneficiaryConfirmationPage
-            lang={lang}
-            preview={preview}
-            isDevPreview={preview}
-            session={session}
-            accessToken={session?.accessToken || null}
-            user={session?.user || null}
-            caseId={staffCaseId}
-            caseReference={staffCaseId}
-            sessionId={staffSessionId}
-            caseItem={staffActiveCase}
-            onCaseChange={handleSelectStaffCase}
-            onUnauthorized={logout}
-            onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
-          />
-          </StaffSessionBoundary>
-        </AppShell>
-      </div>
-    );
-  }
-
-  if (isStaffCompletionProgressRoute) {
-    if (!isSessionActive(session) && !preview) {
-      return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
-    }
-    if (session && !canAccessCompletionProgress(session)) {
-      return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
-    }
-    return (
-      <div className="lv-app-root">
-        <AppShell
-          role="STAFF"
-          currentTab="completion-progress"
-          lang={lang}
-          onToggleLang={setLang}
-          isAuthenticated={isSessionActive(session)}
-          onLogout={isSessionActive(session) ? logout : null}
-          onRefresh={handleRefresh}
-          isRefreshing={isRefreshing}
-          session={session}
-          user={session?.user || null}
-          onNavigateTab={handleExecuteNavigation}
-        >
-          <StaffSessionBoundary caseId={staffCaseId} sessionId={staffSessionId} accessToken={session?.accessToken} lang={lang} preview={preview} revision={refreshTrigger} onCaseChange={handleSelectStaffCase} onSessionChange={handleSelectStaffSession} onUnauthorized={logout}>
-          <CompletionProgressPage
             lang={lang}
             preview={preview}
             isDevPreview={preview}

@@ -107,7 +107,7 @@ export const ASSET_I18N = {
         SERVER_ERROR: 'Máy chủ gặp sự cố. Vui lòng thử lại sau.',
         TOO_MANY_ATTEMPTS: 'Bạn đã thử xác nhận quá số lần cho phép. Vui lòng thử lại sau.',
         REAUTH_FAILED: 'Mật khẩu xác nhận không chính xác. Vui lòng thử lại.',
-        addSuccess: 'Đã thêm tài sản vào danh sách.',
+        addSuccess: 'Đã thêm tài sản',
         loadError: 'Không thể tải danh sách tài sản. Vui lòng thử lại sau.',
         saveError: 'Đã xảy ra lỗi khi lưu tài sản. Vui lòng kiểm tra lại.',
         ASSET_QUOTA_EXCEEDED: 'Đã hết chỗ cho tài sản và hồ sơ di chúc. Vui lòng nâng gói trước khi thêm mới.',
@@ -214,7 +214,7 @@ export const ASSET_I18N = {
         SERVER_ERROR: 'The server encountered a problem. Please try again later.',
         TOO_MANY_ATTEMPTS: 'Too many attempts. Please try again later.',
         REAUTH_FAILED: 'Incorrect verification password. Please try again.',
-        addSuccess: 'Asset added to the list.',
+        addSuccess: 'Asset added',
         loadError: 'Failed to retrieve asset inventory. Please try again.',
         saveError: 'An error occurred while saving the asset. Please try again.',
         ASSET_QUOTA_EXCEEDED: 'All asset and will slots are used. Upgrade your plan before adding another item.',
@@ -330,5 +330,5 @@ const PS6_I18N = {
 for (const lang of ["vi","en"]) { Object.assign(ASSET_I18N[lang].assets,PS6_I18N[lang]); Object.assign(ASSET_I18N[lang].assets.alerts,{editSuccess:lang==="vi"?"Đã cập nhật tài sản.":"Asset updated.",editError:lang==="vi"?"Không thể cập nhật tài sản.":"Unable to update asset."}); }
 for (const lang of ["vi","en"]) Object.assign(ASSET_I18N[lang].assets.alerts,{editPartial:lang==="vi"?"Chỉ lưu được một phần. Thay đổi chưa hoàn tất.":"Only part of the changes were saved. The update is not complete.",editSavedLabel:lang==="vi"?"Đã lưu":"Saved",editFailedLabel:lang==="vi"?"Lưu thất bại":"Failed",editRetryHint:lang==="vi"?"Nhập lại mật khẩu và bấm Lưu để thử lại; phần đã lưu sẽ không bị tải lên lần nữa.":"Re-enter your password and save again to retry; items already saved will not be uploaded again."})
 
-Object.assign(ASSET_I18N.vi.assets.editModal, {confirmPasswordLabel: 'Nhập mật khẩu để lưu', passwordRequired: 'Vui lòng nhập mật khẩu hiện tại.', passwordFailed: 'Không thể xác nhận mật khẩu. Vui lòng thử lại.'});
-Object.assign(ASSET_I18N.en.assets.editModal, {confirmPasswordLabel: 'Enter password to save', passwordRequired: 'Enter your current password.', passwordFailed: 'Unable to verify your password. Please try again.'});
+Object.assign(ASSET_I18N.vi.assets.editModal, {unlockHint: 'Nhập mật khẩu để xem và chỉnh sửa tài sản này. Chỉ cần nhập một lần, lưu thay đổi không cần nhập lại.', unlockBtn: 'Xác nhận mật khẩu', secureContentLabel: 'Nội dung bảo mật', confirmPasswordLabel: 'Nhập mật khẩu để chỉnh sửa', passwordRequired: 'Vui lòng nhập mật khẩu hiện tại.', passwordFailed: 'Không thể xác nhận mật khẩu. Vui lòng thử lại.'});
+Object.assign(ASSET_I18N.en.assets.editModal, {unlockHint: 'Enter your password to view and edit this asset. You only need to enter it once; saving will not ask again.', unlockBtn: 'Confirm password', secureContentLabel: 'Secure content', confirmPasswordLabel: 'Enter password to edit', passwordRequired: 'Enter your current password.', passwordFailed: 'Unable to verify your password. Please try again.'});

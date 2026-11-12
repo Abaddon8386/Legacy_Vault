@@ -4,7 +4,7 @@
   --staff-muted: #67776f;
   --staff-line: #e2e5dc;
 }
-.lv-staff-surfaces > :is(.lv-staff-dashboard,.lv-staff-live,.lv-live-handover,.lv-staff-documents-view,.lv-asset-handover-view,.lv-beneficiary-confirmation-view,.lv-completion-progress-view,.lv-close-archive-view) {
+.lv-staff-surfaces > :is(.lv-staff-dashboard,.lv-staff-live,.lv-live-handover,.lv-staff-documents-view,.lv-asset-handover-view,.lv-beneficiary-confirmation-view,.lv-close-archive-view) {
   width: 100%;
   max-width: 1140px;
   min-width: 0;
@@ -27,24 +27,6 @@
   text-wrap: balance;
 }
 .lv-staff-surfaces .lv-live-handover > h1 { margin: 14px 0 24px; }
-.lv-staff-counter-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid #a3b8aa;
-  border-radius: 8px;
-  background: #fff;
-  color: #244b3d;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: background 180ms ease;
-}
-.lv-staff-counter-link:hover { background: #edf5f1; color: #244b3d; }
-.lv-staff-counter-link:focus-visible { outline: 3px solid #c5a059; outline-offset: 3px; }
 .lv-staff-surfaces :is(.lv-confirm-card,.lv-handover-card,.lv-progress-card,.lv-ca-card,.lv-metric-card,.lv-dossier-card,.lv-staff-form-card,.lv-staff-table-wrap) {
   border-color: var(--staff-line);
   border-radius: 16px;
@@ -89,11 +71,7 @@
 .lv-staff-surfaces .lv-staff-context-bar { border-radius: 14px; }
 @media(max-width:680px) {
   .lv-staff-surfaces .lv-staff-dashboard__header { align-items: stretch; gap: 18px; }
-  .lv-staff-counter-link { width: 100%; box-sizing: border-box; }
   .lv-staff-surfaces .lv-live-handover :is(.lv-session-detail,.lv-counter-beneficiaries) { padding: 18px; }
-}
-@media(prefers-reduced-motion:reduce) {
-  .lv-staff-counter-link { transition: none; }
 }
 
 /* Case header: deep green block so the case is the first thing the eye finds. Shared by the case bar and the case detail header. */
@@ -116,7 +94,7 @@
 
 .lv-staff-surfaces .lv-staff-live .lv-intake-context > span.lv-intake-owner:not(.lv-intake-status) { color: rgba(255,255,255,.78); }
 
-.lv-staff-surfaces .lv-staff-context-bar--active .lv-staff-context-badge--outcome-positive { background: var(--lv-status-done-bg); color: #3f4a42; }
+.lv-staff-surfaces .lv-staff-context-bar--active .lv-staff-context-badge--outcome-positive { background: var(--lv-status-approved-bg); color: var(--lv-status-approved-text); }
 .lv-staff-surfaces .lv-staff-context-bar--active .lv-staff-context-badge--outcome-warning { background: #fbefcf; color: #6d4a0f; }
 .lv-staff-surfaces .lv-staff-context-bar--active .lv-staff-context-badge--outcome-negative { background: #f9dcd8; color: #7a2a22; }
 
@@ -128,6 +106,11 @@
    The animated gold glow and the 3px gold top border stay on the case header only. The doubled class beats the page-level rules. */
 .lv-staff-surfaces.lv-staff-surfaces .lv-staff-glow:not(.lv-staff-context-bar)::before,
 .lv-staff-surfaces.lv-staff-surfaces .lv-staff-glow:not(.lv-staff-context-bar)::after { content: none; animation: none; }
+/* The verification case list is the one list that keeps the drifting gold outline (its own frame, no case header on that page). */
+.lv-staff-surfaces.lv-staff-surfaces .lv-staff-table-wrap.lv-staff-glow:not(.lv-staff-context-bar)::after { content: ''; }
+@media (prefers-reduced-motion: no-preference) {
+  .lv-staff-surfaces.lv-staff-surfaces .lv-staff-table-wrap.lv-staff-glow:not(.lv-staff-context-bar)::after { animation: lv-owner-border-drift 9s linear infinite; }
+}
 .lv-staff-surfaces.lv-staff-surfaces :is(.lv-staff-glow, .lv-live-case-summary, .lv-live-case-picker, .lv-session-panel, .lv-session-detail,
   .lv-counter-beneficiaries, .lv-counter-handover-card, .lv-staff-form-card, .lv-group-handover, .lv-counter-link):not(.lv-staff-context-bar) {
   border: 1px solid #dfe4dc; border-radius: 14px; box-shadow: none;

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { normalizeAdminRole, normalizeAdminRoles, validateAdminOverview, validateAdminUser, validateAdminAuditLog,
-  fetchAdminOverview, fetchAdminUsers, fetchAdminUserDetail, fetchAdminAuditLogs, fetchAdminAuditDetail, lockAdminUser } from './adminService.js';
+  fetchAdminOverview, fetchAdminUsers, fetchAdminUserDetail, fetchAdminAuditLogs, fetchAdminAuditDetail, setAdminUserLocked } from './adminService.js';
 const id = '11111111-1111-4111-8111-111111111111';
 const event = { id, occurredAt: '2026-10-20T12:00:00Z', actor: { kind: 'UNKNOWN', userId: null },
   action: 'LEGACY_EVENT', entityType: 'OTHER', vaultId: null };
@@ -95,12 +95,69 @@ test('read adapters preserve authorization, unavailable and abort failures', asy
   });
   await withFetch(async () => { throw new DOMException('cancelled','AbortError'); }, () => assert.rejects(() => fetchAdminAuditLogs('T'), error => error.name === 'AbortError'));
 });
-test('provisional user parser rejects malformed lists and user writes remain disabled', async () => {
+test('user parser rejects malformed lists', async () => {
   await withFetch(async () => json({ bad: true }), () => assert.rejects(() => fetchAdminUsers('T'), /INVALID_USERS_RESPONSE/));
-  await assert.rejects(() => lockAdminUser('T', { userId: id }), /LOCK_POLICY_PENDING/);
 });
 
 const wireUser = { publicId: id, fullName: 'Account', email: 'account@example.test', roles: ['ROLE_ADMIN'], status: 'DELETED', createdAt: '2026-10-20T12:00:00Z' };
+
+test('scoped business roles reject legacy filters and legacy receipts without hiding records after pagination', async () => {
+  for (const role of ['VAULT_OWNER', 'BENEFICIARY', 'LEGAL_VERIFIER', 'STAFF_EXECUTOR']) {
+    for (const status of ['PENDING', 'DELETED']) {
+      await withFetch(() => assert.fail('invalid role/status must not request data'),
+        () => assert.rejects(() => fetchAdminUsers('T', {role, status}), /VALIDATION_FAILED/));
+      const user = {...wireUser, roles:['ROLE_'+role], status, accountStatus:status};
+      await withFetch(async () => json({content:[user],page:0,size:20,totalElements:1,totalPages:1}),
+        () => assert.rejects(() => fetchAdminUsers('T', {role}), /INVALID_USERS_RESPONSE/));
+      await withFetch(async () => json(user),
+        () => assert.rejects(() => fetchAdminUserDetail('T', id, {role}), /INVALID_USER_RECORD/));
+      await withFetch(async () => json({content:[{...user,accountStatus:'ACTIVE'}],page:0,size:20,totalElements:1,totalPages:1}),
+        () => assert.rejects(() => fetchAdminUsers('T', {role}), /INVALID_USERS_RESPONSE/));
+      await withFetch(async () => json(user),
+        async () => assert.equal((await fetchAdminUserDetail('T', id)).accountStatus,status));
+    }
+  }
+  await withFetch(() => assert.fail('Owner processing belongs to the vault filter'),
+    () => assert.rejects(() => fetchAdminUsers('T', {role:'VAULT_OWNER',status:'IN_PROCESS'}), /VALIDATION_FAILED/));
+});
+
+test('processing display state preserves authentication state and detail requests keep the selected role', async () => {
+  const actor = { ...wireUser, roles: ['ROLE_LEGAL_VERIFIER'], status: 'ACTIVE', accountStatus: 'IN_PROCESS' };
+  const user = validateAdminUser(actor);
+  assert.equal(user.status, 'ACTIVE');
+  assert.equal(user.accountStatus, 'IN_PROCESS');
+  await withFetch(async url => {
+    const target = new URL(url, 'http://local');
+    assert.ok(target.pathname.endsWith('/' + id));
+    assert.equal(target.searchParams.get('role'), 'ROLE_LEGAL_VERIFIER');
+    return json(actor);
+  }, async () => assert.equal((await fetchAdminUserDetail('T', id, {role:'LEGAL_VERIFIER'})).accountStatus, 'IN_PROCESS'));
+});
+
+test('owner vault filters are independent from locked accounts and never fabricate missing vault state', async () => {
+  for (const vaultStatus of ['NO_VAULT', 'ACTIVE', 'IN_PROCESS', 'ARCHIVED']) {
+    await withFetch(async url => {
+      const params = new URL(url, 'http://local').searchParams;
+      assert.equal(params.get('role'), 'ROLE_VAULT_OWNER');
+      assert.equal(params.get('status'), 'LOCKED');
+      assert.equal(params.get('vaultStatus'), vaultStatus);
+      return json({ content: [{ ...wireUser, roles: ['ROLE_VAULT_OWNER', 'ROLE_BENEFICIARY'], status: 'LOCKED', vaultStatus }], page: 0, size: 20, totalElements: 1, totalPages: 1 });
+    }, async () => {
+      const result = await fetchAdminUsers('T', { role: 'VAULT_OWNER', status: 'LOCKED', vaultStatus });
+      assert.equal(result.items[0].vaultStatus, vaultStatus);
+      assert.equal(result.items[0].status, 'LOCKED');
+    });
+  }
+  for (const vaultStatus of [null, undefined, 'UNKNOWN']) {
+    assert.equal(validateAdminUser({ ...wireUser, roles: ['ROLE_VAULT_OWNER'], vaultStatus }).vaultStatus, null);
+  }
+  assert.equal(validateAdminUser({ ...wireUser, vaultStatus: 'ACTIVE' }).vaultStatus, null);
+  await withFetch(() => assert.fail('invalid filters must not send a request'), async () => {
+    for (const params of [{ vaultStatus: 'ACTIVE' }, { role: 'ADMIN', vaultStatus: 'NO_VAULT' }, { role: 'VAULT_OWNER', vaultStatus: 'UNKNOWN' }]) {
+      await assert.rejects(() => fetchAdminUsers('T', params), /VALIDATION_FAILED/);
+    }
+  });
+});
 test('PS-109 user search maps pagination and role, uses shared authentication and strips unexpected fields', async () => {
   await withFetch(async (url, options) => {
     const q = new URL(url, 'http://local').searchParams;
@@ -129,7 +186,7 @@ test('PS-109 rejects malformed paging, duplicate records and invalid request par
     await withFetch(async () => json(raw), () => assert.rejects(() => fetchAdminUsers('T'), /INVALID_USERS_RESPONSE/));
   }
   await withFetch(() => { throw Error('unexpected network'); }, async () => {
-    for (const params of [{ page: 0 }, { pageSize: 101 }, { status: 'LOCKED' }, { role: 'GUARDIAN' }, { query: 'x'.repeat(101) }])
+    for (const params of [{ page: 0 }, { pageSize: 101 }, { status: 'DISABLED' }, { role: 'GUARDIAN' }, { query: 'x'.repeat(101) }])
       await assert.rejects(() => fetchAdminUsers('T', params), /VALIDATION_FAILED/);
     await assert.rejects(() => fetchAdminAuditLogs('T', { actorId: 'bad-id' }), /VALIDATION_FAILED/);
   });
@@ -154,4 +211,70 @@ test('PS-103 attachment audit actions do not invalidate the Admin log after an e
 
 test('PS-79 profile updates remain readable in the Admin audit log', () => {
   assert.equal(validateAdminAuditLog({ ...event, action: 'AUTH_PROFILE_UPDATED' }).action, 'AUTH_PROFILE_UPDATED');
+});
+
+test('setAdminUserLocked posts lock with an optional trimmed reason and unlock without a body', async () => {
+  const record = { publicId: id, fullName: 'Account', email: 'account@example.test', roles: ['ROLE_STAFF_EXECUTOR'], status: 'LOCKED', createdAt: '2026-10-20T12:00:00Z' };
+  const calls = [];
+  await withFetch(async (url, options) => { calls.push({ url, options }); return json(record); }, async () => {
+    const locked = await setAdminUserLocked('T', id, true, { reason: '  Policy review  ' });
+    assert.equal(locked.status, 'LOCKED');
+    assert.match(calls[0].url, new RegExp(`/admin/users/${id}/lock$`));
+    assert.equal(calls[0].options.method, 'POST');
+    assert.deepEqual(JSON.parse(calls[0].options.body), { reason: 'Policy review' });
+    await setAdminUserLocked('T', id, true, { reason: '   ' });
+    assert.equal(calls[1].options.body, undefined);
+    await setAdminUserLocked('T', id, false, { reason: 'ignored' });
+    assert.match(calls[2].url, new RegExp(`/admin/users/${id}/unlock$`));
+    assert.equal(calls[2].options.body, undefined);
+    await assert.rejects(() => setAdminUserLocked('T', 'not-a-uuid', true), /VALIDATION_FAILED/);
+    await assert.rejects(() => setAdminUserLocked('T', id, true, { reason: 'x'.repeat(256) }), /VALIDATION_FAILED/);
+    await assert.rejects(() => setAdminUserLocked('T', id, 'yes'), /VALIDATION_FAILED/);
+  });
+  await withFetch(async () => json({ ...record, publicId: '99999999-9999-4999-8999-999999999999' }),
+    () => assert.rejects(() => setAdminUserLocked('T', id, true), /INVALID_USER_RECORD/));
+});
+
+test('audit events keep the actor role, owner, case and assigned Staff, and reject malformed context', () => {
+  const full = { ...event, actor: { kind: 'USER', userId: id, role: 'LEGAL_VERIFIER' }, ownerId: id, caseId: id,
+    caseNumber: 'HS-2026-000001', staffId: id };
+  const data = validateAdminAuditLog(full);
+  assert.deepEqual([data.actorRole, data.ownerId, data.caseId, data.caseNumber, data.staffId], ['LEGAL_VERIFIER', id, id, 'HS-2026-000001', id]);
+  assert.equal(validateAdminAuditLog(event).caseNumber, null); // older backend without the new fields
+  assert.throws(() => validateAdminAuditLog({ ...full, actor: { ...full.actor, role: 'ROOT' } }));
+  assert.throws(() => validateAdminAuditLog({ ...full, caseNumber: 'HS-1' }));
+  assert.throws(() => validateAdminAuditLog({ ...full, staffId: 'x' }));
+});
+
+test('every audit action has a Vietnamese and an English label with a capital first letter', async () => {
+  const { adminActionLabel } = await import('../pages/admin/adminPresentation.js');
+  const source = readFileSync(new URL('../../../backend/src/main/java/com/legacyvault/audit/AuditAction.java', import.meta.url), 'utf8');
+  const codes = [...source.matchAll(/^\s+([A-Z][A-Z0-9_]+),?\s*$/gm)].map(match => match[1]);
+  for (const code of [...codes, 'LEGACY_EVENT']) {
+    for (const lang of ['vi', 'en']) {
+      const label = adminActionLabel(code, lang);
+      assert.notEqual(label, code, `${code} has no ${lang} label`);
+      assert.equal(label[0], label[0].toLocaleUpperCase(lang), `${code}: first letter must be a capital`);
+    }
+  }
+});
+
+test('audit events keep the actor name only when it is a short string', () => {
+  const named = { ...event, actor: { kind: 'USER', userId: id, role: 'STAFF_EXECUTOR', name: 'Nguyen Van A' } };
+  assert.equal(validateAdminAuditLog(named).actorName, 'Nguyen Van A');
+  assert.equal(validateAdminAuditLog(event).actorName, null);
+  assert.throws(() => validateAdminAuditLog({ ...named, actor: { ...named.actor, name: 42 } }));
+});
+
+test('the actor filter sends a role as actorRole and SYSTEM or UNKNOWN as actorKind', async () => {
+  const urls = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url) => { urls.push(String(url)); return new Response(JSON.stringify({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  try {
+    await fetchAdminAuditLogs('T', { actorType: 'STAFF_EXECUTOR' });
+    await fetchAdminAuditLogs('T', { actorType: 'SYSTEM' });
+  } finally { globalThis.fetch = original; }
+  assert.match(urls[0], /actorRole=STAFF_EXECUTOR/);
+  assert.doesNotMatch(urls[0], /actorKind/);
+  assert.match(urls[1], /actorKind=SYSTEM/);
 });

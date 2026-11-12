@@ -51,7 +51,6 @@ export const scopedAssetHandoverI18n = {
     step3Title: 'Bước 3 — Kiểm tra và xác nhận bàn giao',
     btnReviewHandover: 'Bàn giao tất cả',
     reviewModalTitle: 'Tóm tắt & Xác nhận Bàn giao Tài sản',
-    reviewModalNotice: 'LƯU Ý NGHIỆP VỤ: Nhân viên quầy phải gặp mặt trực tiếp người nhận và đối chiếu giấy tờ tùy thân gốc bên ngoài hệ thống trước khi xác nhận ghi nhận bàn giao.',
     reviewModalCase: 'Mã hồ sơ:',
     reviewModalSession: 'Phiên bàn giao:',
     reviewModalRecipient: 'Người nhận bàn giao:',
@@ -59,7 +58,7 @@ export const scopedAssetHandoverI18n = {
     btnCancelReview: 'Hủy',
     btnConfirmDelivery: 'Xác nhận ghi nhận bàn giao',
     delivering: 'Đang ghi nhận...',
-    deliverySuccessBatch: 'Đã ghi nhận bàn giao thành công {count} tài sản cho người nhận.',
+    deliverySuccessBatch: 'Đã bàn giao {count} tài sản',
 
     // Error keys
     scopeRequired: 'Yêu cầu phạm vi phân bổ hợp lệ.',
@@ -116,7 +115,6 @@ export const scopedAssetHandoverI18n = {
     step3Title: 'Step 3 — Review and confirm handover',
     btnReviewHandover: 'Hand over all',
     reviewModalTitle: 'Handover Summary & Confirmation',
-    reviewModalNotice: 'REGULATORY NOTICE: Staff must meet the recipient in person and verify original identity documents outside the system before recording delivery.',
     reviewModalCase: 'Case Reference:',
     reviewModalSession: 'Handover Session:',
     reviewModalRecipient: 'Recipient:',
@@ -124,7 +122,7 @@ export const scopedAssetHandoverI18n = {
     btnCancelReview: 'Cancel',
     btnConfirmDelivery: 'Confirm & Record Delivery',
     delivering: 'Recording...',
-    deliverySuccessBatch: 'Successfully recorded delivery of {count} asset(s) to recipient.',
+    deliverySuccessBatch: 'Delivered {count} asset(s)',
 
     // Error keys
     scopeRequired: 'Valid allocation scope data is required.',

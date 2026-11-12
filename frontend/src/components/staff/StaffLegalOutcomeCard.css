@@ -1,6 +1,7 @@
 /* Verdict band: flat, tinted by the result, no card chrome, so it reads as a status and not as another information card. */
 .lv-staff-legal-outcome { --o-ink: var(--lv-status-done-text); --o-fill: var(--lv-status-done-bg); --o-line: var(--lv-status-done-border); display: flex; align-items: flex-start; gap: 16px; margin: 0 0 20px; padding: 18px 22px; border: 1px solid var(--o-line); border-radius: 12px; background: var(--o-fill); color: #1f2d27; }
 .lv-staff-legal-outcome.is-warning { --o-ink: #6d4a0f; --o-fill: #fbf1d6; --o-line: #e3cd8a; }
+.lv-staff-legal-outcome.is-positive { --o-ink: #0f6a3b; --o-fill: #e3f5ea; --o-line: #86cfa4; }
 .lv-staff-legal-outcome.is-history { --o-ink: #4a5a52; --o-fill: #eef0ec; --o-line: #cdd3cc; }
 .lv-staff-legal-outcome.is-negative { --o-ink: #8e2f26; --o-fill: #fbe6e3; --o-line: #e8b4ad; }
 .lv-staff-legal-outcome__icon { flex: none; margin-top: 2px; color: var(--o-ink); }

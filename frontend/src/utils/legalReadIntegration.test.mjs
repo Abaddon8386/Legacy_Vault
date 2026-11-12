@@ -119,7 +119,7 @@ test('Legal rejection stays mounted during a late workflow poll and reports an u
     await act(async () => finishWrite(json({ dossierId: a, decision: 'LEGAL_REJECTED', versionNo: 1,
       sha256Hash: sha, allocationHash: allocation, decidedBy: a, decidedAt: now })));
     assert.match(view.host.textContent, /Case approval rejected/);
-    assert.match(view.host.textContent, /notification to Staff has not been confirmed/);
+    assert.match(view.host.textContent, /Notification to Staff not confirmed/);
   } finally { await view.close(); }
 });
 
@@ -180,7 +180,7 @@ for (const lang of ['vi', 'en']) test(`BE-02 displays current A/C allocations an
     assert.equal(writes, 1);
     assert.deepEqual(body, { decision: 'APPROVE', reason: 'Reviewed scope', versionNo: 2, sha256Hash: sha, allocationHash: allocation });
     assert.ok(view.host.querySelector('a[href*="controlled-unlock"]'), 'Next action is navigation; approval must never submit unlock');
-    assert.match(view.host.textContent, lang === 'en' ? /notification for Staff has been recorded in the system/ : /Đã ghi nhận thông báo cho Nhân viên trong hệ thống/);
+    assert.doesNotMatch(view.host.textContent, lang === 'en' ? /notification for Staff has been recorded in the system/ : /Đã ghi nhận thông báo cho Nhân viên trong hệ thống/);
   } finally { await view.close(); }
 });
 
@@ -197,7 +197,7 @@ for (const status of [401, 403, 404, 500]) test(`post-save context HTTP ${status
     assert.equal(view.host.querySelector('form'), null); assert.equal(view.host.querySelector('table'), null);
     if (status !== 500) assert.doesNotMatch(view.host.textContent, /Decision saved|Recipient C/);
     else {
-      assert.match(view.host.textContent, /Saved successfully/);
+      assert.match(view.host.textContent, /Saved/);
       await click(view.host, 'Retry');
       assert.ok(view.host.querySelector('table')); assert.equal(writes, 1);
       assert.equal(view.host.querySelector('[type=submit]').disabled, true);
@@ -268,6 +268,18 @@ test('controlled unlock is a separate confirmed request, never implicit after ap
   } finally { await view.close(); }
 });
 
+test('the unlock page opens on Unlock vault, with Handover on hold as the second tab', async () => {
+  globalThis.fetch = transport(() => json(contextFixture(a, true)), () => json({}));
+  const view = await mount({ ...base, step: 'controlled-unlock' });
+  try {
+    const tabs = [...view.host.querySelectorAll('[role=tab]')];
+    assert.deepEqual(tabs.map(tab => tab.id), ['legal-unlock-tab-unlock', 'legal-unlock-tab-reopen']);
+    assert.equal(tabs[0].getAttribute('aria-selected'), 'true');
+    assert.equal(tabs[1].getAttribute('aria-selected'), 'false');
+    assert.match(tabs[1].textContent, /Handover on hold/);
+  } finally { await view.close(); }
+});
+
 test('final decision opens a consequence summary and cancelling sends no request', async () => {
   let writes = 0;
   globalThis.fetch = transport(() => json(contextFixture()), () => { writes++; return json({}); });
@@ -297,9 +309,9 @@ for (const caseStatus of ['CLOSED', 'CANCELLED']) test(`${caseStatus} Legal cont
     assert.match(view.host.textContent, /CASE-A/);
     assert.equal(view.host.querySelector('.lv-legal-technical'), null);
     assert.equal(view.host.querySelector('.lv-legal-facts').textContent.includes('LEGAL_BASIS_VERIFICATION'), false);
-    const badge = view.host.querySelector('.lv-legal-case-status');
+    const badge = view.host.querySelector('.lv-staff-context-badge');
     assert.equal(badge.textContent, caseStatus === 'CANCELLED' ? 'Verification cancelled' : 'Closed');
-    assert.ok(badge.classList.contains(caseStatus === 'CANCELLED' ? 'is-error' : 'is-neutral'));
+    assert.ok(badge.classList.contains(caseStatus === 'CANCELLED' ? 'lv-staff-context-badge--cancelled' : 'lv-staff-context-badge--closed'));
   } finally { await view.close(); }
 });
 

@@ -39,11 +39,18 @@ export async function cancelLiveSession(caseId, sessionId, options = {}) {
   if (value.status !== 'CANCELLED') throw new ApiError('INVALID_RESPONSE');
   return value;
 }
-export function handoverUrl(path, caseId, sessionId) {
+export function handoverUrl(path, caseId, sessionId, lang) {
   const query = new URLSearchParams();
   if (isHandoverId(caseId)) query.set('caseId', caseId);
   if (isHandoverId(caseId) && isHandoverId(sessionId)) query.set('sessionId', sessionId);
+  if (lang === 'en') query.set('lang', 'en');
   return path + (query.size ? `?${query}` : '');
+}
+
+// Opens the "Verify and link" tab of the handover page, so identity checks stay in the same workspace.
+export function counterLinkTabUrl(caseId, sessionId, lang) {
+  const base = handoverUrl('/staff/handover', caseId, sessionId, lang);
+  return base + (base.includes('?') ? '&' : '?') + 'tab=link';
 }
 
 export async function fetchStaffCaseBeneficiaries(caseId, options = {}) {

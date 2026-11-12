@@ -17,7 +17,7 @@ const a='11111111-1111-4111-8111-111111111111',s='22222222-2222-4222-8222-222222
 const r2='77777777-7777-4777-8777-777777777777',asset2='88888888-8888-4888-8888-888888888888';
 const json=x=>new Response(JSON.stringify(x),{status:200,headers:{'Content-Type':'application/json'}});
 
-async function run(check, customFetch){
+async function run(check, customFetch, extraProps={}){
   let posts=0;
   const postBodies=[];
   const prior=globalThis.fetch;
@@ -35,7 +35,7 @@ async function run(check, customFetch){
   document.body.append(host);
   const root=createRoot(host);
   try{
-    await act(async()=>root.render(React.createElement(Page,{caseId:a,sessionId:s,accessToken:'real-token'})));
+    await act(async()=>root.render(React.createElement(Page,{caseId:a,sessionId:s,accessToken:'real-token',...extraProps})));
     await check(host,()=>posts,postBodies);
   }finally{
     await act(async()=>root.unmount());
@@ -226,3 +226,56 @@ for (const [name, receipt] of [
     });
   });
 }
+
+test('review: when 1st recipient is delivered and 2nd approved recipient is pending counter link, keeps 2nd recipient selectable with link to counter verification',()=>run(async(host)=>{
+  const select=host.querySelector('select.lv-handover-recipient-select');
+  assert.ok(select,'Recipient select must be rendered');
+  const options=[...select.querySelectorAll('option')].filter(o=>o.value);
+  assert.deepEqual(options.map(o=>o.value),[r,r2],'Both verified and pending-verification approved recipients must be listed');
+  assert.match(options[1].textContent,/Recipient 2 — Chưa đối chiếu & liên kết tài khoản/,'Name must come from beneficiaries API and show pending counter verification');
+  assert.equal(select.value,r2,'Must auto-select the 2nd pending recipient when 1st recipient is already delivered');
+  const verifyLinks=[...host.querySelectorAll('a[href*="tab=link"]')];
+  assert.equal(verifyLinks.length,1,'Must provide exactly one prominent navigation CTA in Step 2 without duplicating in Step 1');
+  assert.equal(verifyLinks[0].getAttribute('href'),`/staff/handover?caseId=${a}&sessionId=${s}&tab=link`);
+},async(url)=>{
+  const u=String(url);
+  if(u.includes('/eligible-assets')){
+    return json([{assetId:asset,recipientId:r,recipientName:'Recipient 1',description:'Asset 1',deliveryStatus:'DELIVERED',accountLinked:true,deliverable:false,blockedReason:null}]);
+  }
+  if(u.includes('/beneficiary-confirmations')){
+    return json([
+      {confirmationId:a,sessionId:s,beneficiaryId:r,status:'CONFIRMED',confirmedBy:a,confirmedAt:'2026-10-20T08:05:00Z',receiptReference:'BN-001',hasSignedFile:true},
+      {confirmationId:asset2,sessionId:s,beneficiaryId:r2,status:'PENDING',confirmedBy:null,confirmedAt:null,receiptReference:null,hasSignedFile:false},
+    ]);
+  }
+  if(u.includes('/beneficiaries')){
+    return json([
+      {beneficiaryId:r,fullName:'Recipient 1',accountLinked:true,identityVerificationStatus:'VERIFIED_AT_COUNTER'},
+      {beneficiaryId:r2,fullName:'Recipient 2',accountLinked:false,identityVerificationStatus:'NOT_VERIFIED'},
+    ]);
+  }
+  return json([]);
+}));
+
+test('review: beneficiary-confirmations failure is not swallowed and shows load error banner',()=>run(async(host)=>{
+  assert.ok(host.querySelector('.lv-api-status-banner--error'),'Load error banner must be displayed when beneficiary-confirmations fails');
+  assert.equal(host.querySelector('select.lv-handover-recipient-select'),null,'Must not render incomplete recipient list on confirmation load failure');
+},async(url)=>{
+  const u=String(url);
+  if(u.includes('/beneficiary-confirmations')){
+    return new Response(JSON.stringify({code:'INTERNAL_ERROR',message:'Failed to load confirmations'}),{status:500,headers:{'Content-Type':'application/json'}});
+  }
+  return json([{assetId:asset,recipientId:r,description:'Asset 1',deliveryStatus:'DELIVERED',accountLinked:true,deliverable:false,blockedReason:null}]);
+}));
+
+test('review: English mode preserves lang=en in counter verification navigation link',()=>run(async(host)=>{
+  const verifyLinks=[...host.querySelectorAll('a[href*="tab=link"]')];
+  assert.equal(verifyLinks.length,1);
+  assert.equal(verifyLinks[0].getAttribute('href'),`/staff/handover?caseId=${a}&sessionId=${s}&lang=en&tab=link`);
+},async(url)=>{
+  const u=String(url);
+  if(u.includes('/eligible-assets')) return json([]);
+  if(u.includes('/beneficiary-confirmations')) return json([{confirmationId:asset2,sessionId:s,beneficiaryId:r2,status:'PENDING',confirmedBy:null,confirmedAt:null,receiptReference:null,hasSignedFile:false}]);
+  if(u.includes('/beneficiaries')) return json([{beneficiaryId:r2,fullName:'Recipient 2',accountLinked:false,identityVerificationStatus:'NOT_VERIFIED'}]);
+  return json([]);
+},{lang:'en'}));

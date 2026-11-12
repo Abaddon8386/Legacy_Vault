@@ -547,7 +547,7 @@ function BeneficiaryConfirmationPageContext({
         })
       );
 
-      setActionSuccess(lang === 'en' ? 'Beneficiary confirmation successfully recorded.' : 'Đã ghi nhận xác nhận của Người thụ hưởng thành công.');
+      setActionSuccess(lang === 'en' ? 'Confirmation recorded' : 'Đã ghi nhận xác nhận');
       setSelectedBeneficiaryId('');
       setReceiptReference('');
       setErrors({});
@@ -571,17 +571,20 @@ function BeneficiaryConfirmationPageContext({
   const isSelectedAlreadyConfirmed =
     selectedBenObj?.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.CONFIRMED ||
     selectedBenObj?.status === 'CONFIRMED';
+  const isSelectedDeliveryPending = selectedBenObj?.deliveryStatus === 'PENDING' && !isSelectedAlreadyConfirmed;
   const canSubmit = hasValidData && !isReadOnlySession &&
     selectedBeneficiaryId &&
     Boolean(signedFile) && attested &&
     !isSelectedAlreadyConfirmed &&
+    !isSelectedDeliveryPending &&
     !isSubmitting;
   const confirmationBlocked = isReadOnlyCase ? (lang === 'en' ? 'This case is read-only.' : 'Hồ sơ này chỉ được xem.')
     : !hasValidData ? (lang === 'en' ? 'Select a session and load the recipient data first.' : 'Chọn phiên và tải thông tin người nhận trước.')
       : !selectedBeneficiaryId ? (lang === 'en' ? 'Select the recipient who signed the receipt.' : 'Chọn người nhận đã ký nhận.')
         : isSelectedAlreadyConfirmed ? (lang === 'en' ? 'This recipient is already confirmed.' : 'Người nhận này đã được xác nhận.')
-          : !signedFile ? (lang === 'en' ? 'Attach the signed receipt.' : 'Đính kèm biên nhận đã ký.') : !attested ? (lang === 'en' ? 'Confirm the signed receipt check.' : 'Xác nhận đã đối chiếu biên nhận có chữ ký.')
-            : isSubmitting ? (lang === 'en' ? 'Wait for confirmation to finish.' : 'Chờ ghi nhận hoàn tất.') : '';
+          : isSelectedDeliveryPending ? (lang === 'en' ? 'Deliver all approved assets to this recipient before confirming their signed receipt.' : 'Cần bàn giao đầy đủ tài sản được duyệt cho người thụ hưởng này trước khi xác nhận ký nhận.')
+            : !signedFile ? (lang === 'en' ? 'Attach the signed receipt.' : 'Đính kèm biên nhận đã ký.') : !attested ? (lang === 'en' ? 'Confirm the signed receipt check.' : 'Xác nhận đã đối chiếu biên nhận có chữ ký.')
+              : isSubmitting ? (lang === 'en' ? 'Wait for confirmation to finish.' : 'Chờ ghi nhận hoàn tất.') : '';
 
   return (
     <div className="lv-beneficiary-confirmation-view">

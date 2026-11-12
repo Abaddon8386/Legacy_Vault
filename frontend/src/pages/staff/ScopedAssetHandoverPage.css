@@ -51,7 +51,7 @@
 }
 
 .lv-asset-handover-view .lv-handover-notice-banner__icon {
-  color: var(--lv-accent-gold, #c5a059);
+  color: var(--lv-accent-gold-text, #8c6820);
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -162,7 +162,7 @@
 }
 
 .lv-asset-handover-view .lv-handover-scope-empty__icon {
-  color: var(--lv-accent-gold, #c5a059);
+  color: var(--lv-accent-gold-text, #8c6820);
 }
 
 .lv-asset-handover-view .lv-handover-scope-empty h3 {
@@ -175,9 +175,38 @@
 .lv-asset-handover-view .lv-handover-scope-empty p {
   font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
-  max-width: 480px;
+  max-width: 520px;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.55;
+}
+
+.lv-asset-handover-view .lv-btn-navigate-cases {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding: 11px 24px;
+  background-color: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+  border: 1px solid var(--lv-brand-forest, #164639);
+  border-radius: var(--lv-radius-md, 8px);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(22, 70, 57, 0.16);
+  transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.lv-asset-handover-view .lv-btn-navigate-cases:hover {
+  background-color: #11382d;
+  border-color: #11382d;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(22, 70, 57, 0.24);
 }
 
 /* Table Design */
@@ -232,9 +261,9 @@
 }
 
 .lv-asset-handover-view .lv-scope-badge--approved {
-  background-color: var(--lv-status-done-bg);
-  color: var(--lv-status-done-text);
-  border: 1px solid var(--lv-status-done-border);
+  background-color: var(--lv-status-approved-bg);
+  color: var(--lv-status-approved-text);
+  border: 1px solid var(--lv-status-approved-border);
 }
 
 .lv-asset-handover-view .lv-scope-badge--unapproved {
@@ -260,9 +289,9 @@
 }
 
 .lv-asset-handover-view .lv-status-pill--delivered {
-  background-color: var(--lv-status-done-bg);
-  color: var(--lv-status-done-text);
-  border: 1px solid var(--lv-status-done-border);
+  background-color: var(--lv-status-approved-bg);
+  color: var(--lv-status-approved-text);
+  border: 1px solid var(--lv-status-approved-border);
 }
 
 /* Action Buttons in Table */
@@ -301,7 +330,7 @@
 }
 
 .lv-asset-handover-view .lv-api-status-banner__icon {
-  color: var(--lv-accent-gold, #c5a059);
+  color: var(--lv-accent-gold-text, #8c6820);
   flex-shrink: 0;
 }
 
@@ -339,7 +368,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-width: 600px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .lv-asset-handover-view .lv-handover-recipient-select {
@@ -578,29 +608,6 @@
   font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin: 2px 0 0;
-}
-
-.lv-asset-handover-view .lv-review-warning-box {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  background-color: #fff9ed;
-  border: 1px solid var(--lv-accent-gold-border, rgba(197, 160, 89, 0.3));
-  border-radius: 8px;
-  padding: 12px 14px;
-}
-
-.lv-asset-handover-view .lv-review-warning-icon {
-  color: var(--lv-accent-gold, #c5a059);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.lv-asset-handover-view .lv-review-warning-box p {
-  font-size: 14px;
-  color: #7a5010;
-  margin: 0;
-  line-height: 1.45;
 }
 
 .lv-asset-handover-view .lv-handover-modal-actions {

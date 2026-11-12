@@ -57,7 +57,7 @@ test('Open uses pending lock, server receipt, query context and VI/EN state; acc
  assert.equal(assetLinks.length,0,'A newly opened session must not bypass attendance');
  for(const link of assetLinks){assert.equal(link.pathname,'/staff/asset-handover');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);assert.match(link.textContent,/Chọn tài sản bàn giao/);}
  assert.equal(btn(v.host,'Tạo / liên kết tài khoản người thụ hưởng'),undefined);
- const link=[...v.host.querySelectorAll('a')].find(a=>a.pathname==='/staff/beneficiary-accounts');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);
+ assert.equal([...v.host.querySelectorAll('a')].find(a=>a.pathname==='/staff/beneficiary-accounts'),undefined);
  await act(async()=>v.root.render(React.createElement(Page,{...v.options,lang:'en'})));assert.equal(v.host.querySelector('a.lv-handover-primary-action'),null);assert.match(v.host.textContent,/Record attendance/);assert.equal(v.host.textContent.includes(sid),false);assert.equal(btn(v.host,'Open handover session').disabled,true);await v.close();
 });
 test('Handover steps are tabs: later steps stay locked until the server allows them and hidden panels stay mounted',async()=>{
@@ -135,7 +135,7 @@ test('Accounts mode links an existing account through the inline email form and 
     const input=v.host.querySelector('input[type="email"]'); assert.ok(input);
     await act(async()=>props(input).onChange({target:{value:'linh@example.test'}}));
     await act(async()=>props(input.closest('form')).onSubmit({preventDefault(){}}));
-    assert.equal(writes,1); assert.match(v.host.textContent,/Đã liên kết tài khoản thành công/);
+    assert.equal(writes,1); assert.match(v.host.textContent,/Đã liên kết tài khoản/);
     assert.match(v.host.textContent,/Đã có tài khoản/); assert.equal(v.host.querySelector('input[type="email"]'),null);
   } finally { await v.close(); }
 });
@@ -162,4 +162,94 @@ test('Counter writes reject duplicate clicks, abort on case switch and ignore la
     await act(async () => release(json({ status: 'QUEUED' }, 202)));
     assert.doesNotMatch(v.host.textContent, /Old recipient|Đã xếp hàng/);
   } finally { await v.close(); }
+});
+
+test('LiveHandoverPage activates attendance tab when tab=attendance is present in URL', async () => {
+  globalThis.fetch = async (url) => url.includes('/beneficiaries') ? json([]) : json(url.endsWith(sid) ? receipt : [receipt]);
+  const v = await mount({}, '/staff/handover?caseId=' + cid + '&sessionId=' + sid + '&tab=attendance');
+  try {
+    const attendanceTab = [...v.host.querySelectorAll('[role="tab"]')].find(t => t.textContent.includes('Người có mặt'));
+    assert.ok(attendanceTab);
+    assert.equal(attendanceTab.getAttribute('aria-selected'), 'true');
+    const panel = v.host.querySelector('#handover-panel-attendance');
+    assert.ok(panel);
+    assert.equal(panel.hidden, false);
+  } finally {
+    await v.close();
+  }
+});
+
+test('LiveHandoverPage in accounts mode with counterLinkActions enforces approved recipient scope (fails closed while loading and blocks out-of-scope recipients)', async () => {
+  const inScopeId = '33333333-3333-4333-8333-333333333333';
+  const outScopeId = '44444444-4444-4444-8444-444444444444';
+  const pendingReq = { id: 'req-1', caseNumber: 'HS-2026-000001', status: 'PENDING', accountId: 'acc-1', accountName: 'Người B', accountEmail: 'b@example.test' };
+  let resolveGroup;
+  let approved = 0;
+
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes('/staff/verification-cases?')) {
+      return json({
+        content: [{
+          caseId: cid,
+          vaultId: cid,
+          ownerId: cid,
+          vaultName: 'Kho A',
+          ownerName: 'Chủ kho A',
+          caseNumber: 'HS-2026-000001',
+          status: 'OPEN',
+          triggeredAt: '2026-10-20T05:00:00Z',
+          closedAt: null,
+        }],
+        page: 0,
+        size: 50,
+        totalElements: 1,
+        totalPages: 1,
+      });
+    }
+    if (u.endsWith('/group-handover')) {
+      return new Promise(r => { resolveGroup = r; });
+    }
+    return json(u.endsWith(sid) ? receipt : [receipt]);
+  };
+
+  const counterLinkActions = {
+    counterEvidenceMode: 'OPTIONAL',
+    listRecipients: async () => [
+      { beneficiaryId: inScopeId, fullName: 'Người trong phạm vi', accountLinked: false },
+      { beneficiaryId: outScopeId, fullName: 'Người ngoài phạm vi', accountLinked: false },
+    ],
+    listPending: async () => [pendingReq],
+    approve: async () => { approved++; return { ...pendingReq, status: 'APPROVED' }; },
+  };
+
+  const v = await mount({ mode: 'accounts', counterLinkActions }, '/staff/beneficiary-accounts?caseId=' + cid + '&sessionId=' + sid);
+  try {
+    const selects = () => [...v.host.querySelectorAll('select')];
+    assert.equal(selects().length, 2);
+    assert.equal(selects()[0].disabled, true, 'Must fail closed while group-handover scope has not resolved');
+    assert.equal(selects()[1].disabled, true, 'Recipient select must stay locked while group-handover scope has not resolved');
+    assert.match(v.host.textContent, /Chưa tải được phạm vi người nhận đã phê duyệt/);
+
+    await act(async () => resolveGroup(json({ ...unconfirmedGroup, requiredRecipientIds: [inScopeId] })));
+
+    assert.equal(selects()[0].disabled, false, 'Unlocks once group-handover scope resolves');
+    assert.equal(selects()[1].disabled, true, 'Recipient select opens only after an account is chosen');
+    await act(async () => props(selects()[0]).onChange({ target: { value: pendingReq.id } }));
+    assert.equal(selects()[1].disabled, false);
+    const recipientOptions = [...selects()[1].querySelectorAll('option')].filter(o => o.value);
+    assert.equal(recipientOptions.find(o => o.value === inScopeId).disabled, false, 'In-scope recipient is selectable');
+    assert.equal(recipientOptions.find(o => o.value === outScopeId).disabled, true, 'Out-of-scope recipient is disabled');
+    assert.match(recipientOptions.find(o => o.value === outScopeId).textContent, /Ngoài phạm vi phê duyệt/);
+
+    await act(async () => props(selects()[0]).onChange({ target: { value: pendingReq.id } }));
+    await act(async () => props(selects()[1]).onChange({ target: { value: outScopeId } }));
+    const checkbox = v.host.querySelector('input[type="checkbox"]');
+    if (checkbox) await act(async () => props(checkbox).onChange({ target: { checked: true } }));
+    const approveBtn = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Xác nhận liên kết'));
+    assert.equal(approveBtn.disabled, true, 'Cannot approve out-of-scope recipient in accounts mode');
+    assert.equal(approved, 0);
+  } finally {
+    await v.close();
+  }
 });

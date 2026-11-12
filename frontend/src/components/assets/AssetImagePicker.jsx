@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { validateAssetImages } from '../../services/assetImageService.js';
 import './AssetImages.css';
 import './AssetFilePicker.css';
+import './AssetAttachmentTable.css';
 
 export function AssetImagePicker({ files, onChange, disabled, lang = 'vi', existingCount = 0 }) {
   const en = lang === 'en';
@@ -17,11 +18,12 @@ export function AssetImagePicker({ files, onChange, disabled, lang = 'vi', exist
       if (!code) onChange(next);
     }} /></label>
     {error && <p role="alert">{error}</p>}
-    <div className="lv-asset-image-grid">{files.map((file, i) => <SelectedImage key={i} file={file} label={en ? 'Remove' : 'Bỏ ảnh'} disabled={disabled} onRemove={() => onChange(files.filter((_, index) => index !== i))} />)}</div>
+    {files.length > 0 && <table className="lv-asset-table">
+      <thead><tr><th scope="col">{en ? 'File name' : 'Tên tệp'}</th><th scope="col">{en ? 'Action' : 'Thao tác'}</th></tr></thead>
+      <tbody>{files.map((file, i) => <tr key={i}>
+        <td>{file.name}</td>
+        <td><button type="button" disabled={disabled} onClick={() => onChange(files.filter((_, index) => index !== i))}>{en ? 'Remove' : 'Bỏ ảnh'}</button></td>
+      </tr>)}</tbody>
+    </table>}
   </fieldset>;
-}
-function SelectedImage({ file, label, disabled, onRemove }) {
-  const image = useRef(null);
-  useEffect(() => { const src=URL.createObjectURL(file); if (image.current) image.current.src=src; return () => URL.revokeObjectURL(src); }, [file]);
-  return <figure><img ref={image} alt={file.name} /><figcaption>{file.name} · {(file.size / 1048576).toFixed(2)} MiB</figcaption><button type="button" disabled={disabled} onClick={onRemove}>{label}</button></figure>;
 }

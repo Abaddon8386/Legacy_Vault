@@ -2,7 +2,7 @@
 .lv-staff-outcome p { margin:8px 0 0; }
 .lv-staff-outcome time { display:block; margin-top:6px; font-size:14px; }
 .lv-staff-outcome.is-negative { border-color:#e7b9b5; background:#fff5f4; color:#8e3028; }
-.lv-staff-outcome.is-positive { border-color:var(--lv-status-done-border); background:var(--lv-status-done-bg); color:var(--lv-status-done-text); }
+.lv-staff-outcome.is-positive { border-color:#86cfa4; background:#e3f5ea; color:#0f5f35; }
 .lv-staff-outcome.is-warning { border-color:#dcc58f; background:#fffaef; color:#785419; }
 .lv-staff-outcome-unavailable { font-size:16px; margin:12px 0; }
 .lv-staff-outcome-history { font-weight:600; }

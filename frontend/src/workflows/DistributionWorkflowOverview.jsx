@@ -1,24 +1,32 @@
 import FeedbackNotice from '../components/common/FeedbackNotice.jsx';
-import { workflowNotificationStatus } from '../utils/workflowNotificationFeedback.js';
+import { workflowNotificationWarning } from '../utils/workflowNotificationFeedback.js';
 import './DistributionWorkflow.css';
 import { workflowFailure } from '../utils/workflowFeedback.js';
 
 const outcomes = {
-  requestDocuments: ['Đã gửi yêu cầu giấy tờ phân chia.', 'Distribution documents requested.'],
-  approveDocuments: ['Đã duyệt căn cứ. Staff có thể lập phân bổ.', 'Documents approved. Staff can prepare allocations.'],
-  requestDocumentSupplementation: ['Đã yêu cầu bổ sung giấy tờ.', 'Additional documents requested.'],
-  submitAllocations: ['Đã gửi phân bổ cho Legal kiểm tra.', 'Allocations submitted for Legal review.'],
-  approveAllocations: ['Đã kiểm tra và chấp thuận phân bổ.', 'Allocations checked and accepted.'],
-  requestAllocationChanges: ['Đã yêu cầu Staff sửa phân bổ.', 'Allocation corrections requested.'],
+  requestDocuments: ['Đã gửi yêu cầu giấy tờ', 'Documents requested'],
+  approveDocuments: ['Đã duyệt căn cứ', 'Documents approved'],
+  requestDocumentSupplementation: ['Đã yêu cầu bổ sung giấy tờ', 'Supplement requested'],
+  submitAllocations: ['Đã gửi phân bổ cho Legal', 'Allocation sent to Legal'],
+  approveAllocations: ['Đã duyệt phân bổ', 'Allocation approved'],
+  requestAllocationChanges: ['Đã yêu cầu Staff sửa phân bổ', 'Changes requested'],
 };
+// A request or assessment written as "Label: value" lines shows the label in bold so the key facts stand out.
+const labelledLine = /^(Giấy tờ cần nộp|Lý do|Documents requested|Reason):\s*(.*)$/;
+function LabelledText({ text }) {
+  return String(text).split('\n').map((line, index) => {
+    const match = labelledLine.exec(line);
+    return <span className="lv-distribution-line" key={index}>{match ? <><strong>{match[1]}:</strong> {match[2]}</> : line}</span>;
+  });
+}
 export function DistributionFeedback({ workflow, workspace, lang = 'vi' }) {
   const en = lang === 'en', notice = workflow.receipt;
   const target = workspace === 'LEGAL' ? 'STAFF' : 'LEGAL';
-  const confirmation = workflowNotificationStatus(notice, target, lang);
+  const confirmation = workflowNotificationWarning(notice, target, lang);
   const staleWhileWaiting = (workflow.failure?.status === 409 || workflow.failure?.code === 'CONFLICT')
     && workflow.data?.phase === 'AWAITING_DOCUMENTS';
   return <>
-    {notice && <FeedbackNotice tone="success" title={outcomes[notice.action]?.[en ? 1 : 0] || (en ? 'Saved successfully.' : 'Đã lưu thành công.')}>
+    {notice && <FeedbackNotice tone="success" title={outcomes[notice.action]?.[en ? 1 : 0] || (en ? 'Saved' : 'Đã lưu')}>
       {confirmation && <p>{confirmation.trim()}</p>}
       {workflow.loading && <p>{en ? 'Checking the next step…' : 'Đang kiểm tra bước tiếp theo…'}</p>}
     </FeedbackNotice>}
@@ -34,14 +42,27 @@ export default function DistributionWorkflowOverview({ workflow, workspace, lang
   const request = value?.phase === 'AWAITING_DOCUMENTS' ? value.request?.reason : null;
   const feedback = value?.phase !== 'CLOSED' ? value?.feedback : null;
   const failure = workflow.error ? workflowFailure(workflow.error, lang) : null;
+  const prerequisites = value?.prerequisites;
   return <>
+    {workspace === 'STAFF' && value?.phase === 'PREREQUISITES_PENDING' && prerequisites && <FeedbackNotice tone="warning" className="lv-distribution-stage-notice"
+      title={en ? 'Not started yet: finish the death and will checks first' : 'Chưa đến bước này: cần xong xác minh tử vong và di chúc trước'}
+      action={<a href={`/staff/cases?caseId=${encodeURIComponent(value.caseId)}`}>{en ? 'Go to the case checks' : 'Đến bước xác minh của hồ sơ'}</a>}>
+      <ul className="lv-distribution-prerequisites">
+        <li className={prerequisites.deathApproved ? 'is-met' : 'is-missing'}><strong>{en ? 'Death documents' : 'Giấy tờ tử vong'}</strong>{en ? (prerequisites.deathApproved ? ': accepted by Legal' : ': not accepted by Legal yet') : (prerequisites.deathApproved ? ': Ban Pháp lý đã chấp thuận' : ': Ban Pháp lý chưa chấp thuận')}</li>
+        <li className={prerequisites.willMatched ? 'is-met' : 'is-missing'}><strong>{en ? 'Original will' : 'Di chúc gốc'}</strong>{en ? (prerequisites.willMatched ? ': comparison matches' : ': comparison not matched yet') : (prerequisites.willMatched ? ': đối chiếu đã khớp' : ': chưa đối chiếu khớp')}</li>
+      </ul>
+    </FeedbackNotice>}
+    {workspace === 'STAFF' && value?.phase === 'DOCUMENT_REQUEST_NEEDED' && <FeedbackNotice tone="info" className="lv-distribution-stage-notice"
+      title={en ? 'Waiting for Legal to request documents' : 'Chờ Ban Pháp lý gửi yêu cầu giấy tờ phân chia'}>
+      <p>{en ? 'Death and will checks are done. You can receive documents once Legal sends the request.' : 'Đã xong xác minh tử vong và di chúc. Bạn tiếp nhận giấy tờ khi Ban Pháp lý gửi yêu cầu.'}</p>
+    </FeedbackNotice>}
     {showRefresh && <div className="lv-distribution-refresh"><button type="button" onClick={workflow.refresh} disabled={workflow.loading || workflow.pending}>{workflow.loading ? (en ? 'Checking status…' : 'Đang kiểm tra trạng thái…') : (en ? 'Refresh case status' : 'Cập nhật trạng thái hồ sơ')}</button></div>}
     {failure && <section className="lv-distribution-context" role="alert"><h2>{workflow.error.code === 'BACKEND_NOT_READY' ? (en ? 'The workflow service is not available yet' : 'Dịch vụ xử lý chưa sẵn sàng') : failure.title}</h2><p>{failure.description}</p></section>}
     {(request || feedback) && <section className={`lv-distribution-context${request || feedback ? ' lv-distribution-context--request' : ''}`}>
       {feedback && <div><h2>{value?.phase === 'AWAITING_DOCUMENTS' && value.document?.status === 'CHANGES_REQUESTED'
         ? (en ? 'Reason for additional documents' : 'Lý do yêu cầu bổ sung giấy tờ')
-        : (en ? 'Latest assessment' : 'Ý kiến xử lý gần nhất')}</h2><p>{feedback}</p></div>}
-      {request && !feedback && <div><h2>{en ? 'Original document request' : 'Yêu cầu giấy tờ ban đầu'}</h2><p>{request}</p></div>}
+        : (en ? 'Latest assessment' : 'Ý kiến xử lý gần nhất')}</h2><p><LabelledText text={feedback} /></p></div>}
+      {request && !feedback && <div><h2>{en ? 'Original document request' : 'Yêu cầu giấy tờ ban đầu'}</h2><p><LabelledText text={request} /></p></div>}
     </section>}
     <DistributionFeedback workflow={workflow} workspace={workspace} lang={lang} />
   </>;

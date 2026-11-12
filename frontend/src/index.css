@@ -1,4 +1,5 @@
 @import './styles/tokens.css';
+@import './styles/workflowMotion.css';
 
 .lv-required-mark {
   margin-inline-start: 4px;

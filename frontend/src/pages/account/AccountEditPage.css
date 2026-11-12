@@ -76,7 +76,7 @@
 .lv-account-edit-view .lv-notice-callout__icon {
   flex-shrink: 0;
   margin-top: 1px;
-  color: #c5a059;
+  color: #8c6820;
 }
 
 .lv-account-edit-view .lv-notice-callout__text {
@@ -304,7 +304,7 @@
   height: 52px;
   border-radius: 50%;
   background-color: rgba(197, 160, 89, 0.12);
-  color: #c5a059;
+  color: #8c6820;
   display: flex;
   align-items: center;
   justify-content: center;

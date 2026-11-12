@@ -81,9 +81,9 @@ const i18n = {
     addBeneficiaryBtn: 'Thêm Người thụ hưởng',
     submitting: 'Đang xử lý...',
     appointedStatus: 'Đã chỉ định',
-    addedSuccessTrustee: 'Đã thêm Người thi hành bên ngoài thành công.',
-    skippedSuccessTrustee: 'Đã đánh dấu bỏ qua Người thi hành bên ngoài.',
-    addedSuccessBeneficiary: 'Đã thêm Người thụ hưởng thành công.',
+    addedSuccessTrustee: 'Đã thêm Người thi hành bên ngoài',
+    skippedSuccessTrustee: 'Đã bỏ qua Người thi hành bên ngoài',
+    addedSuccessBeneficiary: 'Đã thêm Người thụ hưởng',
   },
   en: {
     brandName: 'LegacyVault',
@@ -150,9 +150,9 @@ const i18n = {
     addBeneficiaryBtn: 'Add Beneficiary',
     submitting: 'Saving...',
     appointedStatus: 'Appointed',
-    addedSuccessTrustee: 'External Executor added successfully.',
-    skippedSuccessTrustee: 'External Executor skipped.',
-    addedSuccessBeneficiary: 'Beneficiary added successfully.',
+    addedSuccessTrustee: 'External Executor added',
+    skippedSuccessTrustee: 'External Executor skipped',
+    addedSuccessBeneficiary: 'Beneficiary added',
   },
 };
 
@@ -522,11 +522,6 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                   {t.beneficiaryTitle}
                 </h2>
               </div>
-            </div>
-
-            <div className="lv-tb-notice-box">
-              <strong>{lang === 'vi' ? 'Lưu ý: ' : 'Please note: '}</strong>
-              {t.beneficiaryNotice}
             </div>
 
             {/* Existing Beneficiaries List */}

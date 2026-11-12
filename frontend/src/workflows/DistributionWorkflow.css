@@ -36,3 +36,20 @@
 .lv-distribution-workflow.lv-surface-card { border: 1px solid #dce4dc; border-radius: 14px; background: #fff; color: #234237; }
 .lv-distribution-workflow.lv-surface-card > h2 { font-size: 21px; line-height: 1.4; margin: 0 0 12px; }
 .lv-distribution-workflow.lv-surface-card > p { font-size: 16px; line-height: 1.6; }
+/* Submitted allocations: one row per asset with three aligned columns. */
+.lv-distribution-review-list { gap: 12px; }
+.lv-distribution-review-list li { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.6fr); gap: 8px 24px; align-items: start; padding: 16px 20px; border-color: #dcd8cc; background: #fbfaf7; }
+.lv-distribution-review-list small { display: block; margin-bottom: 2px; font-size: 14px; font-weight: 500; color: #52655a; }
+.lv-distribution-review-list strong, .lv-distribution-review-list span { font-size: 16px; line-height: 1.5; color: #1f2421; }
+@media (max-width: 700px) { .lv-distribution-review-list li { grid-template-columns: minmax(0, 1fr); gap: 10px; } }
+
+.lv-distribution-stage-notice { margin: 0 0 20px; }
+.lv-distribution-stage-notice .lv-distribution-prerequisites { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 16px; line-height: 1.5; }
+.lv-distribution-stage-notice .lv-distribution-prerequisites li { padding: 8px 12px; border-radius: 8px; background: rgba(255, 255, 255, .7); }
+.lv-distribution-stage-notice .lv-distribution-prerequisites li::before { content: '○'; margin-inline-end: 6px; font-weight: 700; color: #b3382f; }
+.lv-distribution-stage-notice .lv-distribution-prerequisites li.is-met::before { content: '✓'; color: #247a52; }
+.lv-distribution-stage-notice a { font-weight: 700; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+/* One line per fact; the label in bold and a darker ink so "Giấy tờ cần nộp" and "Lý do" are found at a glance. */
+.lv-distribution-context .lv-distribution-line { display: block; }
+.lv-distribution-context .lv-distribution-line strong { font-weight: 700; color: #6b4200; }
