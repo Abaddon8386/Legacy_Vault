@@ -1,0 +1,56 @@
+.lv-contact { display: grid; gap: 16px; padding: 22px; border: 1px solid #dce4dc; border-top: 4px solid #164639; border-radius: 16px; background: #fff; color: #234237; min-width: 0; }
+.lv-contact__head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.lv-contact h2 { margin: 0; font-size: 21px; color: #164639; margin-right: auto; }
+.lv-contact__summary { padding: 6px 14px; border-radius: 999px; font-size: 14px; font-weight: 600; }
+.lv-contact__summary.is-waiting { background: #fff7e6; color: #8a5f12; border: 1px solid #e8cf98; }
+.lv-contact__summary.is-done { background: #dcfce7; color: #166534; border: 1px solid #b7dcc5; }
+.lv-contact__alert { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; border: 1px solid #e7b8b0; border-left: 4px solid #a3372d; background: #fdf1ef; color: #7a2a22; }
+.lv-contact__alert svg { flex: none; margin-top: 2px; }
+.lv-contact__alert div { display: grid; gap: 2px; font-size: 16px; }
+.lv-contact__empty, .lv-contact__none { margin: 0; font-size: 16px; color: #52675b; }
+.lv-contact__error { margin: 0; font-size: 14px; color: #a3372d; }
+.lv-contact__list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.lv-contact__card { display: grid; gap: 8px; padding: 16px 18px; border: 1px solid #dce4dc; border-radius: 14px; background: #fff; }
+.lv-contact__who { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.lv-contact__who > div { flex: 1 1 200px; display: grid; gap: 2px; min-width: 0; }
+.lv-contact__who strong { font-size: 18px; }
+.lv-contact__avatar { flex: none; display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #164639; color: #fff; font-weight: 700; font-size: 15px; }
+.lv-contact__role { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; color: #52675b; }
+.lv-contact__status { padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.lv-contact__status.is-waiting { background: #fff7e6; color: #8a5f12; }
+.lv-contact__status.is-done { background: #dcfce7; color: #166534; }
+.lv-contact__status.is-muted { background: #eef0eb; color: #5e6b62; }
+.lv-contact__status.is-bad { background: #fdf1ef; color: #8a2c23; }
+.lv-contact__channels { display: flex; flex-wrap: wrap; gap: 4px 24px; }
+.lv-contact__channel { display: flex; gap: 10px; align-items: center; min-height: 44px; font-size: 16px; }
+.lv-contact__channel svg { color: #52675b; flex: none; }
+.lv-contact__channel a { color: #164639; font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+.lv-contact__channel a:hover { text-decoration: underline; }
+.lv-contact__foot { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.lv-contact__last { margin: 0; flex: 1 1 280px; font-size: 14px; color: #52675b; line-height: 1.5; }
+.lv-contact button { min-height: 44px; padding: 8px 14px; border: 1px solid #a3b8aa; border-radius: 8px; background: #fff; color: #164639; font: inherit; font-size: 15px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; justify-content: center; }
+.lv-contact button:hover:not(:disabled) { background: #f3f7f3; }
+.lv-contact button:disabled { opacity: 0.6; cursor: not-allowed; }
+.lv-contact__copy { min-height: 36px !important; padding: 4px 10px !important; font-size: 14px !important; }
+.lv-contact__record { margin-left: auto; }
+.lv-contact__record[aria-expanded="true"] .lv-contact__chevron { transform: rotate(180deg); }
+.lv-contact__chevron { transition: transform 180ms ease; }
+.lv-contact__form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 16px; border-radius: 12px; background: #f6faf6; border: 1px solid #dbe8dd; }
+.lv-contact__form label { display: grid; gap: 6px; font-size: 14px; font-weight: 600; color: #164639; }
+.lv-contact__form select, .lv-contact__form textarea { font: inherit; font-size: 16px; padding: 10px 12px; border: 1px solid #b9c8bd; border-radius: 10px; background: #fff; min-width: 0; box-sizing: border-box; width: 100%; }
+.lv-contact__form textarea { min-height: 84px; }
+.lv-contact__wide { grid-column: 1 / -1; }
+.lv-contact__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.lv-contact button.lv-contact__save { background: #164639; color: #fff; border-color: #164639; font-weight: 600; }
+.lv-contact button.lv-contact__save:hover:not(:disabled) { background: #0f3329; }
+.lv-contact__history summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-size: 14px; font-weight: 600; color: #164639; }
+.lv-contact__history ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; color: #52675b; }
+@media (max-width: 640px) { .lv-contact { padding: 16px; } .lv-contact__form { grid-template-columns: minmax(0, 1fr); } .lv-contact__record { width: 100%; } }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes lv-contact-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+  .lv-contact__card, .lv-contact__alert { animation: lv-contact-in 480ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+  .lv-contact__card:nth-child(2) { animation-delay: 90ms; }
+  .lv-contact__card:nth-child(n + 3) { animation-delay: 180ms; }
+  .lv-contact__form { animation: lv-contact-in 320ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+  .lv-contact__status { transition: background-color 220ms ease, color 220ms ease; }
+}

@@ -50,6 +50,7 @@ const actions = {
   TRUSTEE_UPDATED: ['Cập nhật người thi hành', 'Trustee updated'],
   TRUSTEE_REVOKED: ['Thu hồi người thi hành', 'Trustee revoked'],
   TRUSTEE_CONTACT_RECORDED: ['Ghi nhận liên hệ người thi hành', 'Trustee contact recorded'],
+  CASE_CONTACTS_VIEWED: ['Xem thông tin liên hệ của hồ sơ', 'Case contacts viewed'],
   BENEFICIARY_ADDED: ['Thêm người thụ hưởng', 'Beneficiary added'],
   BENEFICIARY_UPDATED: ['Cập nhật người thụ hưởng', 'Beneficiary updated'],
   BENEFICIARY_IDENTITY_VERIFIED: ['Xác minh danh tính người thụ hưởng', 'Beneficiary identity verified'],
