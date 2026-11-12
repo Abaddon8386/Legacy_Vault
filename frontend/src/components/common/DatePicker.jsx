@@ -298,7 +298,8 @@ export function DatePicker({
       setInputError(null);
       setInputValue('');
       setLastEmittedValue('');
-      onChange?.('');
+      // Blur không đổi gì thì không báo cha: tránh re-render giữa lúc nhấn và nhả chuột vào nút lịch.
+      if (value !== '') onChange?.('');
       return;
     }
 
@@ -307,25 +308,28 @@ export function DatePicker({
       if (min && parsed < min) {
         setInputError('min');
         setLastEmittedValue(trimmed);
-        onChange?.(trimmed);
+        if (value !== trimmed) onChange?.(trimmed);
       } else if (max && parsed > max) {
         setInputError('max');
         setLastEmittedValue(trimmed);
-        onChange?.(trimmed);
+        if (value !== trimmed) onChange?.(trimmed);
       } else {
         setInputError(null);
         const formatted = formatIsoToDisplay(parsed, isEn);
         setInputValue(formatted);
         setLastEmittedValue(parsed);
-        onChange?.(parsed);
+        if (value !== parsed) onChange?.(parsed);
       }
     } else {
       // Preserve invalid input so user can inspect and correct it; do not revert silently
       setInputError('invalid');
       setLastEmittedValue(trimmed);
-      onChange?.(trimmed);
+      if (value !== trimmed) onChange?.(trimmed);
     }
   };
+
+  // Nhấn nút lịch/xóa không được cướp focus khỏi ô nhập, nếu không blur chạy trước click và có thể làm mất lần bấm.
+  const keepInputFocus = (e) => e.preventDefault();
 
   const selectDate = (iso) => {
     if (isDateDisabled(iso)) return;
@@ -524,6 +528,7 @@ export function DatePicker({
           <button
             type="button"
             className="lv-datepicker-clear-btn"
+            onMouseDown={keepInputFocus}
             onClick={() => {
               setInputError(null);
               setInputValue('');
@@ -540,6 +545,7 @@ export function DatePicker({
         <button
           type="button"
           className="lv-datepicker-toggle-btn"
+          onMouseDown={keepInputFocus}
           onClick={() => {
             if (!disabled) setIsOpen((prev) => !prev);
           }}
