@@ -36,8 +36,10 @@ for (const lang of ['vi', 'en']) test(`About ${lang}: the legal section lists th
     assert.equal(url.protocol, 'https:');
     assert.ok(OFFICIAL_HOSTS.includes(url.hostname), `${url.hostname} is an official government portal`);
     assert.ok(item.name && item.note);
+    assert.ok(item.uses, `${item.name} says how LegacyVault uses it`);
   }
   assert.match(section.references.note, /07\/11\/2026|7 November 2026/, 'the check date is stated');
+  assert.match(section.references.items[0].note, /Điều 620|Article 620/, 'Civil Code Article 620 on refusing an inheritance is listed');
   const host = document.createElement('div');
   document.body.append(host);
   const root = createRoot(host);
@@ -50,7 +52,10 @@ for (const lang of ['vi', 'en']) test(`About ${lang}: the legal section lists th
       assert.match(link.getAttribute('rel'), /noopener/);
     }
     assert.ok(host.querySelector('#legal .lv-public-info__refs h3'), 'references sit inside the #legal section');
-    for (const item of section.references.items) assert.ok(host.textContent.includes(item.note), `${item.name} note is shown`);
+    for (const item of section.references.items) {
+      assert.ok(host.textContent.includes(item.note), `${item.name} note is shown`);
+      assert.ok(host.textContent.includes(item.uses), `${item.name} relevance to the system is shown`);
+    }
   } finally {
     await act(async () => root.unmount());
     host.remove();
