@@ -125,6 +125,46 @@ public class TrusteeContactSqlServerTest {
         try { assertTrue(latch.await(15, TimeUnit.SECONDS)); } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new RuntimeException(e); }
     }
 
+    @Test void caseContactsAreReadFromTheRealSchemaAndEachReadIsAudited() {
+        jdbc.update("UPDATE dbo.trustees SET email='trustee@test.invalid' WHERE public_id=?", trusteePublicId.toString());
+        UUID beneficiaryPublicId = UUID.randomUUID();
+        jdbc.update("INSERT dbo.beneficiaries(public_id,vault_id,full_name,phone_number,email) VALUES (?,?,'Recipient','0911111111','recipient@test.invalid')",
+                beneficiaryPublicId.toString(), vaultId);
+        // A revoked trustee is not someone to contact.
+        jdbc.update("INSERT dbo.trustees(public_id,vault_id,full_name,status,phone_number,revoked_at) VALUES (?,?,'Former trustee','REVOKED','0922222222',SYSUTCDATETIME())",
+                UUID.randomUUID().toString(), vaultId);
+        contact();
+        UUID casePublicId = UUID.fromString(jdbc.queryForObject("SELECT CAST(public_id AS varchar(36)) FROM dbo.verification_cases WHERE verification_case_id=?", String.class, caseId));
+
+        CaseContactDtos.Response read = asStaff(() -> context.getBean(CaseContactService.class).list(casePublicId));
+
+        assertEquals(2, read.people().size());
+        CaseContactDtos.Person first = read.people().get(0);
+        assertEquals("TRUSTEE", first.kind());
+        assertEquals(trusteePublicId, first.id());
+        assertEquals("0900000000", first.phone());
+        assertEquals("trustee@test.invalid", first.email());
+        assertTrue(first.canRecord());
+        assertEquals(1, first.contacts().size());
+        assertEquals("CONTACTED", first.contacts().get(0).outcome().name());
+        CaseContactDtos.Person second = read.people().get(1);
+        assertEquals("BENEFICIARY", second.kind());
+        assertEquals(beneficiaryPublicId, second.id());
+        assertEquals("recipient@test.invalid", second.email());
+        assertFalse(second.canRecord());
+        assertEquals(1, audits("CASE_CONTACTS_VIEWED"));
+        asStaff(() -> context.getBean(CaseContactService.class).list(casePublicId));
+        assertEquals(2, audits("CASE_CONTACTS_VIEWED"), "every read is audited");
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM dbo.audit_logs WHERE action='CASE_CONTACTS_VIEWED' AND (CAST(details AS nvarchar(max)) LIKE '%0900000000%' OR CAST(details AS nvarchar(max)) LIKE '%@test.invalid%')", Integer.class),
+                "the audit never carries phone or email values");
+        // Another Staff, an unassigned case and a cancelled case read nothing and write no audit.
+        jdbc.update("UPDATE dbo.verification_cases SET assigned_staff_user_id=NULL WHERE verification_case_id=?", caseId);
+        notFound(() -> asStaff(() -> context.getBean(CaseContactService.class).list(casePublicId)));
+        jdbc.update("UPDATE dbo.verification_cases SET assigned_staff_user_id=?,status='CANCELLED' WHERE verification_case_id=?", staffId, caseId);
+        notFound(() -> asStaff(() -> context.getBean(CaseContactService.class).list(casePublicId)));
+        assertEquals(2, audits("CASE_CONTACTS_VIEWED"));
+    }
+
     @Test void sqlPredicatesHideEveryRejectedCaseAndEmptyHistory() {
         for (String update : List.of("assigned_staff_user_id=NULL", "assigned_staff_user_id=" + ownerId,
                 "status='CANCELLED'")) {
