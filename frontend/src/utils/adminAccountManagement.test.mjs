@@ -5,7 +5,7 @@ import { JSDOM } from 'jsdom';
 import { build } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
-import { changeAdminUserRole, createAdminUser, validateCreateAdminUserForm } from './adminService.js';
+import { createAdminUser, resetAdminUserPassword, validateCreateAdminUserForm, validateResetAdminPasswordForm } from './adminService.js';
 
 const dom = new JSDOM('<html><body></body></html>', { url: 'http://localhost:5195/admin' });
 globalThis.window = dom.window;
@@ -80,23 +80,6 @@ test('createAdminUser posts the trimmed body with the ROLE_ prefix and never ret
   } finally { globalThis.fetch = previous; }
 });
 
-test('changeAdminUserRole puts the role and rejects non-assignable roles or mismatched responses', async () => {
-  const previous = globalThis.fetch;
-  let call;
-  globalThis.fetch = async (url, options) => { call = { url, options }; return json(apiUser({ roles: ['ROLE_LEGAL_VERIFIER'] })); };
-  try {
-    const user = await changeAdminUserRole('T', staffId, 'LEGAL_VERIFIER');
-    assert.match(call.url, new RegExp(`/admin/users/${staffId}/role$`));
-    assert.equal(call.options.method, 'PUT');
-    assert.deepEqual(JSON.parse(call.options.body), { role: 'ROLE_LEGAL_VERIFIER' });
-    assert.deepEqual(user.roles, ['LEGAL_VERIFIER']);
-    await assert.rejects(() => changeAdminUserRole('T', staffId, 'ADMIN'), /VALIDATION_FAILED/);
-    await assert.rejects(() => changeAdminUserRole('T', 'not-a-uuid', 'STAFF_EXECUTOR'), /VALIDATION_FAILED/);
-    globalThis.fetch = async () => json(apiUser({ publicId: adminId }));
-    await assert.rejects(() => changeAdminUserRole('T', staffId, 'STAFF_EXECUTOR'), /INVALID_USER_RECORD/);
-  } finally { globalThis.fetch = previous; }
-});
-
 test('Admin creates an account from the Users page and the list reloads', async () => {
   const previous = globalThis.fetch;
   let posted = null, listReads = 0;
@@ -156,32 +139,6 @@ test('a duplicate email keeps the dialog open with a readable message', async ()
   } finally { await view.close(); globalThis.fetch = previous; }
 });
 
-test('Admin changes a role from the row action; admin accounts offer no role change', async () => {
-  const previous = globalThis.fetch;
-  let put = null;
-  const adminUser = apiUser({ publicId: adminId, fullName: 'Root Admin', email: 'root@example.test', roles: ['ROLE_ADMIN'] });
-  globalThis.fetch = async (url, options = {}) => {
-    if (options.method === 'PUT') { put = { url, body: JSON.parse(options.body) }; return json(apiUser({ roles: ['ROLE_LEGAL_VERIFIER'] })); }
-    return json(usersPage([adminUser, apiUser()]));
-  };
-  const view = await mount({ accessToken: 'T', fetchOnMount: true, lang: 'vi' });
-  try {
-    const rows = [...view.host.querySelectorAll('tbody tr')];
-    assert.equal(button(rows[0], 'Đổi vai trò'), undefined);
-    await act(async () => button(rows[1], 'Đổi vai trò').click());
-    const dialog = view.host.querySelector('[role=dialog]');
-    const save = button(dialog, 'Lưu vai trò');
-    assert.equal(save.disabled, true, 'unchanged role cannot be saved');
-    await type(dialog.querySelector('select'), 'LEGAL_VERIFIER');
-    assert.equal(save.disabled, false);
-    await act(async () => save.click());
-    assert.match(put.url, new RegExp(`/admin/users/${staffId}/role$`));
-    assert.deepEqual(put.body, { role: 'ROLE_LEGAL_VERIFIER' });
-    assert.equal(view.host.querySelector('[role=dialog]'), null);
-    assert.equal(view.host.querySelector('.lv-admin-form-notice').textContent, 'Đã cập nhật vai trò.');
-  } finally { await view.close(); globalThis.fetch = previous; }
-});
-
 test('create form follows the sign-up layout: red asterisks on required fields only, role select, password toggle', async () => {
   const previous = globalThis.fetch;
   globalThis.fetch = async () => json(usersPage([]));
@@ -216,7 +173,6 @@ test('row icons show an open padlock for unlocked accounts and a closed one for 
     assert.match(icon(lockedRow, 'Mở khóa tài khoản'), /lucide-lock(?!-open)/);
     assert.match(button(activeRow, 'Xem chi tiết').querySelector('svg').getAttribute('class'), /lucide-eye/);
     assert.match(button(view.host, 'Tạo tài khoản').querySelector('svg').getAttribute('class'), /lucide-plus/);
-    assert.equal(button(lockedRow, 'Đổi vai trò').disabled, true);
   } finally { await view.close(); globalThis.fetch = previous; }
 });
 
@@ -303,7 +259,7 @@ test('a server-side password rejection is explained next to the password field, 
   } finally { await view.close(); globalThis.fetch = previous; }
 });
 
-test('statuses follow accountStatus; rows that are in a case or whose vault is archived offer no lock or role change', async () => {
+test('statuses follow accountStatus; rows that are in a case or whose vault is archived offer no lock', async () => {
   const previous = globalThis.fetch;
   const rows = [
     apiUser({ publicId: '41111111-1111-4111-8111-111111111111', email: 'active@example.test', status: 'ACTIVE', accountStatus: 'ACTIVE' }),
@@ -323,9 +279,9 @@ test('statuses follow accountStatus; rows that are in a case or whose vault is a
       assert.deepEqual(trs.map((tr) => tr.querySelector('td:nth-child(5) .lv-admin-status-badge').textContent.trim()), labels);
       assert.deepEqual(trs.map((tr) => tr.querySelector('td:nth-child(5) .lv-admin-status-badge').className.match(/lv-admin-status-(?!badge)(\S+)/)[1]),
         ['active', 'locked', 'in_process', 'active']);
-      // In-case and archived-vault rows only have the view button: no lock/unlock, no role change.
-      assert.equal(trs[2].querySelectorAll('button').length, 1);
-      assert.equal(trs[3].querySelectorAll('button').length, 1);
+      // In-case and archived-vault rows have the view and password-reset buttons only: no lock/unlock.
+      assert.equal(trs[2].querySelectorAll('button').length, 2);
+      assert.equal(trs[3].querySelectorAll('button').length, 2);
       assert.equal(trs[0].querySelectorAll('button').length, 3);
       assert.ok(button(trs[0], lockLabel));
     } finally { await view.close(); }
@@ -363,5 +319,91 @@ test('locking an account that is in handover explains why instead of a generic e
     await act(async () => button(view.host.querySelector('[role=dialog]'), 'Khóa tài khoản').click());
     assert.equal(view.host.querySelector('.lv-admin-form-error').textContent,
       'Tài khoản này đang trong quá trình bàn giao tài sản hoặc đã được lưu trữ nên không thể khóa.');
+  } finally { await view.close(); globalThis.fetch = previous; }
+});
+
+test('reset-password form validation: e-mail format, backend password policy and confirmation', () => {
+  assert.deepEqual(validateResetAdminPasswordForm({ email: 'a@example.test', newPassword: 'N3w-Secret-Pass!', confirmPassword: 'N3w-Secret-Pass!' }), {});
+  assert.deepEqual(validateResetAdminPasswordForm({}), { email: 'required', newPassword: 'required' });
+  assert.equal(validateResetAdminPasswordForm({ email: 'nope', newPassword: 'N3w-Secret-Pass!' }).email, 'invalid');
+  assert.equal(validateResetAdminPasswordForm({ email: 'a@example.test', newPassword: 'short' }).newPassword, 'invalid');
+  assert.equal(validateResetAdminPasswordForm({ email: 'a@example.test', newPassword: 'N3w-Secret-Pass!', confirmPassword: 'x' }).confirmPassword, 'mismatch');
+  assert.equal(validateResetAdminPasswordForm({ email: 'a@example.test', newPassword: 'N3w-Secret-Pass!', confirmPassword: '' }).confirmPassword, 'required');
+});
+
+test('resetAdminUserPassword posts the trimmed e-mail and the password, and rejects invalid input before any request', async () => {
+  const previous = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => { calls.push({ url, options }); return json(apiUser()); };
+  try {
+    const user = await resetAdminUserPassword('T', { email: '  Staff@Example.test ', newPassword: 'N3w-Secret-Pass!' });
+    assert.equal(user.email, 'staff@example.test');
+    assert.match(calls[0].url, /\/admin\/users\/reset-password$/);
+    assert.equal(calls[0].options.method, 'POST');
+    assert.deepEqual(JSON.parse(calls[0].options.body), { email: 'Staff@Example.test', newPassword: 'N3w-Secret-Pass!' });
+    assert.equal(JSON.stringify(user).includes('N3w-Secret-Pass!'), false, 'the password is never part of the result');
+    await assert.rejects(() => resetAdminUserPassword('T', { email: 'bad', newPassword: 'N3w-Secret-Pass!' }), /VALIDATION_FAILED/);
+    await assert.rejects(() => resetAdminUserPassword('T', { email: 'a@example.test', newPassword: 'short' }), /VALIDATION_FAILED/);
+    assert.equal(calls.length, 1);
+  } finally { globalThis.fetch = previous; }
+});
+
+test('Admin changes any account password from the header button; the form validates, then submits and confirms', async () => {
+  const previous = globalThis.fetch;
+  let posted = null;
+  globalThis.fetch = async (url, options = {}) => {
+    if (options.method === 'POST') { posted = JSON.parse(options.body); return json(apiUser()); }
+    return json(usersPage([apiUser()]));
+  };
+  const view = await mount({ accessToken: 'T', fetchOnMount: true, lang: 'vi' });
+  try {
+    await act(async () => button(view.host.querySelector('header'), 'Đổi mật khẩu').click());
+    const dialog = view.host.querySelector('[role=dialog]');
+    assert.ok(dialog);
+    assert.equal(inputOf(dialog, 'email').value, '', 'header entry starts with an empty e-mail');
+    assert.equal(inputOf(dialog, 'newPassword').type, 'password');
+
+    await act(async () => button(dialog, 'Đổi mật khẩu').click());
+    assert.equal(posted, null, 'an empty form is not submitted');
+    assert.ok(dialog.querySelectorAll('.lv-admin-field-error').length >= 3);
+
+    await type(inputOf(dialog, 'email'), 'staff@example.test');
+    await type(inputOf(dialog, 'newPassword'), 'N3w-Secret-Pass!');
+    await type(inputOf(dialog, 'confirmPassword'), 'different');
+    await act(async () => button(dialog, 'Đổi mật khẩu').click());
+    assert.equal(posted, null, 'a mismatched confirmation is not submitted');
+    assert.equal(dialog.querySelector('[id$="-confirmPassword-error"]').textContent, 'Mật khẩu nhập lại không khớp.');
+
+    await act(async () => button(dialog, 'Hiện mật khẩu').click());
+    assert.equal(inputOf(dialog, 'newPassword').type, 'text', 'the eye button reveals the password');
+    await type(inputOf(dialog, 'confirmPassword'), 'N3w-Secret-Pass!');
+    await act(async () => button(dialog, 'Đổi mật khẩu').click());
+
+    assert.deepEqual(posted, { email: 'staff@example.test', newPassword: 'N3w-Secret-Pass!' });
+    assert.equal(view.host.querySelector('[role=dialog]'), null);
+    assert.equal(view.host.querySelector('.lv-admin-form-notice').textContent, 'Đã đổi mật khẩu cho tài khoản.');
+  } finally { await view.close(); globalThis.fetch = previous; }
+});
+
+test('the row key icon prefills the e-mail, admin rows have none, and an unknown e-mail is explained in the dialog', async () => {
+  const previous = globalThis.fetch;
+  let posts = 0;
+  globalThis.fetch = async (url, options = {}) => {
+    if (options.method === 'POST') { posts++; return json({ code: 'RESOURCE_NOT_FOUND' }, 404); }
+    return json(usersPage([apiUser(), apiUser({ publicId: adminId, email: 'admin@example.test', roles: ['ROLE_ADMIN'] })]));
+  };
+  const view = await mount({ accessToken: 'T', fetchOnMount: true, lang: 'vi' });
+  try {
+    const rows = view.host.querySelectorAll('tbody tr');
+    assert.equal(button(rows[1], 'Đổi mật khẩu cho tài khoản này'), undefined, 'admin accounts offer no password reset');
+    await act(async () => button(rows[0], 'Đổi mật khẩu cho tài khoản này').click());
+    const dialog = view.host.querySelector('[role=dialog]');
+    assert.equal(inputOf(dialog, 'email').value, 'staff@example.test');
+    await type(inputOf(dialog, 'newPassword'), 'N3w-Secret-Pass!');
+    await type(inputOf(dialog, 'confirmPassword'), 'N3w-Secret-Pass!');
+    await act(async () => button(dialog, 'Đổi mật khẩu').click());
+    assert.equal(posts, 1);
+    assert.ok(view.host.querySelector('[role=dialog]'), 'the dialog stays open on failure');
+    assert.equal(dialog.querySelector('.lv-admin-form-error').textContent, 'Không tìm thấy tài khoản với email này.');
   } finally { await view.close(); globalThis.fetch = previous; }
 });

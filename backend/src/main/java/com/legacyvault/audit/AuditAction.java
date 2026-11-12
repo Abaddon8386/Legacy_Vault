@@ -109,5 +109,7 @@ public enum AuditAction {
     ADMIN_USER_CREATED,
     ADMIN_USER_ROLE_CHANGED,
     ADMIN_USER_LOCKED,
-    ADMIN_USER_UNLOCKED
+    ADMIN_USER_UNLOCKED,
+    /** An Admin set a new password for another account (the password itself is never recorded). */
+    ADMIN_USER_PASSWORD_RESET
 }
