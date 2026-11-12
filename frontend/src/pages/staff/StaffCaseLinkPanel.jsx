@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, X, UserRound, UsersRound, ShieldCheck } from 'lucide-react';
 import { Button } from '../../components/common/Button.jsx';
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import { readLinkRequest, readLinkRequests, caseLinkError } from '../../utils/caseLinkModel.js';
@@ -44,8 +44,8 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, l
   useEffect(() => { errorCallback.current = onError; }, [onError]);
   useEffect(() => () => { mutation.current?.abort(); read.current?.abort(); }, []);
   const messages = {
+    create: en ? 'Account created. Ask the recipient to sign in and enter the case number in Shared with me' : 'Đã tạo tài khoản. Người nhận đăng nhập, vào Tài sản thụ hưởng và nhập mã hồ sơ',
     attest: en ? 'Check recorded, account not linked yet' : 'Đã ghi nhận đối chiếu, chưa liên kết tài khoản',
-    create: en ? 'Account created. Ask the recipient to sign in on their own device and enter the case number in Shared with me.' : 'Đã tạo tài khoản. Hướng dẫn người nhận đăng nhập trên thiết bị của họ, vào Tài sản thụ hưởng và nhập mã hồ sơ.',
     approve: en ? 'Link confirmed' : 'Đã xác nhận liên kết',
     reject: en ? 'Request declined' : 'Đã từ chối yêu cầu',
   };
@@ -86,8 +86,8 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, l
       : uncertain ? (en ? 'Reload to check the latest status.' : 'Tải lại để kiểm tra trạng thái mới nhất.')
         : !scopeLoaded ? (en ? 'Approved recipient scope is not loaded yet. Open or reload the active handover session first.' : 'Chưa tải được phạm vi người nhận đã phê duyệt. Hãy mở hoặc tải lại phiên bàn giao trước.')
           : !ready || typeof actions?.approve !== 'function' ? (en ? 'Account linking is not available yet.' : 'Chưa hỗ trợ xác nhận liên kết tài khoản.')
-            : !selected ? (en ? 'Select a pending account request.' : 'Chọn yêu cầu tài khoản đang chờ.')
-              : !recipient ? (en ? 'Select the recipient in this case.' : 'Chọn người nhận trong hồ sơ.')
+            : !selected ? (en ? 'Select the requesting account' : 'Chọn tài khoản gửi yêu cầu')
+              : !recipient ? (en ? 'Select the recipient' : 'Chọn người nhận')
                 : isOutOfScope(recipient) ? (en ? 'This recipient is outside the approved allocation scope.' : 'Người nhận này không nằm trong phạm vi phân chia đã phê duyệt.')
                   : recipient.accountLinked ? (en ? 'This recipient is already linked.' : 'Người nhận này đã liên kết.')
                     : evidenceRequired && !evidence.trim() ? (en ? 'Enter the counter record reference.' : 'Nhập mã biên bản đối chiếu.')
@@ -125,8 +125,8 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, l
   }
   function clearMatch() { setRecipientId(''); setEvidence(''); setChecked(false); setRejectOpen(false); }
   return <section className="lv-counter-link lv-staff-glow" aria-labelledby="counter-link-title" aria-busy={loading && open}>
-    <div className="lv-counter-link__heading"><h2 id="counter-link-title">{en ? 'Match account at the counter' : 'Đối chiếu và liên kết tại quầy'}</h2>
-      <Button variant="secondary" disabled={!open || pending || loading} onClick={() => { clearMatch(); setRequestId(''); setRevision(v => v + 1); onReload?.(); }}>{en ? 'Reload' : 'Tải lại trạng thái'}</Button></div>
+    <div className="lv-counter-link__heading"><h2 id="counter-link-title">{en ? 'Match account at the counter' : 'Đối chiếu tại quầy'}</h2>
+      <Button variant="secondary" disabled={!open || pending || loading} onClick={() => { clearMatch(); setRequestId(''); setRevision(v => v + 1); onReload?.(); }}>{en ? 'Reload' : 'Tải lại'}</Button></div>
     <div className="lv-counter-link__case-bar">
       <div className="lv-counter-link__case-number">
         <span>{en ? 'Case number for the recipient' : 'Mã hồ sơ gửi người nhận'}</span>
@@ -151,18 +151,25 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, l
     {open && <>
       {loading && <p role="status">{en ? 'Loading recipients and requests…' : 'Đang tải người nhận và yêu cầu…'}</p>}
       {snapshot && <div className="lv-counter-link__match">
+        {(() => {
+          const done = [!!selected, !!recipient, checked];
+          const current = done.indexOf(false);
+          const steps = [[UserRound, en ? 'Account' : 'Tài khoản'], [UsersRound, en ? 'Recipient' : 'Người nhận'], [ShieldCheck, en ? 'Verify' : 'Đối chiếu']];
+          return <ol className="lv-counter-link__steps" aria-hidden="true">{steps.map(([Icon, label], index) => <li key={label} className={done[index] ? 'is-done' : index === current ? 'is-current' : ''}>
+            <span className="lv-counter-link__step-mark">{done[index] ? <Check size={16} /> : <Icon size={16} />}</span>{label}</li>)}</ol>;
+        })()}
         <div className={`lv-counter-link__columns${evidenceRequired?'':' is-reference-free'}`}>
-          <label>{en ? 'Requesting account' : 'Tài khoản gửi yêu cầu'}<select value={requestId} disabled={locked || !ready} onChange={e => { setRequestId(e.target.value); clearMatch(); }}><option value="">{en ? 'Select a pending request' : 'Chọn yêu cầu chờ đối chiếu'}</option>{snapshot.requests.map(r => <option key={r.id} value={r.id}>{r.accountName} — {r.accountEmail}</option>)}</select></label>
-          <label>{en ? 'Recipient in this case' : 'Người nhận trong hồ sơ'}<select value={recipientId} disabled={locked} onChange={e => { setRecipientId(e.target.value); setChecked(false); setEvidence(''); }}><option value="">{en ? 'Select a recipient' : 'Chọn người nhận để đối chiếu'}</option>{snapshot.recipients.map(r => { const outOfScope = isOutOfScope(r); return <option key={r.beneficiaryId} value={r.beneficiaryId} disabled={r.accountLinked || outOfScope}>{r.fullName}{r.accountLinked ? (en ? ' — Linked' : ' — Đã liên kết') : outOfScope ? (en ? ' — Outside approved scope' : ' — Ngoài phạm vi phê duyệt') : ''}</option>; })}</select></label>
+          <label>{en ? 'Requesting account' : 'Tài khoản gửi yêu cầu'}<select value={requestId} disabled={locked || !ready || !snapshot.requests.length} onChange={e => { setRequestId(e.target.value); clearMatch(); }}><option value="">{en ? 'Select an account' : 'Chọn tài khoản'}</option>{snapshot.requests.map(r => <option key={r.id} value={r.id}>{r.accountName} — {r.accountEmail}</option>)}</select></label>
+          <label>{en ? 'Recipient in this case' : 'Người nhận trong hồ sơ'}<select value={recipientId} disabled={locked || !selected} onChange={e => { setRecipientId(e.target.value); setChecked(false); setEvidence(''); }}><option value="">{en ? 'Select a recipient' : 'Chọn người nhận'}</option>{snapshot.recipients.map(r => { const outOfScope = isOutOfScope(r); return <option key={r.beneficiaryId} value={r.beneficiaryId} disabled={r.accountLinked || outOfScope}>{r.fullName}{r.accountLinked ? (en ? ' — Linked' : ' — Đã liên kết') : outOfScope ? (en ? ' — Outside approved scope' : ' — Ngoài phạm vi phê duyệt') : ''}</option>; })}</select></label>
           {evidenceRequired && <label>{en ? 'Counter record reference' : 'Mã chứng từ đối chiếu'}<input placeholder={en ? 'Reference on the counter record' : 'Số trên chứng từ đối chiếu tại quầy'} aria-describedby="counter-evidence-help" value={evidence} maxLength={200} disabled={locked || !recipient} onChange={e => setEvidence(e.target.value)} /></label>}
         </div>
         {evidenceRequired && <p id="counter-evidence-help" className="lv-counter-link__empty">{en ? 'Use the reference on the counter identity-check record. This is separate from the signed asset receipt uploaded after handover.' : 'Nhập số trên chứng từ ghi nhận đối chiếu tại quầy. Đây là bước liên kết tài khoản, khác với biên nhận có chữ ký tải lên sau bàn giao.'}</p>}
-        {ready && !snapshot.requests.length && <p className="lv-counter-link__empty">{en ? 'No pending requests. Ask the recipient to enter this case number in Shared with me, then reload here.' : 'Chưa có yêu cầu chờ. Người nhận nhập mã hồ sơ trong Tài sản thụ hưởng, sau đó bạn tải lại trạng thái.'}</p>}
-        {(selected || recipient) && <div className="lv-counter-link__identity">
+        {ready && !snapshot.requests.length && <p className="lv-counter-link__empty">{en ? 'No pending requests. The recipient enters the case number in Shared with me, then reload' : 'Chưa có yêu cầu. Người nhận nhập mã hồ sơ ở Tài sản thụ hưởng, rồi bấm Tải lại'}</p>}
+        {selected && recipient && <div className="lv-counter-link__identity">
           {selected && <span><strong>{selected.accountName}</strong> · {selected.accountEmail}</span>}
           {recipient && <span>{en ? 'Recipient' : 'Người nhận'}: <strong>{recipient.fullName}</strong>{recipient.sourceLabel && <> · {recipient.sourceLabel}</>}{recipient.legalReference && <> · {recipient.legalReference}</>}</span>}
         </div>}
-        <label className="lv-counter-link__check"><input type="checkbox" checked={checked} disabled={locked || !selected || !recipient} onChange={e => setChecked(e.target.checked)} />{en ? 'I verified the recipient and account' : 'Đã đối chiếu đúng người nhận và tài khoản'}</label>
+        <label className="lv-counter-link__check"><input type="checkbox" checked={checked} disabled={locked || !selected || !recipient} onChange={e => setChecked(e.target.checked)} />{en ? 'I verified the recipient and account' : 'Đã đối chiếu đúng người và tài khoản'}</label>
         <div className="lv-counter-link__decision-row">
           <div className="lv-counter-link__decision-hint"><WorkflowActionHint id="account-link-blocked" reason={matchBlocked} /></div>
           <div className="lv-counter-link__actions">

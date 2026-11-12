@@ -73,7 +73,7 @@
 /* Decision Block */
 .lv-legal-reopen__decision { display: grid; gap: 16px; padding: 20px; border: 2px solid #244b3d; border-radius: 14px; background: #fff; box-shadow: 0 4px 16px rgba(36, 75, 61, 0.08); }
 .lv-legal-reopen__label-title { font-size: 17px; font-weight: 700; color: #183e30; }
-.lv-legal-reopen__decision textarea { min-height: 110px; font-size: 16px; }
+.lv-legal-reopen__decision textarea { min-height: 96px; font-size: 16px; }
 .lv-legal-reopen__actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .lv-legal-reopen__actions button { min-height: 44px; min-width: 160px; font-size: 16px; font-weight: 600; border-radius: 10px; }
 .lv-legal-live .lv-legal-reopen__actions button:disabled { opacity: 1; border-color: #d8dcd6; background: #e4e6e1; color: var(--legal-muted, #53665a); }

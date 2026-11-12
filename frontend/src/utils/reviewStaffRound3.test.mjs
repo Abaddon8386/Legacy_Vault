@@ -234,9 +234,9 @@ test('review: when 1st recipient is delivered and 2nd approved recipient is pend
   assert.deepEqual(options.map(o=>o.value),[r,r2],'Both verified and pending-verification approved recipients must be listed');
   assert.match(options[1].textContent,/Recipient 2 — Chưa đối chiếu & liên kết tài khoản/,'Name must come from beneficiaries API and show pending counter verification');
   assert.equal(select.value,r2,'Must auto-select the 2nd pending recipient when 1st recipient is already delivered');
-  const verifyLinks=[...host.querySelectorAll('a[href*="/staff/beneficiary-accounts"]')];
+  const verifyLinks=[...host.querySelectorAll('a[href*="tab=link"]')];
   assert.equal(verifyLinks.length,1,'Must provide exactly one prominent navigation CTA in Step 2 without duplicating in Step 1');
-  assert.equal(verifyLinks[0].getAttribute('href'),`/staff/beneficiary-accounts?caseId=${a}&sessionId=${s}`);
+  assert.equal(verifyLinks[0].getAttribute('href'),`/staff/handover?caseId=${a}&sessionId=${s}&tab=link`);
 },async(url)=>{
   const u=String(url);
   if(u.includes('/eligible-assets')){
@@ -269,9 +269,9 @@ test('review: beneficiary-confirmations failure is not swallowed and shows load 
 }));
 
 test('review: English mode preserves lang=en in counter verification navigation link',()=>run(async(host)=>{
-  const verifyLinks=[...host.querySelectorAll('a[href*="/staff/beneficiary-accounts"]')];
+  const verifyLinks=[...host.querySelectorAll('a[href*="tab=link"]')];
   assert.equal(verifyLinks.length,1);
-  assert.equal(verifyLinks[0].getAttribute('href'),`/staff/beneficiary-accounts?caseId=${a}&sessionId=${s}&lang=en`);
+  assert.equal(verifyLinks[0].getAttribute('href'),`/staff/handover?caseId=${a}&sessionId=${s}&lang=en&tab=link`);
 },async(url)=>{
   const u=String(url);
   if(u.includes('/eligible-assets')) return json([]);
