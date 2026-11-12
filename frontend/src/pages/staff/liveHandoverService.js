@@ -47,6 +47,12 @@ export function handoverUrl(path, caseId, sessionId, lang) {
   return path + (query.size ? `?${query}` : '');
 }
 
+// Opens the "Verify and link" tab of the handover page, so identity checks stay in the same workspace.
+export function counterLinkTabUrl(caseId, sessionId, lang) {
+  const base = handoverUrl('/staff/handover', caseId, sessionId, lang);
+  return base + (base.includes('?') ? '&' : '?') + 'tab=link';
+}
+
 export async function fetchStaffCaseBeneficiaries(caseId, options = {}) {
   if (!isHandoverId(caseId)) throw new ApiError('VALIDATION_FAILED', 400);
   const data = await request(`/staff/verification-cases/${caseId}/beneficiaries`, {

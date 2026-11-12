@@ -217,7 +217,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
           </p>
         </div>
       )}
-      <a href={handoverUrl(mode === 'accounts' ? '/staff/handover' : '/staff/beneficiary-accounts', caseId, selected.sessionId, lang)}>{mode === 'accounts' ? (en ? 'Back to session' : 'Về phiên bàn giao') : (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy')}</a>
+      {mode === 'accounts' && <a href={handoverUrl('/staff/handover', caseId, selected.sessionId, lang)}>{en ? 'Back to session' : 'Về phiên bàn giao'}</a>}
       <div><button disabled={pending || loading || Boolean(error) || selected.status !== 'OPEN' || mode === 'accounts'} onClick={() => setConfirmCancel(true)}>{en ? 'Cancel session…' : 'Hủy phiên…'}</button></div>
       {confirmCancel && <div role="group" aria-label={en ? 'Confirm cancellation' : 'Xác nhận hủy phiên'}>
         <p>{en ? 'Cancel this open session?' : 'Hủy phiên đang mở này?'}</p>
@@ -264,9 +264,15 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
     </>;
   };
   return <section className="lv-session-stack" aria-busy={loading || pending}>
-    {selected?.status === 'OPEN' ? <StaffGroupHandover caseId={caseId} sessionId={selected.sessionId} accessToken={accessToken} lang={lang} layout={layout}><div className="lv-handover-next-step">
+    {selected?.status === 'OPEN' ? <StaffGroupHandover caseId={caseId} sessionId={selected.sessionId} accessToken={accessToken} lang={lang} layout={layout}>{(view, people = []) => <div className="lv-handover-next-step">
+        <div className="lv-handover-ready">
+          <h2>{en ? 'Ready to hand over' : 'Sẵn sàng bàn giao'}</h2>
+          <ul className="lv-handover-ready__people" aria-label={en ? 'Recipients present' : 'Người nhận có mặt'}>
+            {view.requiredRecipientIds.map(id => <li key={id}>{people.find(person => person.beneficiaryId === id)?.fullName}</li>)}
+          </ul>
+        </div>
         <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId, lang)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
-      </div></StaffGroupHandover> : layout()}
+      </div>}</StaffGroupHandover> : layout()}
   </section>;
 }
 

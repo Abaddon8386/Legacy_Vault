@@ -66,3 +66,49 @@
 }
 .lv-counter-link .lv-counter-link__columns.is-reference-free { grid-template-columns:repeat(2,minmax(0,1fr)); }
 @media(max-width:640px) { .lv-counter-link .lv-counter-link__columns.is-reference-free { grid-template-columns:minmax(0,1fr); } }
+
+[role=tabpanel] > .lv-counter-link { margin-top: 0; }
+
+.lv-counter-link { border-top: 4px solid #164639; }
+.lv-counter-link__steps { display: flex; gap: 0; align-items: center; margin: 0 0 18px; padding: 0; list-style: none; }
+.lv-counter-link__steps li { display: flex; align-items: center; gap: 10px; flex: 1 1 0; min-width: 0; font-size: 15px; font-weight: 600; color: #7a897f; }
+.lv-counter-link__steps li:not(:last-child)::after { content: ''; flex: 1 1 24px; height: 2px; margin: 0 12px; border-radius: 2px; background: #dce5de; transition: background-color 220ms ease; }
+.lv-counter-link__steps li.is-done:not(:last-child)::after { background: #1f8a5b; }
+.lv-counter-link__step-mark { flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; border: 2px solid #cfd9d2; background: #fff; color: #7a897f; transition: background-color 220ms ease, border-color 220ms ease, color 220ms ease; }
+.lv-counter-link__steps li.is-current { color: #164639; }
+.lv-counter-link__steps li.is-current .lv-counter-link__step-mark { border-color: #b17c1d; color: #8a5f12; background: #fff7e6; box-shadow: 0 0 0 4px rgba(177, 124, 29, 0.14); }
+.lv-counter-link__steps li.is-done { color: #166534; }
+.lv-counter-link__steps li.is-done .lv-counter-link__step-mark { border-color: #1f8a5b; background: #1f8a5b; color: #fff; }
+@media (max-width: 640px) { .lv-counter-link__steps li { font-size: 14px; } .lv-counter-link__steps li:not(:last-child)::after { margin: 0 6px; flex-basis: 8px; } }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes lv-step-done { 0% { transform: scale(0.7); } 55% { transform: scale(1.2); } 100% { transform: scale(1); } }
+  @keyframes lv-step-pulse { 0%, 100% { box-shadow: 0 0 0 4px rgba(177, 124, 29, 0.14); } 50% { box-shadow: 0 0 0 8px rgba(177, 124, 29, 0.05); } }
+  .lv-counter-link__steps li.is-done .lv-counter-link__step-mark { animation: lv-step-done 420ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .lv-counter-link__steps li.is-current .lv-counter-link__step-mark { animation: lv-step-pulse 2s ease-in-out infinite; }
+}
+
+/* Compact progress row: fixed-length connectors, so the marks stay together at the left edge instead of being spread over thirds of the width. */
+.lv-counter-link__steps { padding: 4px 0 4px 6px; gap: 0; }
+.lv-counter-link__steps li { flex: 0 0 auto; }
+.lv-counter-link__steps li:not(:last-child)::after { flex: 0 0 56px; width: 56px; }
+.lv-counter-link__steps li:not(:last-child) { margin-right: 0; }
+.lv-counter-link select:disabled { background-color: #f2f5f1; color: #7a897f; cursor: not-allowed; }
+@media (max-width: 640px) { .lv-counter-link__steps li:not(:last-child)::after { flex-basis: 20px; width: 20px; } }
+
+/* Spread over the full width: first step at the left edge, last at the right edge, connectors stretch between. */
+.lv-counter-link__steps { width: 100%; box-sizing: border-box; padding: 4px 6px; }
+.lv-counter-link__steps li:not(:last-child)::after { flex: 1 1 40px; width: auto; min-width: 20px; }
+@media (max-width: 640px) { .lv-counter-link__steps li:not(:last-child)::after { flex-basis: 12px; min-width: 8px; } }
+
+.lv-counter-link__steps li { white-space: nowrap; }
+.lv-counter-link__steps li:not(:last-child) { flex: 1 1 auto; }
+.lv-counter-link__steps li:last-child { flex: 0 0 auto; }
+
+/* "Recipient has no account": a tinted, clickable row with a real button-looking action, so it is noticed. */
+.lv-counter-link .lv-counter-link__create { margin-top: 20px; padding: 0; border: 1px dashed #b9cbbd; border-radius: 12px; background: #f6faf6; overflow: hidden; transition: border-color 160ms ease, background-color 160ms ease; }
+.lv-counter-link .lv-counter-link__create:hover, .lv-counter-link .lv-counter-link__create[open] { border-color: #164639; background: #f0f7f2; }
+.lv-counter-link__create summary { padding: 10px 16px; min-height: 56px; font-size: 16px; font-weight: 600; color: #164639; cursor: pointer; }
+.lv-counter-link__create .lv-counter-link__summary-action { padding: 8px 16px; border-radius: 8px; background: #164639; color: #fff; font-size: 15px; font-weight: 600; white-space: nowrap; }
+.lv-counter-link__create[open] .lv-counter-link__summary-action { background: #fff; color: #164639; border: 1px solid #164639; padding: 7px 15px; }
+.lv-counter-link__create > p, .lv-counter-link__create > form { margin-left: 16px; margin-right: 16px; }
+.lv-counter-link__create > :last-child { margin-bottom: 16px; }

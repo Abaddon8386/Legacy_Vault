@@ -1,7 +1,7 @@
 .lv-group-handover {padding:24px;border:1px solid #dce4dc;border-radius:14px;background:white;color:#234237;display:grid;gap:14px;min-width:0;margin:16px 0;}
 .lv-group-handover h2 {font-size:21px;margin:0;}.lv-group-handover p {font-size:16px;line-height:1.6;margin:0;}
-.lv-group-handover fieldset {display:grid;gap:12px;border:1px solid #dce4dc;padding:16px;min-width:0;}
-.lv-group-handover label {display:flex;gap:10px;align-items:center;font-size:16px;overflow-wrap:anywhere;}.lv-group-handover>label {display:grid;}
+.lv-group-handover fieldset {display:grid;gap:10px;border:0;padding:0;margin:0;min-width:0;}.lv-group-handover legend {padding:0;margin-bottom:10px;font-weight:600;color:#164639;font-size:16px;}.lv-group-handover fieldset label {min-height:48px;padding:0 14px;border:1px solid #dce4dc;border-radius:10px;background:#f8faf7;}.lv-group-handover fieldset label:has(input:checked) {border-color:#9db8a6;background:#eef6f0;}.lv-group-handover__head {display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;}.lv-group-handover .lv-group-handover__reload {justify-self:auto;}
+.lv-group-handover label {display:flex;gap:10px;align-items:center;font-size:16px;overflow-wrap:anywhere;}.lv-group-handover>label {display:grid;gap:8px;font-weight:600;color:#164639;}
 .lv-group-handover input[type=checkbox] {width:20px;height:20px;flex:none;}.lv-group-handover textarea {min-height:90px;width:100%;box-sizing:border-box;font:inherit;padding:12px;}
 .lv-group-handover button {min-height:44px;padding:10px 16px;border:1px solid #a3b8aa;border-radius:8px;background:#fff;color:#164639;font:inherit;cursor:pointer;justify-self:start;}
 .lv-group-handover .is-primary {background:#164639;color:white;}.lv-group-handover .is-negative {background:#a3372d;color:white;border-color:#a3372d;}
@@ -15,3 +15,12 @@
 .lv-group-handover .lv-group-handover__decision.is-rejected {border-left-color:#a3372d;background:#fdf1ef;}.lv-group-handover .lv-group-handover__decision.is-rejected strong {color:#8a2c23;}
 .lv-group-handover .lv-group-handover__decision.is-pending {border-left-color:#b17c1d;background:#fff7e6;}
 @media(max-width:640px){.lv-group-handover{padding:16px;}.lv-group-handover__actions{flex-direction:column;}}
+
+.lv-group-handover input[type=checkbox] {accent-color:#164639;}
+.lv-group-handover legend {display:flex;gap:10px;align-items:center;}
+.lv-group-handover__count {padding:2px 10px;border-radius:999px;background:#eef2ed;color:#52675b;font-size:14px;font-weight:600;}
+.lv-group-handover fieldset label {cursor:pointer;}.lv-group-handover__name {flex:1;min-width:0;}
+.lv-group-handover__chip {flex:none;padding:2px 10px;border-radius:999px;background:#eef0eb;color:#5e6b62;font-size:14px;font-weight:600;}
+.lv-group-handover__chip.is-present {background:#dcfce7;color:#166534;}
+.lv-group-handover textarea {border:1px solid #b9c8bd;border-radius:10px;}.lv-group-handover textarea:focus-visible {outline:3px solid #b69b62;outline-offset:2px;border-color:#164639;}
+.lv-group-handover .is-negative {font-weight:600;}
