@@ -58,7 +58,7 @@ export const trusteeValidationMessages = {
  * @param {'vi'|'en'} lang
  * @returns {Record<string, string>} Map of validation error messages
  *
- * Kiểm tra form trustee theo quy tắc ở đầu file (họ tên bắt buộc <=150, cần ít nhất điện thoại hoặc email, quan hệ <=100). Trả map {trường: thông điệp lỗi}; rỗng nghĩa là hợp lệ.
+ * Kiểm tra form trustee theo quy tắc ở đầu file (họ tên bắt buộc <=150, cần ít nhất điện thoại hoặc email với định dạng đúng, quan hệ <=100). Ghi chú (note, tối đa 500 ký tự) KHÔNG được kiểm tra ở đây dù có thông điệp noteTooLong. Trả map {trường: thông điệp lỗi}; rỗng nghĩa là hợp lệ.
  */
 export function validateTrustee(values = {}, lang = 'vi') {
   const msgs = trusteeValidationMessages[lang] || trusteeValidationMessages.vi;

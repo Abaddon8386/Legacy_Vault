@@ -8,9 +8,9 @@ import java.util.UUID;
 public final class AdminAuditDtos {
     /** Ngăn khởi tạo: class chỉ dùng làm namespace cho các record bên trong. */
     private AdminAuditDtos() {}
-    /** name: current full name, only for an existing account (kind USER); never an email. */
+    /** Người thực hiện: {@code kind} là SYSTEM/USER/DELETED_USER/UNKNOWN; {@code name} là họ tên hiện tại, chỉ có khi kind là USER (tài khoản còn tồn tại), không bao giờ là email. */
     public record Actor(String kind, UUID userId, String role, String name) {}
-    /** caseId/caseNumber/staffId: the case opened for this vault at or before the event; ownerId: the vault owner. All public ids. */
+    /** Một dòng nhật ký: caseId/caseNumber/staffId thuộc hồ sơ xác minh gần nhất được mở cho vault tại hoặc trước thời điểm sự kiện (null nếu chưa có); ownerId là chủ vault. Tất cả là id công khai. */
     public record Event(UUID id, Instant occurredAt, Actor actor, String action, String entityType, UUID vaultId,
             UUID ownerId, UUID caseId, String caseNumber, UUID staffId) {}
     /** Response của {@code GET /audit-logs/{id}}: sự kiện kèm {@code traceId} dùng để đối chiếu với log hệ thống. */

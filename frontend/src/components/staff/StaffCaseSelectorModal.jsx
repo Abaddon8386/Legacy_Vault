@@ -9,7 +9,7 @@ import './StaffCaseSelectorModal.css';
  * phân trang 5 dòng/trang, làm mới và đóng bằng phím Escape.
  * Khi mở, gọi `fetchStaffCases` (`GET /api/v1/staff/verification-cases?page&size&status`) và hủy
  * request cũ khi đổi trang/lọc/đóng. Lỗi 401 gọi `onUnauthorized`. Được dùng bởi `StaffSessionBoundary`,
- * `BeneficiaryConfirmationPage`, `CloseAndArchivePage`.
+ * `BeneficiaryConfirmationPage`, `CloseAndArchivePage`, `ScopedAssetHandoverPage` và `StaffLegalDocumentsPage`.
  *
  * @param {object} props
  * @param {boolean} props.isOpen hộp thoại có đang mở không.

@@ -36,7 +36,7 @@ export function createLiveReceivedAssetActions(globalDefaults = {}) {
   return {
     /**
      * Danh sách tài sản đã nhận: {@code GET /received-assets?page&size} (mặc định size 20). Kiểm tra phân trang rồi chuẩn hóa từng mục;
-     * {@code accountState} là RECEIVED nếu có mục, ngược lại AWAITING_HANDOVER.
+     * {@code accountState} là RECEIVED khi {@code totalElements > 0} (tổng toàn bộ, không chỉ trang hiện tại), ngược lại AWAITING_HANDOVER.
      */
     async list(options = {}) {
       const opts = { ...globalDefaults, ...options };

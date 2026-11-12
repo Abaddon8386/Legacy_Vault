@@ -1,7 +1,7 @@
 import './LanguageToggle.css';
 
 /**
- * Nút chuyển ngôn ngữ VI/EN. Gọi {@code onToggleLang(value)} với "vi" hoặc "en". Dùng trong {@code AppShell} và các màn hình công khai.
+ * Nút chuyển ngôn ngữ VI/EN. Gọi {@code onToggleLang(value)} với "vi" hoặc "en". Dùng trong {@code AppShell} và một số trang nhân viên/pháp lý ({@code BeneficiaryAccountPage}, {@code CounterHandoverPage}, {@code LegalApprovalReviewPage}).
  *
  * @param {{lang?:string, onToggleLang?:(lang:string)=>void}} props
  */

@@ -41,7 +41,7 @@ export function canAccessStaffLegalDocuments(session) {
 }
 
 /**
- * Chọn trang đích sau đăng nhập theo vai trò (khi không đồng thời là chủ kho): pháp lý thì /legal/death-verification, nhân viên thì /staff/legal-documents, admin thì /admin, người thụ hưởng thì /shared-with-me; còn lại có vai trò thì /vault.
+ * Chọn trang đích sau đăng nhập theo vai trò, ưu tiên LEGAL_VERIFIER > STAFF_EXECUTOR > ADMIN > BENEFICIARY và chỉ khi không đồng thời là VAULT_OWNER: pháp lý thì /legal/death-verification, nhân viên thì /staff/legal-documents, admin thì /admin, người thụ hưởng thì /shared-with-me; còn lại (kể cả có VAULT_OWNER) thì /vault; không có vai trò nào thì /shared-with-me.
  */
 export function resolvePostLoginRoute(user) {
   const roles = Array.isArray(user?.roles) ? user.roles : [];

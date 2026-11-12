@@ -31,7 +31,9 @@ public class CourtDecision {
     @Column(name = "dossier_version_id", nullable = false, updatable = false)
     private Long dossierVersionId;
     /**
-     * Kết quả đánh giá (chuỗi tối đa 20 ký tự, giá trị do {@code CourtDecisionService} quy định).
+     * Kết quả đánh giá (chuỗi tối đa 20 ký tự). {@code CourtDecisionService} ghi tên của enum
+     * {@code CourtDecisionRequest.Result}: {@code VALID} (hợp lệ), {@code INVALID} (không hợp lệ) hoặc
+     * {@code INCONCLUSIVE} (chưa kết luận được).
      */
     @Column(name = "result", nullable = false, updatable = false, length = 20)
     private String result;

@@ -43,7 +43,7 @@ public class SignedReceiptService {
  }
  /**
   * Ghi nhận xác nhận có chữ ký của người thụ hưởng.
-  * API: {@code POST /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/beneficiaries/{recipientId}/confirmation}.
+  * API: {@code POST /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/beneficiaries/{beneficiaryId}/confirmation}.
   *
   * <p>Yêu cầu Staff đã tích attested và số tham chiếu giấy (nếu có) tối đa 200 ký tự; kiểm tra tệp theo nội dung với giới
   * hạn 10 MB; tạo mã tham chiếu xác định {@code BN-<uuid>} từ session và người nhận; ủy quyền cho

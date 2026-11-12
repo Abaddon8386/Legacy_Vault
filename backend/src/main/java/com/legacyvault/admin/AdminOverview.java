@@ -13,7 +13,7 @@ import java.util.Map;
  *   <li>{@code startedAt}/{@code completedAt}: khoảng thời gian (giờ DB, UTC) thu thập số liệu.</li>
  *   <li>{@code consistency}: nhãn mức nhất quán của số liệu.</li>
  * </ul>
- * Counts are sampled during [startedAt, completedAt], not a cross-table historical snapshot.
+ * Các con số được đếm lần lượt trong khoảng [startedAt, completedAt], không phải ảnh chụp (snapshot) nhất quán giữa các bảng.
  */
 public record AdminOverview(long totalAccounts, long activeVaults, long processingCases,
         Map<String,Long> roleAssignments, Instant startedAt, Instant completedAt, String consistency) {}

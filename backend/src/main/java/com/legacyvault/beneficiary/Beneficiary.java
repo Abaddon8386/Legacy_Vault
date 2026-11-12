@@ -52,7 +52,9 @@ public class Beneficiary {
 	 * Nguồn gốc bản ghi: do chủ kho chỉ định (mặc định).
 	 */
 	public static final String ORIGIN_OWNER_DESIGNATED = "OWNER_DESIGNATED";
-	/** BE-02: recipient named only by a Legal-reviewed court document (D-LEGAL-002), not by the Owner. */
+	/**
+	 * Nguồn gốc bản ghi (BE-02): người nhận chỉ được nêu tên trong văn bản tòa án đã được Legal duyệt (D-LEGAL-002), không phải do Owner chỉ định.
+	 */
 	public static final String ORIGIN_COURT_DOCUMENT = "COURT_DOCUMENT";
 
 	/**
@@ -149,7 +151,7 @@ public class Beneficiary {
 	}
 
 	/**
-	 * BE-02: a recipient created at ST-18 from the court document version that names them.
+	 * BE-02: tạo người thụ hưởng ở bước ST-18 từ phiên bản văn bản tòa án có nêu tên người đó.
 	 *
 	 * <p>Cách làm: tạo bản ghi bằng hàm khởi tạo thông thường rồi đặt {@code origin = COURT_DOCUMENT} và gắn id phiên bản hồ sơ.
 	 * @param publicId mã công khai của người thụ hưởng mới
@@ -248,8 +250,7 @@ public class Beneficiary {
 	public String getOrigin() { return origin; }
 	public Long getOriginDossierVersionId() { return originDossierVersionId; }
 	/**
-	 * ST-24: link the beneficiary record to an official account; the legal identity record is not altered.
-	 *
+	 * ST-24: liên kết hồ sơ người thụ hưởng với một tài khoản chính thức; hồ sơ định danh pháp lý không bị thay đổi.
 	 * Đặt {@code linkedUserId} và chuyển {@code accountStatus} sang {@link #ACCOUNT_CREATED}.
 	 * @throws IllegalStateException nếu {@code userId} null hoặc bản ghi đã liên kết trước đó
 	 */
@@ -264,9 +265,8 @@ public class Beneficiary {
 	 */
 	public void verifyAtCounter() { this.identityVerificationStatus = VERIFIED_AT_COUNTER; }
 	/**
-	 * A new NOT_MATCH invalidates any previous at-counter verification. History remains append-only.
-	 *
-	 * Đưa trạng thái xác minh về {@link #NOT_VERIFIED} (gọi khi Staff ghi kết quả NOT_MATCH).
+	 * Đưa trạng thái xác minh về {@link #NOT_VERIFIED} (gọi khi Staff ghi kết quả NOT_MATCH). Một NOT_MATCH mới làm mất hiệu lực
+	 * mọi xác minh tại quầy trước đó; lịch sử xác minh vẫn chỉ-thêm (append-only).
 	 */
 	public void markIdentityNotVerified() { this.identityVerificationStatus = NOT_VERIFIED; }
 	public String getStatus() { return status; }

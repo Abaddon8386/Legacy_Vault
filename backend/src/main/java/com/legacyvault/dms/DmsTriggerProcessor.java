@@ -48,8 +48,7 @@ public class DmsTriggerProcessor {
 	}
 
 	/**
-	 * ST-07: MONITORING -> TRIGGERED.
-	 * Giữ nguyên hành vi nghiệp vụ đã có.
+	 * ST-07: chuyển cấu hình quá hạn check-in từ MONITORING sang TRIGGERED.
 	 *
 	 * <p>Bỏ qua nếu cấu hình không còn {@code MONITORING} hoặc chưa tới hạn. Khóa két của chủ (nếu có) và bỏ qua nếu
 	 * két đã {@code ARCHIVED}; tính {@code graceDeadline = now + gia hạn}; gọi truy vấn cập nhật có điều kiện
@@ -69,7 +68,7 @@ public class DmsTriggerProcessor {
 			return;
 		}
 
-		// Same Vault -> DMS order as archive/cancel; check fresh state before business writes or log INSERTs.
+		// Cùng thứ tự khóa Vault -> DMS như lưu trữ/hủy cảnh báo; kiểm tra trạng thái mới nhất trước khi ghi nghiệp vụ hoặc INSERT log.
 		Vault vault = vaults.findByOwnerUserIdForUpdate(config.getOwnerUserId()).orElse(null);
 		if (vault != null) {
 			state.refresh(vault);

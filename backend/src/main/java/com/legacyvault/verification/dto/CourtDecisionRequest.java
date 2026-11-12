@@ -3,7 +3,7 @@ package com.legacyvault.verification.dto;
 import jakarta.validation.constraints.*;
 
 /**
- * Legal's assessment of the exact forwarded court document version, never an automatic legal judgment.
+ * Đánh giá của Legal về đúng phiên bản văn bản Tòa án đã được chuyển; không phải phán quyết pháp lý tự động.
  *
  * Body của {@code POST .../basis-dossier/court-decisions}.
  *

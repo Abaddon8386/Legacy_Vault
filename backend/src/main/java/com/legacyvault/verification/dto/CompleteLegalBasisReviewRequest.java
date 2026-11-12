@@ -1,7 +1,7 @@
 package com.legacyvault.verification.dto;
 import jakarta.validation.constraints.*;
 /**
- * Exact server snapshot displayed to Legal, not a request to review whatever is current at submit time.
+ * Snapshot chính xác mà server đã hiển thị cho Legal (phiên bản, hash file, hash phạm vi phân bổ, tranh chấp); không phải yêu cầu review bất kỳ bản nào đang hiện hành lúc gửi.
  *
  * Body của {@code POST /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/review}.
  *

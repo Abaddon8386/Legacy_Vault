@@ -253,7 +253,7 @@ export default function StaffCaseDashboard({
     if (!isoString) return '—';
     try {
       const date = new Date(isoString);
-      // en-GB gives "26/10/2026, 08:18"; vi-VN would put the time first.
+      // Tiếng Việt dùng en-GB ("26/10/2026, 08:18", giờ nằm sau ngày); tiếng Anh dùng en-US (mm/dd/yyyy).
       return new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'en-GB', {
         year: 'numeric',
         month: '2-digit',

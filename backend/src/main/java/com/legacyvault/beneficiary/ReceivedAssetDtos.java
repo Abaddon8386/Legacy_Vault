@@ -36,6 +36,8 @@ public final class ReceivedAssetDtos {
 	 */
 	public record Image(UUID id, String fileName, String contentType, long sizeBytes, Instant createdAt) { }
 
-	/** Decrypted image for streaming; never logged. */
+	/**
+	 * Ảnh đã giải mã để trả về dưới dạng byte: {@code content} là dữ liệu ảnh, {@code contentType} là MIME type; không được ghi log.
+	 */
 	public record ImageFile(byte[] content, String contentType) { }
 }

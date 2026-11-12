@@ -132,7 +132,8 @@ public class AuditService {
 
     /**
      * Ghi audit {@code AUTH_LOGIN_FAILED} trong transaction riêng ({@code REQUIRES_NEW}) để bản ghi vẫn được lưu dù
-     * transaction đăng nhập bị rollback. Được {@code AuthService} gọi khi đăng nhập sai mật khẩu.
+     * transaction đăng nhập bị rollback. Được {@code AuthService} gọi khi đăng nhập sai (mật khẩu hoặc tài khoản không hợp lệ)
+     * và {@code GoogleAuthService} gọi khi credential Google bị từ chối.
      *
      * @param actorUserId id người dùng bị đăng nhập sai, null nếu không xác định được tài khoản
      */

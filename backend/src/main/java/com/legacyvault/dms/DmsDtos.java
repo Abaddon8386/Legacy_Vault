@@ -35,7 +35,7 @@ public final class DmsDtos {
 	}
 
 	/**
-	 * Reject fractional/coerced numbers, unknown units/fields and duplicate duration fields.
+	 * Từ chối số thập phân/bị ép kiểu, đơn vị hoặc trường lạ và trường thời lượng bị lặp.
 	 * Bộ giải mã JSON tùy chỉnh: chỉ chấp nhận một object với 4 trường số nguyên đã biết, mỗi trường tối đa một lần,
 	 * giá trị vừa trong 31 bit; mọi sai lệch ném {@code MismatchedInputException} (bị
 	 * {@code GlobalExceptionHandler} đổi thành 400 {@code MALFORMED_REQUEST}).

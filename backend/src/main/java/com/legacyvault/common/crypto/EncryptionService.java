@@ -21,8 +21,6 @@ import org.springframework.stereotype.Service;
  * {@code legacyvault.encryption.key} (biến môi trường {@code LEGACYVAULT_ENCRYPTION_KEY}); thiếu hoặc sai định dạng
  * thì ứng dụng không khởi động. Phiên bản khóa lấy từ {@code legacyvault.encryption.key-version} (mặc định
  * {@code v1}).
- *
- * <p>Nội dung gốc (giữ nguyên): Mã hóa đối xứng phía server cho payload tài sản và file di chúc.
  */
 @Service
 public class EncryptionService {
@@ -83,8 +81,8 @@ public class EncryptionService {
 	}
 
 	/**
-	 * Giải mã thành chuỗi UTF-8. Chỉ dùng nội bộ (kiểm thử, và các luồng sau này đã được Legal duyệt — LV-LEG-001).
-	 * Sprint 1 không có API giải mã.
+	 * Giải mã thành chuỗi UTF-8 (gọi {@link #decryptBytes}). Chỉ dùng nội bộ (kiểm thử, và các luồng sau này đã được
+	 * Legal duyệt — LV-LEG-001); chưa có API giải mã công khai.
 	 * Sai khóa, sai associatedData hoặc dữ liệu bị sửa đều ném lỗi (GCM xác thực toàn vẹn).
 	 *
 	 * @param data           dữ liệu đã mã hóa

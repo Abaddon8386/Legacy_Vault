@@ -65,8 +65,7 @@ function intakeFeedback(value, en) {
   return messages[code]?.[en ? 1 : 0] || (en ? 'Unable to complete this action. Please reload the information and try again. Your entered details are preserved.' : 'Chưa thể hoàn tất thao tác. Vui lòng tải lại thông tin và thử lại. Nội dung bạn đã nhập vẫn được giữ.');
 }
 
-// en-GB gives "26/10/2026, 15:33"; vi-VN would put the time first.
-/** Định dạng thời điểm kiểu en-GB (dd/mm/yyyy, hh:mm) để giờ nằm sau ngày ở cả hai ngôn ngữ. */
+/** Định dạng thời điểm kiểu en-GB (dd/mm/yyyy, hh:mm, ví dụ "26/10/2026, 15:33") để giờ nằm sau ngày ở cả hai ngôn ngữ (vi-VN sẽ đặt giờ trước). */
 const formatDateTime = value => new Intl.DateTimeFormat('en-GB', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(value));
 /** Các nhóm giấy tờ Staff tiếp nhận: `[mã nhóm/đường dẫn API, nhãn vi, nhãn en]`. */
 const documentKinds = [['death-documents', 'Giấy tờ tử vong', 'Death documents'], ['original-will-intakes', 'Di chúc gốc', 'Original will']];

@@ -24,7 +24,7 @@ export function writePreviewSchedule(scenario, value) {
   return value;
 }
 /**
- * Tạo đường dẫn preview /{tab}?preview=true&scenario=...&lang=... từ chuỗi query hiện tại. Dùng bởi App.jsx và components/vault/VaultSummary.jsx.
+ * Tạo đường dẫn preview /{tab}?preview=true&scenario=...&lang=... từ chuỗi query hiện tại. Dùng bởi App.jsx (điều hướng tab ở chế độ preview).
  */
 export function previewRoute(tab, search, lang) {
   const params = new URLSearchParams(search);

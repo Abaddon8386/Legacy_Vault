@@ -3,10 +3,10 @@ package com.legacyvault.verification.dto;
 import java.util.UUID;
 
 /**
- * PS-64: one asset that the current Legal approval allows to be handed to a recipient.
- * BE-02: {@code recipientSource} (OWNER_DESIGNATED | COURT_DOCUMENT), {@code accountLinked}, and
- * {@code deliverable}/{@code blockedReason} tell Staff why a line cannot be delivered yet
- * (RECIPIENT_ACCOUNT_REQUIRED) without trying and failing.
+ * PS-64: một tài sản mà phê duyệt hiện hành của Legal cho phép giao cho một người nhận.
+ * BE-02: {@code recipientSource} (OWNER_DESIGNATED | COURT_DOCUMENT), {@code accountLinked},
+ * {@code deliverable}/{@code blockedReason} cho Staff biết vì sao một dòng chưa giao được
+ * (RECIPIENT_ACCOUNT_REQUIRED) mà không phải thử rồi thất bại.
  *
  * Kết quả {@code GET .../handover-sessions/{sessionId}/eligible-assets}.
  *

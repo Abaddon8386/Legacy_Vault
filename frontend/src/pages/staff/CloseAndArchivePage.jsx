@@ -16,7 +16,7 @@ import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 const isUuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
 /**
- * Trang "Đóng phiên và lưu trữ hồ sơ" (Staff, đường dẫn `/staff/close-archive`). Xác định token, chế độ mô phỏng
+ * Trang "Đóng phiên và lưu trữ hồ sơ" (Staff, đường dẫn `/staff/close-and-archive`, cũng khớp `/staff/completion-progress`). Xác định token, chế độ mô phỏng
  * (`isCounterHandoverSimulationPermitted`), `caseId`/`sessionId` (từ prop hoặc query string) rồi bọc
  * `CloseArchiveContext` với `key` theo (người dùng, token, caseId, sessionId, preview). Context sở hữu toàn bộ vòng đời
  * của trang, gồm cả thao tác ghi đang chạy và state riêng.
@@ -166,8 +166,7 @@ function CloseArchiveContext({
   const canCloseSession = ready && sessionStatus === 'OPEN' && isDualGateReady;
   /** Điều kiện lập biên bản Staff: phiên COMPLETED, thỏa hai cổng và có người nhận cùng tài sản đã giao chưa được biên bản bao phủ. */
   const canCreateReceipt = ready && sessionStatus === 'COMPLETED' && isDualGateReady && hasValidReceiptTarget;
-  // BE rechecks coverage against the current full allocation snapshot under lock.
-  /** Điều kiện lưu trữ hồ sơ: phiên COMPLETED, thỏa hai cổng, đã có biên bản và mọi tài sản đã giao đều được bao phủ. */
+  /** Điều kiện lưu trữ hồ sơ: phiên COMPLETED, thỏa hai cổng, đã có biên bản và mọi tài sản đã giao đều được bao phủ (backend kiểm tra lại dưới khóa theo toàn bộ phân bổ hiện hành). */
   const canArchive = ready && sessionStatus === 'COMPLETED' && isDualGateReady && hasReceipts && allDeliveredCovered;
   const say = (vi, en) => lang === 'en' ? en : vi;
   const commonBlock = loading || busy ? say('Chờ kiểm tra hoặc ghi nhận hoàn tất.', 'Wait for loading or saving to finish.')

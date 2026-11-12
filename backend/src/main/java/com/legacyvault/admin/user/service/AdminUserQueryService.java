@@ -24,7 +24,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Read-only Admin account lookup; never returns persistence identifiers or credentials.
+ * Tra cứu tài khoản chỉ đọc cho Admin; không bao giờ trả id nội bộ hay thông tin xác thực.
  * <p>Phục vụ {@code GET /api/v1/admin/users} và {@code /{publicId}}. Gom dữ liệu từ {@code users}, {@code user_roles}
  * và {@code vaults} theo lô (tránh N+1) rồi quy đổi sang {@link AdminUserResponse}.
  */

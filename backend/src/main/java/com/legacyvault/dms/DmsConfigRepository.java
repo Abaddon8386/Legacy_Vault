@@ -23,7 +23,7 @@ public interface DmsConfigRepository extends JpaRepository<DmsConfig, Long> {
 
 	/**
 	 * Tìm cấu hình theo chủ két và khóa ghi dòng ({@code PESSIMISTIC_WRITE}).
-	 * Holds the row lock until the Owner operation and its audit commit together.
+	 * Giữ khóa dòng cho đến khi thao tác của Owner và audit của nó cùng commit.
 	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select d from DmsConfig d where d.ownerUserId = :ownerUserId")
@@ -31,10 +31,10 @@ public interface DmsConfigRepository extends JpaRepository<DmsConfig, Long> {
 
 	/**
 	 * ST-07 candidates: id các cấu hình {@code MONITORING} đã quá {@code nextCheckAt}, cũ nhất trước.
-	 * {@link DmsTriggerProcessor#triggerIfExpired} leaves a config untouched when its Vault is ARCHIVED,
-	 * so such a config would stay at the head of this oldest-first page on every scan and, with a full batch of them,
-	 * starve every other config. They are left out here; a Vault without a row is still listed because the processor
-	 * triggers it. This is only a pre-filter: the processor re-checks everything under the Vault and DMS locks.
+	 * {@link DmsTriggerProcessor#triggerIfExpired} không đụng tới cấu hình có Vault đã ARCHIVED, nên cấu hình đó sẽ luôn
+	 * nằm đầu trang (cũ nhất trước) ở mỗi lượt quét và, nếu đủ một lô như vậy, làm đói mọi cấu hình khác. Vì thế chúng bị
+	 * loại ở đây; chủ chưa có Vault vẫn được liệt kê vì bộ xử lý vẫn kích hoạt. Đây chỉ là bộ lọc sơ bộ: bộ xử lý kiểm tra
+	 * lại mọi thứ dưới khóa Vault và DMS.
 	 *
 	 * @param now      thời điểm quét (UTC)
 	 * @param pageable giới hạn số bản ghi mỗi lượt
@@ -65,12 +65,11 @@ public interface DmsConfigRepository extends JpaRepository<DmsConfig, Long> {
 
 	/**
 	 * ST-08/ST-09 candidates: id các cấu hình {@code TRIGGERED} đã hết gia hạn, theo {@code graceDeadline}.
-	 * {@link DmsTriggerProcessor#processGracePeriodExpired} changes nothing when the owner has no
-	 * Vault, the Vault is not ACTIVE, or an OPEN case already exists for it, so such a config stays TRIGGERED and would
-	 * be scanned again every cycle; 100 of them would fill the whole batch and block the configs that can proceed. Only
-	 * configs that can enter verification are listed. The check is state based, so a config is listed again as soon as
-	 * its Vault is ACTIVE again with no OPEN case, and nothing is changed or deleted here. The processor still
-	 * re-checks everything under the Vault and DMS locks, so this is a pre-filter and not the authority.
+	 * {@link DmsTriggerProcessor#processGracePeriodExpired} không đổi gì khi chủ chưa có Vault, Vault không ACTIVE hoặc đã
+	 * có vụ OPEN, nên cấu hình đó vẫn ở TRIGGERED và bị quét lại mỗi chu kỳ; 100 cấu hình như vậy sẽ chiếm hết lô và chặn
+	 * các cấu hình xử lý được. Vì thế chỉ liệt kê cấu hình có thể vào xác minh. Điều kiện dựa trên trạng thái hiện tại nên
+	 * cấu hình được liệt kê lại ngay khi Vault ACTIVE trở lại và không còn vụ OPEN; ở đây không thay đổi hay xóa gì. Bộ xử
+	 * lý vẫn kiểm tra lại mọi thứ dưới khóa Vault và DMS, nên đây chỉ là bộ lọc sơ bộ chứ không phải nguồn quyết định.
 	 *
 	 * @param now      thời điểm quét (UTC)
 	 * @param pageable giới hạn số bản ghi mỗi lượt

@@ -41,7 +41,7 @@ export function confirmationState(dms, now = Date.now()) {
 }
 
 /**
- * Mô tả mốc kiểm tra kế tiếp: "Còn N ngày", "Đã đến hạn xác nhận" hoặc "Đã quá hạn xác nhận" (vi/en).
+ * Mô tả mốc kiểm tra kế tiếp (vi/en): khi MONITORING là "Còn N ngày" hoặc "Đã đến hạn xác nhận" (nextCheckAt đã qua); mọi trạng thái khác MONITORING (TRIGGERED, GRACE_PERIOD_EXCEEDED) đều là "Đã quá hạn xác nhận".
  */
 export function describeNextCheck(dms, lang = 'vi', now = Date.now()) {
   const en = lang === 'en';

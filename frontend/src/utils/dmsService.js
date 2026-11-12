@@ -20,7 +20,7 @@ import { isUuid, isUtcDate } from '../api/contracts.js';
  */
 
 /**
- * Danh sách kịch bản mô phỏng (chỉ cho DEV preview/test) mà thanh công cụ preview cho phép chọn. Không bao giờ dùng ở production.
+ * Danh sách kịch bản mô phỏng (chỉ cho DEV preview/test; id được chuyển qua normalizePreviewScenario). Hiện chưa có component nào import hằng số này. Không bao giờ dùng ở production.
  */
 export const DMS_SCENARIOS = [
   { id: 'monitoring', labelVi: 'Đang theo dõi (MONITORING)', labelEn: 'Active Monitoring (MONITORING)' },
@@ -118,14 +118,9 @@ export const dmsStatusMessages = {
 };
 
 /**
- * Technical validation for DMS interval input.
- * Client validation enforces whole positive integer (> 0).
- * Business min/max days are validated by backend configuration (PS-74 D-API-15).
- * @param {number|string} intervalInput
+ * Kiểm tra chu kỳ nhập theo ngày/giờ/phút ({days, hours, minutes}); backend vẫn là nơi áp giới hạn nghiệp vụ cuối cùng (PS-74 D-API-15).
+ * @param {{days?:(number|string), hours?:(number|string), minutes?:(number|string)}} input
  * @param {'vi'|'en'} lang
- * @returns {Object} validation errors keyed by field
- *
- * Kiểm tra chu kỳ nhập theo ngày/giờ/phút ({days, hours, minutes}).
  * Mỗi đơn vị phải là số nguyên không âm (ngày tối đa 180, giờ 0-23, phút 0-59), tổng phải > 0 và không vượt 180 ngày.
  * @returns {Object} map lỗi theo trường (days, hours, minutes, duration, check_interval_days); rỗng nghĩa là hợp lệ.
  */
@@ -605,10 +600,9 @@ export const liveDmsAdapter = {
     return result;
   },
 };
-/** Live actions for DmsGraceSettings (BE-03): PUT /dms with the current interval plus the grace duration.
- * Returns the raw response because the component validates it with readDms itself. */
 /**
- * Hành động thật cho components/dms/DmsGraceSettings.jsx (BE-03): lưu thời gian ân hạn.
+ * Hành động thật cho components/dms/DmsGraceSettings.jsx (BE-03): lưu thời gian ân hạn bằng {@code PUT /dms} gửi kèm chu kỳ hiện tại.
+ * Trả phản hồi thô vì component tự kiểm tra bằng readDms.
  */
 export const liveDmsGraceActions = {
   durationUnit: 'minutes',

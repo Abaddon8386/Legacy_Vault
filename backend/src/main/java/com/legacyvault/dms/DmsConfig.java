@@ -99,9 +99,9 @@ public class DmsConfig {
 	}
 
 	/**
-	 * Current UTC time at microsecond precision. SQL Server datetime2 keeps 100 ns and rounds, while Linux clocks
-	 * return nanoseconds; a value computed here and the same value read back would otherwise differ, and a
-	 * deadline compared against its own stored copy could land on the wrong side.
+	 * Giờ UTC hiện tại ở độ chính xác micro giây. SQL Server datetime2 lưu 100 ns và làm tròn, còn đồng hồ Linux trả về
+	 * nano giây; nếu không cắt bớt thì giá trị tính ở đây và giá trị đọc lại từ DB sẽ khác nhau, khiến hạn chót so với
+	 * bản lưu của chính nó có thể rơi sai phía.
 	 *
 	 * @return giờ UTC hiện tại, đã cắt về micro giây
 	 */
@@ -154,7 +154,7 @@ public class DmsConfig {
 	}
 
 	/**
-	 * Grace-only change: keeps the check-in cycle (lastCheckInAt/nextCheckAt) untouched.
+	 * Chỉ đổi gia hạn: giữ nguyên chu kỳ check-in (lastCheckInAt/nextCheckAt).
 	 * Đổi riêng thời gian gia hạn (phút) và đồng bộ lại cột ngày.
 	 *
 	 * @throws IllegalArgumentException nếu nhỏ hơn 0 hoặc lớn hơn {@link #MAX_GRACE_MINUTES}
@@ -194,8 +194,9 @@ public class DmsConfig {
 	}
 
 	/**
-	 * Hủy cảnh báo khi chủ két check-in trong thời gian gia hạn: quay về {@code MONITORING}, xóa dấu vết kích hoạt và
-	 * dời {@code nextCheckAt}.
+	 * Khôi phục về {@code MONITORING} khi chủ két check-in trong thời gian gia hạn ({@code DmsService#checkInAt}) hoặc hủy
+	 * cảnh báo sau khi hết gia hạn ({@code VaultService#cancelAlert}): ghi {@code lastCheckInAt}, xóa dấu vết kích hoạt
+	 * và dời {@code nextCheckAt} thêm một chu kỳ.
 	 */
 	public void restoreAfterAlert(LocalDateTime now) {
 		this.status = "MONITORING";
@@ -243,7 +244,7 @@ public class DmsConfig {
 	/** Chu kỳ check-in (phút); với dòng cũ thiếu cột phút thì suy từ số ngày. */
 	public int getCheckIntervalMinutes() { return checkIntervalMinutes != null ? checkIntervalMinutes : Math.multiplyExact(checkIntervalDays, 1440); }
 	public int getGracePeriodDays() { return gracePeriodDays; }
-	/** Thời gian gia hạn (phút). NULL column = legacy row, exactly gracePeriodDays * 1440. */
+	/** Thời gian gia hạn (phút); cột NULL là dòng cũ, bằng đúng gracePeriodDays * 1440. */
 	public int getGracePeriodMinutes() { return gracePeriodMinutes != null ? gracePeriodMinutes : Math.multiplyExact(gracePeriodDays, 1440); }
 	public String getStatus() { return status; }
 	public LocalDateTime getLastCheckInAt() { return lastCheckInAt; }

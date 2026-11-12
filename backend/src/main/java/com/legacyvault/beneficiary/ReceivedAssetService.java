@@ -51,7 +51,7 @@ public class ReceivedAssetService {
 	private static final String VISIBLE = "('DELIVERED','VERIFIED_BY_BENEFICIARY')";
 	/**
 	 * Phần FROM/WHERE dùng chung: nối mục bàn giao, người thụ hưởng, tài sản, Vault và phân bổ; chỉ lấy mục của tài khoản (tham số đầu tiên),
-	 * loại tài sản DOCUMENT và trạng thái trong {@code VISIBLE}.
+	 * loại trừ tài sản loại DOCUMENT và chỉ lấy trạng thái trong {@code VISIBLE}.
 	 */
 	private static final String FROM = """
 			FROM dbo.handover_items hi

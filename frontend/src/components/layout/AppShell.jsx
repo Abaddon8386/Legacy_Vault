@@ -17,14 +17,8 @@ import './WorkflowForms.css';
 import { LEGAL_NAVIGATION_REGISTRY } from '../../utils/legalNavigation.js';
 
 /**
- * Extensible Navigation Registry for LegacyVault AppShell
- * Architecture notes:
- * - Supports modular routes conforming to role-based access control (RBAC).
- * - Routes are conditionally active only when their corresponding Jira capability has been implemented.
- * - Current active scope: PS-3 (Digital Heritage Vault).
- * - Future capability slots (Assets, Wills, Beneficiaries, DMS) are reserved at schema level but strictly not exposed in the UI.
- *
- * Danh mục điều hướng của chủ hầm/người thụ hưởng (xem ghi chú kiến trúc ở trên).
+ * Danh mục điều hướng của chủ hầm (OWNER). Mỗi mục có {@code jiraTicket} tham khảo và {@code status}; hiện tất cả đều ACTIVE.
+ * Vai trò khác không dùng danh mục này: STAFF dùng {@code STAFF_NAVIGATION_REGISTRY}, LEGAL dùng {@code LEGAL_NAVIGATION_REGISTRY}, còn ADMIN và BENEFICIARY dùng danh sách dựng sẵn trong {@code AppShell}.
  */
 const NAVIGATION_REGISTRY = [
   {

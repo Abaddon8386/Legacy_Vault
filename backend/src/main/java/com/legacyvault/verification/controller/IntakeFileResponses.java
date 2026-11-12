@@ -11,8 +11,8 @@ import org.springframework.http.ResponseEntity;
 import com.legacyvault.verification.service.IntakeAttachmentService.IntakeFile;
 
 /**
- * PS-103: evidence files are user-supplied bytes, so they are always an attachment, never sniffed, never cached and
- * never allowed to run active content. The FE previews them from a fetched blob.
+ * PS-103: file bằng chứng là byte do người dùng cung cấp nên luôn trả dạng attachment, không sniff, không cache và
+ * không cho chạy nội dung chủ động. Frontend xem trước từ blob đã tải.
  */
 final class IntakeFileResponses {
 

@@ -5,9 +5,9 @@ import org.springframework.stereotype.Service;
 import com.legacyvault.user.entity.User;
 
 /**
- * Resolves the authenticated actor only. OwnerContextService.requireOwner is a legacy name:
- * it resolves an active JWT user, without checking Owner authority. Controllers enforce Staff role;
- * StaffVaultCaseGuard independently enforces ownership of an OPEN verification case.
+ * Chỉ xác định người dùng đang đăng nhập. {@code OwnerContextService.requireOwner} là tên cũ: nó lấy ra user JWT đang
+ * hoạt động mà không kiểm tra quyền Owner. Controller tự bắt buộc role staff; {@code StaffVaultCaseGuard} kiểm tra
+ * riêng việc nhân viên được gán vụ xác minh {@code OPEN}.
  *
  * <p>Được các service của nhân viên (staff executor / legal verifier) gọi để lấy người dùng đang đăng nhập.
  */

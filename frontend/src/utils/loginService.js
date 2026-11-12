@@ -15,7 +15,7 @@ import { createSession } from './session.js';
  */
 
 /**
- * Các kịch bản đăng nhập mô phỏng (chỉ DEV preview ?preview=true và test). Dùng bởi pages/auth/LoginPage.jsx.
+ * Các kịch bản đăng nhập mô phỏng (chỉ DEV preview ?preview=true và test); các id được authenticateUser xử lý trong khi mô phỏng. Hiện chỉ khai báo ở file này, chưa component nào import.
  */
 export const PREVIEW_SCENARIOS = [
   { id: 'success', labelVi: 'Mô phỏng đăng nhập thành công (DEV)', labelEn: 'Simulated Login Success (DEV)' },

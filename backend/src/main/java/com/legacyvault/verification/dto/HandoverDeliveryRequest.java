@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
- * PS-65: Staff selects the recipient and assets handed over; the service validates them against the approved scope.
+ * PS-65: Staff chọn người nhận và các tài sản đã giao; service kiểm tra chúng với phạm vi đã được duyệt.
  *
  * Body của {@code POST .../handover-sessions/{sessionId}/deliveries}.
  *

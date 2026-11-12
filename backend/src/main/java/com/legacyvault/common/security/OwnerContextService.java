@@ -12,8 +12,8 @@ import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.UserRepository;
 
 /**
- * Resolves the authenticated JWT subject (the user's public UUID) to the internal database key.
- * Xác định người dùng đang đăng nhập (tải bản ghi {@code User} từ bảng {@code users}); được rất nhiều service
+ * Đổi subject của JWT đang đăng nhập (UUID công khai của người dùng) thành bản ghi {@code User} trong bảng
+ * {@code users}; được rất nhiều service
  * (vault, asset, will, beneficiary, dms...) gọi để lấy chủ sở hữu hiện tại. {@link StaffContextService} dùng lại
  * lớp này cho nhân viên.
  */

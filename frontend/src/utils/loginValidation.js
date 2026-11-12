@@ -5,7 +5,7 @@
  */
 
 /**
- * Biểu thức kiểm tra email dùng chung (đăng nhập, khôi phục mật khẩu). Dùng bởi pages/auth/LoginPage.jsx và passwordRecoveryValidation.js.
+ * Biểu thức kiểm tra email dùng chung (đăng nhập, khôi phục mật khẩu). Được import bởi passwordRecoveryValidation.js và dùng trong validateLogin (hàm này do pages/auth/LoginPage.jsx gọi).
  */
 export const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 

@@ -4,7 +4,7 @@ import { request, ApiError } from '../api/http.js';
  * LegacyVault — Subscription Management Service & Adapter (CR-01)
  *
  * ARCHITECTURAL CONTEXT & BUSINESS RULES:
- * - Aligned with docs/SUBSCRIPTION-PLANS.md (D-PKG-01).
+ * - D-PKG-01 (lưu ý: tệp docs/SUBSCRIPTION-PLANS.md được nhắc trước đây hiện không còn trong repo; hợp đồng nằm ở docs/api-contracts/).
  * - Lifetime Single Vault Rule (D-PKG-01): Every account is permitted at most 1 vault
  *   across its entire lifetime. Closing, archiving, or soft-deleting a vault does not grant
  *   permission to create a new vault.

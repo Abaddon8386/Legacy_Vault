@@ -10,8 +10,8 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Distribution workflow contract (PR #226): the server-derived phase, the current document and allocation snapshots and
- * one capability per action. The client never supplies a phase; it supplies the revision and snapshot it looked at.
+ * Contract quy trình phân chia (PR #226): pha do server suy ra, snapshot văn bản và phương án phân chia hiện hành, cùng một
+ * capability cho mỗi hành động. Client không bao giờ gửi pha; chỉ gửi revision và snapshot mà nó đã xem.
  *
  * Được {@code DistributionWorkflowController} (Staff và Legal) trả về/nhận vào. Lớp này chỉ gom các record lồng nhau.
  */
@@ -30,9 +30,7 @@ public final class DistributionWorkflowDtos {
     public record RequestInfo(UUID id, String reason) { }
 
     /**
-     * Latest forwarded document version; status is PENDING, APPROVED or CHANGES_REQUESTED.
-     *
-     * Thông tin văn bản đã chuyển.
+     * Thông tin phiên bản văn bản mới nhất đã chuyển cho Legal; {@code status} là PENDING, APPROVED hoặc CHANGES_REQUESTED.
      */
     public record DocumentInfo(int version, String sha256, String status) { }
 
@@ -42,16 +40,13 @@ public final class DistributionWorkflowDtos {
     public record AllocationItem(UUID assetId, UUID beneficiaryId, String assetName, String recipientName, String description) { }
 
     /**
-     * Status is SUBMITTED, APPROVED or CHANGES_REQUESTED; documentVersion is the document the allocation was prepared for.
-     *
-     * Phương án phân chia hiện hành kèm danh sách {@code items}.
+     * Phương án phân chia hiện hành kèm danh sách {@code items}; {@code status} là SUBMITTED, APPROVED hoặc CHANGES_REQUESTED,
+     * {@code documentVersion} là phiên bản văn bản mà phương án được lập cho.
      */
     public record AllocationInfo(int version, int documentVersion, String sha256, String status, List<AllocationItem> items) { }
 
     /**
-     * blockedReason is null exactly when allowed.
-     *
-     * Khả năng thực hiện một hành động: {@code allowed} và lý do bị chặn.
+     * Khả năng thực hiện một hành động: {@code allowed} và {@code blockedReason} (null đúng khi allowed=true).
      */
     public record Capability(boolean allowed, String blockedReason) { }
 
@@ -69,7 +64,7 @@ public final class DistributionWorkflowDtos {
             String feedback) { }
 
     /**
-     * Body of every POST action; which fields are required depends on the action and is checked by the service.
+     * Body của mọi hành động POST; trường nào bắt buộc tùy hành động và do service kiểm tra.
      *
      * Các trường: {@code revision} (bắt buộc, chống xung đột), {@code reason}, {@code documentVersion},
      * {@code documentSha256}, {@code allocationVersion}, {@code allocationSha256} (hash 64 ký tự hex) và

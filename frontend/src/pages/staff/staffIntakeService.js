@@ -157,6 +157,6 @@ export function validateIntakeReceipt(receipt, caseId, options = {}) {
 }
 
 /**
- * Dữ liệu người thụ hưởng tổng hợp gắn với từng case (PS-45 & PS-27 DEV Preview)
- * Theo đúng schema BeneficiaryResponse trong openapi.yaml
+ * Chú thích còn sót ở cuối file, không gắn với đoạn mã nào: dữ liệu người thụ hưởng mô phỏng (theo schema BeneficiaryResponse)
+ * thực tế nằm ở SYNTHETIC_BENEFICIARIES_BY_CASE trong staffIdentityService.js.
  */

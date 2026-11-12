@@ -3,7 +3,7 @@ import { formatCaseReference } from '../../utils/caseReference.js';
 import './StaffCaseContextBar.css';
 
 /**
- * Thanh ngữ cảnh ở đầu các trang Staff, cho biết hồ sơ xác minh đang làm việc.
+ * Thanh ngữ cảnh ở đầu các trang Staff (và LegalLiveWorkflow), cho biết hồ sơ xác minh đang làm việc.
  * Khi đã chọn hồ sơ (`caseId`) hiển thị mã hồ sơ (qua `formatCaseReference`), trạng thái, giai đoạn,
  * chip kết quả của Ban Pháp lý, tên kho và chủ sở hữu cùng nút "Đổi hồ sơ";
  * nếu chưa chọn thì hiện lời nhắc và nút "Chọn hồ sơ". Không gọi API, dữ liệu do trang cha truyền xuống

@@ -24,10 +24,11 @@ import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
 import com.legacyvault.vault.service.VaultService;
 
-/** PS-86. Resource writes serialize on Vault before refreshing Beneficiary and invitation.
- * Account linking first locks the target User, matching User -> Vault in Owner content writers.
- * PS-87 must call linkAccount in its outer auth transaction, after rate limiting and authentication.
- * No public redemption endpoint is supplied by PS-86.
+/**
+ * PS-86 / PS-87 / PS-106. Ghi trên tài nguyên được tuần tự hóa bằng khóa Vault trước khi refresh người thụ hưởng và lời mời.
+ * Khi liên kết tài khoản, khóa User trước rồi mới khóa Vault, khớp thứ tự User -> Vault của các luồng ghi nội dung Owner.
+ * Việc đổi mã ({@code redeemBoundAccount}) phải chạy trong giao dịch xác thực bên ngoài, sau bước giới hạn số lần thử và xác thực
+ * (xem {@code InvitationRedeemService}).
  *
  * <p>Vai trò: vòng đời mã mời liên kết tài khoản cho người thụ hưởng. Owner cấp, xem, cấp lại, thu hồi mã (qua
  * {@code BeneficiaryInvitationController}); Staff cấp mã gắn email (qua {@code StaffInvitationEmailService.issueBoundForStaff});
@@ -111,11 +112,11 @@ public class BeneficiaryInvitationService {
         return create(beneficiary, Math.addExact(generation, 1), owner.getUserId(), "BENEFICIARY_INVITATION_REISSUED");
     }
 
-    /** PS-106 internal seam: rotate an unbound/current PS-86 code (or create the first generation), binding the
-     * new code to the Staff-confirmed address. Caller owns the Staff/case/Legal/allocation guards and outbox txn.
-     *
-     * Cấp mã mời gắn với email Staff đã xác nhận tại quầy (PS-106). Phải chạy trong giao dịch có sẵn (MANDATORY). Chấp nhận
-     * generation kỳ vọng 0 (chưa có mã) hoặc đúng thế hệ hiện hành chưa gắn email; mã cũ được thu hồi và thay thế.
+    /**
+     * Cấp mã mời gắn với email Staff đã xác nhận tại quầy (PS-106). Phải chạy trong giao dịch có sẵn (MANDATORY); nơi gọi
+     * ({@code StaffInvitationEmailService}) chịu trách nhiệm kiểm tra quyền Staff/case/pháp lý/phân bổ và giao dịch outbox.
+     * Chấp nhận generation kỳ vọng 0 (chưa có mã, tạo thế hệ 1, audit ISSUED) hoặc đúng thế hệ hiện hành chưa gắn email
+     * (thu hồi mã cũ, tạo thế hệ kế tiếp, audit REISSUED). Email được chuẩn hóa bằng {@code EmailNormalizer}.
      * @param expectedGeneration thế hệ Staff nhìn thấy
      * @throws com.legacyvault.common.error.BusinessException {@code BENEFICIARY_INVITATION_COUNTER_EMAIL_REQUIRED}, {@code BENEFICIARY_INVITATION_STALE}, {@code BENEFICIARY_INVITATION_ALREADY_USED}, {@code BENEFICIARY_INVITATION_ALREADY_EXISTS}
      */
@@ -159,9 +160,9 @@ public class BeneficiaryInvitationService {
     }
 
     /**
-     * Caller already holds the editable Vault lock. A contact change cannot leave an old shared code usable.
-     *
-     * Thu hồi mã hiện hành còn hiệu lực (nếu có). Gọi từ {@code BeneficiaryService.update} khi Owner đổi email người thụ hưởng.
+     * Thu hồi mã hiện hành còn hiệu lực (nếu có; bỏ qua nếu đã dùng hoặc đã thu hồi) và audit {@code BENEFICIARY_INVITATION_REVOKED}.
+     * Gọi từ {@code BeneficiaryService.update} khi Owner đổi email người thụ hưởng; nơi gọi đã giữ khóa Vault có thể sửa, nhờ đó mã
+     * cũ không còn dùng được sau khi liên hệ thay đổi.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void revokeForEmailChange(Beneficiary beneficiary, Long actor) {
@@ -173,9 +174,8 @@ public class BeneficiaryInvitationService {
     }
 
     /**
-     * PS-88: Staff linked an account at the counter, so a still-pending shared code must not stay usable.
-     *
-     * Thu hồi mã đang chờ khi Staff đã liên kết tài khoản tại quầy; gọi từ {@code BeneficiaryAccountService.attach}.
+     * PS-88: thu hồi mã đang chờ (dùng lại logic của {@code revokeForEmailChange}) khi Staff đã liên kết tài khoản tại quầy,
+     * để mã dùng chung còn lại không thể dùng được nữa. Gọi từ {@code BeneficiaryAccountService.attach}.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void revokeForCounterLink(Beneficiary beneficiary, Long actor) {
@@ -183,20 +183,18 @@ public class BeneficiaryInvitationService {
     }
 
     /**
-     * PS-86 internal seam retained for established Staff flows.
-     *
-     * Đổi mã lấy liên kết tài khoản, không yêu cầu ràng buộc email (đường nội bộ cũ).
+     * Đổi mã lấy liên kết tài khoản KHÔNG kiểm tra ràng buộc email và chỉ chấp nhận Vault ở trạng thái ACTIVE (đường nội bộ PS-86 cũ).
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public InvitationDtos.Linked linkAccount(String code, Long accountId) {
         return linkAccountInternal(code, accountId, false);
     }
 
-    /** Authenticated PS-87 redeem. A Staff-bound PS-106 invitation may be redeemed when the
-     * authenticated account email exactly matches the counter-confirmed binding. Legacy unbound
-     * invitations retain the existing verified-account-email requirement and fail closed.
-     *
-     * Đổi mã lấy liên kết tài khoản ở chế độ có kiểm tra ràng buộc email; được gọi từ {@code InvitationRedeemService.redeem}.
+    /**
+     * Đổi mã (PS-87) cho tài khoản đã đăng nhập, ở chế độ kiểm tra ràng buộc email; được gọi từ {@code InvitationRedeemService.redeem}.
+     * Mã gắn email Staff (PS-106) chỉ đổi được khi email tài khoản trùng đúng email đã xác nhận tại quầy; mã cũ không gắn email
+     * yêu cầu tài khoản đã xác minh email và nếu không khớp thì bị từ chối. Cho phép Vault ở trạng thái ACTIVE, UNLOCKED hoặc
+     * HANDOVER_IN_PROGRESS.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public InvitationDtos.Linked redeemBoundAccount(String code, Long accountId) {
@@ -205,9 +203,10 @@ public class BeneficiaryInvitationService {
 
     /**
      * Lõi của việc đổi mã. Các bước: kiểm tra định dạng mã, tìm lời mời theo hash, khóa tài khoản rồi Vault, kiểm tra trạng thái Vault
-     * và email ràng buộc, xác minh danh tính tại quầy, loại tài khoản nội bộ/chủ kho, xử lý lặp (idempotent nếu cùng tài khoản đã dùng),
-     * cấp {@code ROLE_BENEFICIARY}, liên kết người thụ hưởng, đánh dấu mã đã dùng và audit {@code BENEFICIARY_INVITATION_CONSUMED}.
-     * @param requireEmailBinding {@code true} cho PS-87 (kiểm tra email); {@code false} cho đường nội bộ
+     * và loại chủ kho, (chỉ khi {@code requireEmailBinding}) kiểm tra email ràng buộc và danh tính đã xác minh tại quầy, kiểm tra tài khoản ACTIVE
+     * và không có vai trò nội bộ, xử lý lặp (idempotent nếu cùng tài khoản đã dùng mã hiện hành), kiểm tra mã còn hiệu lực và người thụ hưởng
+     * chưa liên kết, cấp {@code ROLE_BENEFICIARY} nếu thiếu, liên kết người thụ hưởng, đánh dấu mã đã dùng và audit {@code BENEFICIARY_INVITATION_CONSUMED}.
+     * @param requireEmailBinding {@code true} cho PS-87 (kiểm tra email, danh tính, cho phép thêm Vault UNLOCKED/HANDOVER_IN_PROGRESS); {@code false} cho đường nội bộ cũ
      * @return {@code Linked} gồm mã người thụ hưởng, mã tài khoản, trạng thái tài khoản
      * @throws com.legacyvault.common.error.BusinessException {@code BENEFICIARY_INVITATION_INVALID} cho mọi mã không dùng được (không lộ lý do),
      * {@code BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED}, {@code BENEFICIARY_IDENTITY_NOT_VERIFIED}

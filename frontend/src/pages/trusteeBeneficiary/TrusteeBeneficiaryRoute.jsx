@@ -7,7 +7,7 @@ import TrusteeBeneficiaryPage from './TrusteeBeneficiaryPage.jsx';
 
 /**
  * Route màn hình Người thi hành bên ngoài và Người thụ hưởng của chủ kho (App.jsx render tại /beneficiaries).
- * Tải kho của chủ sở hữu bằng fetchVault (GET /api/v1/vault) rồi quyết định: đang tải -> LoadingState; lỗi -> ErrorState (401 -> onUnauthorized); chưa có kho -> VaultRequiredState;
+ * Tải kho của chủ sở hữu bằng fetchVault (GET /api/v1/vaults?page=0&size=20&sort=createdAt,desc) rồi quyết định: đang tải -> LoadingState; lỗi -> ErrorState (401 -> onUnauthorized); chưa có kho -> VaultRequiredState;
  * có kho -> TrusteeBeneficiaryPage. Chế độ xem trước DEV chỉ bật khi không có accessToken. Có AbortController và cờ active để hủy khi props đổi hoặc unmount.
  *
  * @param {object} props

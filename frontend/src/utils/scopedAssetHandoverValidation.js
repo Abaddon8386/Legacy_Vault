@@ -11,7 +11,7 @@
  */
 
 /**
- * Các khóa lỗi (i18n) của màn hình bàn giao tài sản theo phạm vi phân bổ đã duyệt. Dùng bởi App.jsx và pages/staff/ScopedAssetHandoverPage.jsx.
+ * Các khóa lỗi (i18n) của màn hình bàn giao tài sản theo phạm vi phân bổ đã duyệt. Hiện chỉ dùng trong chính file này (validateApprovedAllocationScope, filterScopedHandoverItems, validateHandoverAttempt).
  */
 export const SCOPED_ASSET_HANDOVER_ERROR_KEYS = {
   SCOPE_REQUIRED: 'scopeRequired',

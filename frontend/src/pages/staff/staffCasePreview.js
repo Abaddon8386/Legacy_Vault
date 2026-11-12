@@ -1,6 +1,6 @@
 /**
  * Danh sách hồ sơ xác minh tổng hợp (8 hồ sơ, trạng thái AWAITING_VERIFICATION, IN_PROGRESS, VERIFIED) chỉ dùng cho dev preview và unit test.
- * Được staffCaseService.fetchStaffCases() lọc/phân trang khi chế độ mô phỏng được phép; cũng được staffIdentityService và staffLegalDocumentsService re-export.
+ * Được staffCaseService.fetchStaffCases() lọc/phân trang khi chế độ mô phỏng được phép; Dữ liệu mô phỏng này không được re-export; staffIdentityService.js chỉ re-export SYNTHETIC_STAFF_CASES và isStaffSimulationPermitted.
  */
 export const SYNTHETIC_STAFF_CASES = [
   {
@@ -100,6 +100,6 @@ export function isStaffSimulationPermitted(options = {}) {
 }
 
 /**
- * Lấy danh sách hồ sơ cần xác minh cho Staff.
- * @param {Object} options - { page, size, status, accessToken, isDevPreview, isTest, lang, signal }
+ * Chú thích còn sót ở cuối file, không gắn với đoạn mã nào: hàm lấy danh sách hồ sơ thực tế là fetchStaffCases() trong staffCaseService.js
+ * (tùy chọn { page, size, status, q, accessToken, isDevPreview, isTest, lang, signal }).
  */

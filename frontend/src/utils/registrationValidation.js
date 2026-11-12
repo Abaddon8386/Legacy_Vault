@@ -4,7 +4,7 @@
  */
 
 /**
- * Biểu thức kiểm tra email. Dùng lại ở accountEditValidation.js, passwordRecoveryValidation.js và trang đăng ký.
+ * Biểu thức kiểm tra email. Được accountEditValidation.js import và re-export, và dùng trong validateRegistration (loginValidation.js/trusteeValidation.js có bản sao riêng).
  */
 export const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 /**

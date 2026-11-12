@@ -18,8 +18,8 @@ import com.legacyvault.verification.repository.LegalBasisDossierVersionRepositor
 import com.legacyvault.verification.repository.VerificationCaseRepository;
 
 /**
- * PS-66 (ST-25, LV-HANDOVER-001): the single gate every handover use case passes before it reads or writes
- * delivery data. It never relies on the Vault status UNLOCKED alone (AC-L07). A call checks, in this order:
+ * PS-66 (ST-25, LV-HANDOVER-001): the gate that {@link HandoverDeliveryService} passes before it reads or writes
+ * delivery data (the completion/close/archive services use {@link HandoverCompletionAccess} instead). It never relies on the Vault status UNLOCKED alone (AC-L07). A call checks, in this order:
  * <ol>
  *   <li>the case belongs to the calling Staff (otherwise 404, nothing is revealed);</li>
  *   <li>{@link LegalWorkflowGuard}: case OPEN, no hold, forwarded dossier at the required version, valid court
@@ -30,7 +30,7 @@ import com.legacyvault.verification.repository.VerificationCaseRepository;
  * Locks Vault -> case -> dossier -> session and keeps them until the caller transaction ends.
  *
  * <p>Bổ sung: không có endpoint riêng; được {@link HandoverDeliveryService} gọi cho các endpoint
- * {@code /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/eligible-assets|deliveries}.
+ * {@code /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/eligible-assets} (GET) và {@code .../deliveries} (POST/GET).
  */
 @Component
 public class HandoverAuthorizationGuard {

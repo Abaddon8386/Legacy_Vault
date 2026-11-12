@@ -4,7 +4,7 @@
 import { API_BASE, ApiError } from '../api/http.js';
 
 /**
- * Đọc mã khôi phục từ phần hash của URL (#token=...); chỉ chấp nhận đúng một tham số token có định dạng base64url độ dài 43, ngược lại trả null.
+ * Đọc mã khôi phục từ phần hash của URL (#token=...); chỉ chấp nhận đúng một tham số token là base64url 43 ký tự (mã 32 byte: ký tự cuối chỉ thuộc tập chuẩn của base64url không đệm), ngược lại trả null.
  */
 export function readRecoveryCredential(hash) {
   const params = new URLSearchParams(hash.replace(/^#/, ''));

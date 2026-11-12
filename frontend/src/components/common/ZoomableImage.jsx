@@ -9,7 +9,7 @@ const MIN_ZOOM = 50, MAX_ZOOM = 300, ZOOM_STEP = 25;
 
 /**
  * Ảnh vừa khung ở 100%, phóng to thì cuộn trong khung; có thanh nút thu nhỏ / về mặc định / phóng to (50%-300%, bước 25%). Chiều cao lấy từ biến CSS {@code --lv-zoom-height}.
- * Dùng bởi {@code AssetImageGallery} và {@code EvidencePreviewModal}.
+ * Dùng bởi {@code AssetImageGallery}, {@code EvidencePreviewModal}, {@code ReceivedAssets}, {@code LegalEvidenceFiles} và {@code WillUploadPage}.
  *
  * @param {{src:string, alt:string, lang?:string}} props
  */

@@ -4,7 +4,9 @@ import java.util.UUID;
 
 import com.legacyvault.asset.entity.Asset;
 
-/** PS-118 public, pre-unlock asset catalog. Deliberately excludes descriptions and all secret/content fields. */
+/**
+ * PS-118: DTO danh mục tài sản công khai (chỉ metadata) cho Staff trước khi mở khóa. Cố ý không có mô tả và mọi trường bí mật/nội dung.
+ */
 public final class StaffAssetCatalogDtos {
 	/**
 	 * Lớp tiện ích, không cho khởi tạo.

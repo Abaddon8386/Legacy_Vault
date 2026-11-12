@@ -4,15 +4,13 @@ import './LivingHeritageWave.css';
 /**
  * LivingHeritageWave — LegacyVault Living Interface Artwork
  *
- * Artwork nghệ thuật chuyển động liên tục kết hợp phản xạ vật lý tự nhiên:
- * - Dòng chảy sóng tự động vô hạn (6.5s – 11s) uốn lượn liên tục êm ái
- * - Tương tác đẩy sóng theo chuột (Cursor Repulsion):
- *   + Khi con trỏ tiến gần một làn sóng, vùng sóng gần chuột dịch chuyển nhẹ ra xa con trỏ
- *   + Bán kính ảnh hưởng (Influence Radius): ~130px trong không gian SVG (tương đương 90–110px thực tế)
- *   + Biên độ đẩy cực đại: 12–22px tại dải sóng gần nhất (Gold ribbon: 22px, Mid: 16px, Deep: 10px, Light: 18px)
- *   + Sóng ở xa chuột giữ nguyên vị trí, không làm dịch chuyển nguyên khối cả bức tranh
- *   + Khi chuột rời đi, sóng hồi phục về vị trí cân bằng bằng hiệu ứng spring/damping mềm mại
- * - Tương thích hoàn toàn với prefers-reduced-motion và thiết bị cảm ứng
+ * Tranh SVG (600x400) bốn lớp sóng (gold, mid, deep, light) trang trí trên {@code VaultOverviewPage}, không gọi API:
+ * - Các lớp trôi liên tục bằng animation CSS (chu kỳ khoảng 6,5s - 11s theo từng lớp).
+ * - Khi chuột di chuyển trên khung, mỗi lớp có tâm y0 gần con trỏ (trong bán kính {@code radius} 100-120 đơn vị SVG) bị đẩy ra xa theo trục Y
+ *   (và dịch nhẹ theo trục X), với độ giảm bậc hai; lớp ngoài bán kính giữ nguyên.
+ * - Độ lệch tối đa mỗi lớp (xem {@code LAYER_PROFILES}): gold 9px, light 6,5px, mid 5px, deep 3px theo Y.
+ * - Chuyển động được mô phỏng lò xo/giảm chấn bằng requestAnimationFrame, ghi vào các biến CSS {@code --repel-*}; khi chuột rời đi hoặc cửa sổ mất focus, sóng hồi về vị trí cân bằng.
+ * - Bỏ qua tương tác khi người dùng chọn giảm chuyển động.
  */
 
 // Layer elevation centers in SVG coordinate space (600x400)
@@ -33,7 +31,7 @@ const LAYER_PROFILES = {
 
 /**
  * Hình sóng SVG bốn lớp phản ứng với con trỏ bằng mô phỏng lò xo/giảm chấn (requestAnimationFrame), dùng làm trang trí trên trang tổng quan kho ({@code VaultOverviewPage}). Không gọi API.
- * Bỏ qua với thiết bị cảm ứng và khi người dùng chọn giảm chuyển động. Props: {@code lang}.
+ * Chỉ phản ứng với sự kiện chuột (thiết bị cảm ứng không kích hoạt) và bỏ qua khi người dùng chọn giảm chuyển động. Props: {@code lang} (VaultOverviewPage còn truyền {@code status} nhưng component không dùng).
  */
 export default function LivingHeritageWave({ lang = 'vi' }) {
   const isVi = lang === 'vi';

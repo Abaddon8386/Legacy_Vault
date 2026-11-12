@@ -23,8 +23,6 @@ import java.util.UUID;
  * {@code UNLOCKED} -> {@code HANDOVER_IN_PROGRESS} -> {@code ARCHIVED}. Chủ két hủy cảnh báo thì quay về
  * {@code ACTIVE} ({@link #restoreActive()}). Chỉ trạng thái {@code ACTIVE} cho phép chủ sửa nội dung. Các phương
  * thức {@code mark*} kiểm tra trạng thái nguồn và ném {@link IllegalStateException} nếu chuyển không hợp lệ.
- *
- * <p>Package: com.legacyvault.vault.entity
  */
 @Entity
 @Table(
@@ -109,7 +107,7 @@ public class Vault {
     public static final String STATUS_HANDOVER_IN_PROGRESS = "HANDOVER_IN_PROGRESS";
 
     /**
-     * PS-59: only a protected Legal workflow may move a Vault to UNLOCKED.
+     * PS-59: chỉ quy trình Legal được bảo vệ mới được chuyển két sang UNLOCKED.
      * {@code LEGAL_BASIS_VERIFICATION} -> {@code UNLOCKED}.
      *
      * @throws IllegalStateException nếu két chưa ở trạng thái thẩm định căn cứ pháp lý
@@ -123,7 +121,8 @@ public class Vault {
     }
 
     /**
-     * PS-65 / ST-25: the first delivery at the counter moves UNLOCKED -> HANDOVER_IN_PROGRESS; later deliveries keep it.
+     * PS-65 / ST-25: lần giao tài sản đầu tiên tại quầy chuyển két {@code UNLOCKED} -> {@code HANDOVER_IN_PROGRESS}; các
+     * lần giao sau giữ nguyên trạng thái.
      *
      * @throws IllegalStateException nếu két chưa {@code UNLOCKED} (và chưa đang bàn giao)
      */
@@ -165,7 +164,8 @@ public class Vault {
     }
 
     /**
-     * ST-16: WILL_VERIFICATION -> AWAITING_LEGAL_BASIS hoặc ON_HOLD.
+     * ST-16: định tuyến sau khi xác minh chứng tử/di chúc: {@code DOCUMENT_VERIFICATION} hoặc {@code WILL_VERIFICATION}
+     * -> {@code AWAITING_LEGAL_BASIS} hoặc {@code ON_HOLD}.
      *
      * @param onHold {@code true} thì chuyển sang {@code ON_HOLD}, ngược lại sang {@code AWAITING_LEGAL_BASIS}
      * @throws IllegalStateException nếu chưa qua bước xác minh giấy tờ/di chúc
@@ -183,7 +183,7 @@ public class Vault {
     }
 
     /**
-     * Legal reopens review on new dispute/missing evidence; this never unlocks the Vault.
+     * Legal mở lại việc xem xét khi có tranh chấp mới hoặc thiếu chứng cứ; thao tác này không bao giờ mở khóa két.
      * Chuyển {@code AWAITING_LEGAL_BASIS} hoặc {@code LEGAL_BASIS_VERIFICATION} sang {@code ON_HOLD}.
      *
      * @throws IllegalStateException nếu két không nằm trong quy trình căn cứ pháp lý
@@ -196,7 +196,8 @@ public class Vault {
     }
 
     /**
-     * ST-19/20: Staff chuyển văn bản đúng nhánh cho Legal. AWAITING_LEGAL_BASIS -> LEGAL_BASIS_VERIFICATION.
+     * ST-19/20: Staff chuyển văn bản đúng nhánh cho Legal. {@code DOCUMENT_VERIFICATION}, {@code WILL_VERIFICATION} hoặc
+     * {@code AWAITING_LEGAL_BASIS} -> {@code LEGAL_BASIS_VERIFICATION}.
      *
      * @throws IllegalStateException nếu két chưa ở trạng thái tiếp nhận ({@link #isLegalBasisIntakeState()})
      */
@@ -211,8 +212,8 @@ public class Vault {
     }
 
     /**
-     * States in which Staff may receive and forward the distribution document. All of them come after Legal decided
-     * the death document, so the death verification cannot be skipped; AWAITING_VERIFICATION is not included.
+     * Các trạng thái Staff được tiếp nhận và chuyển tiếp văn bản căn cứ phân chia. Tất cả đều nằm sau bước Legal quyết
+     * định giấy chứng tử nên không thể bỏ qua xác minh tử vong; {@code AWAITING_VERIFICATION} không nằm trong số này.
      *
      * @return {@code true} nếu két ở {@code DOCUMENT_VERIFICATION}, {@code WILL_VERIFICATION} hoặc {@code AWAITING_LEGAL_BASIS}
      */

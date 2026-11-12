@@ -48,8 +48,8 @@ import java.util.UUID;
 
 /**
  * PS-41 (ST-18, LV-BASIS-001): Staff tiếp nhận văn bản căn cứ đã số hóa
- * vào hồ sơ do Legal tạo ở ST-16. Staff chỉ bổ sung phiên bản, không chọn
- * nhánh. Server tính SHA-256 trên nội dung gốc, mã hóa file (AAD = UUID
+ * vào hồ sơ căn cứ của ca (do Legal phân loại ở ST-16; nếu chưa có thì mở hồ sơ theo loại văn bản nộp). Staff chỉ bổ sung phiên bản,
+ * không tự chọn nhánh. Server tính SHA-256 trên nội dung gốc, mã hóa file (AAD = UUID
  * phiên bản) và sinh file_reference. Mỗi lần tiếp nhận tạo một phiên bản
  * mới; phiên bản cũ không bị ghi đè. Mỗi phiên bản kèm phạm vi phân bổ
  * tài sản cho người nhận trong cùng Vault.
@@ -142,12 +142,7 @@ public class BasisIntakeService {
     }
 
     /**
-     * Tiếp nhận phiên bản dossier mới.
-     *
-     * Thứ tự khóa bắt buộc: Vault -> VerificationCase -> Dossier.
-     * Sau khi lưu phiên bản và audit, đánh giá lại snapshot PS-37.
-     *
-     * <p>Tiếp nhận phiên bản dossier mới.
+     * Tiếp nhận phiên bản dossier mới. Thứ tự khóa bắt buộc: Vault -> VerificationCase -> Dossier.
      *
      * Các bước: kiểm tra tham số; tìm ca của Staff; khóa Vault → VerificationCase → Dossier (nếu chưa có dossier thì mở dossier
      * theo loại giấy tờ nộp); kiểm tra ca mở, Vault ở trạng thái tiếp nhận căn cứ, dossier nhận được phiên bản mới, không ON_HOLD;
@@ -162,7 +157,7 @@ public class BasisIntakeService {
      * @param file file scan văn bản
      * @return hồ sơ căn cứ sau khi thêm phiên bản (kèm thông báo)
      * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED, RESOURCE_NOT_FOUND, VERIFICATION_CASE_NOT_OPEN,
-     *         BASIS_DOSSIER_INVALID_STATE và các lỗi của {@code LegalWorkflowGuard} khi đang ON_HOLD
+     *         BASIS_DOSSIER_INVALID_STATE và LEGAL_WORKFLOW_ON_HOLD khi Vault/dossier đang ON_HOLD
      */
     @Transactional
     public BasisDossierResponse intake(
@@ -465,10 +460,7 @@ public class BasisIntakeService {
     }
 
     /**
-     * BE-02: người chỉ có tên trong văn bản Tòa án được tạo ngay trong giao dịch này, gắn đúng phiên bản vừa lưu.
-     * Cùng một người ở nhiều dòng chỉ tạo một lần.
-     *
-     * <p>Lưu các dòng phân bổ gắn với đúng phiên bản vừa tạo; người nhận chỉ có tên trong văn bản Tòa án được tạo ngay trong giao dịch
+     * BE-02: lưu các dòng phân bổ gắn với đúng phiên bản vừa tạo; người nhận chỉ có tên trong văn bản Tòa án được tạo ngay trong giao dịch
      * này ({@link #createCourtRecipient}), cùng một người ở nhiều dòng chỉ tạo một lần.
      *
      * @return các dòng đã lưu và người nhận mới tạo
@@ -505,9 +497,7 @@ public class BasisIntakeService {
     }
 
     /**
-     * Distribution workflow (Staff submits allocations): validates every asset/recipient of the Vault, retires the
-     * previous allocation of the same document version and stores the new one. The caller holds the
-     * Vault -> case -> dossier locks and decides whether the phase allows it; nothing is approved here.
+     * Chỉ lưu phân bổ, không duyệt gì ở đây; người gọi quyết định phase có cho phép hay không.
      *
      * <p>Dùng cho distribution workflow khi Staff nộp phân bổ ({@code submitAllocations}): kiểm tra mọi tài sản/người nhận của Vault,
      * thay thế (supersede) phân bổ cũ của cùng phiên bản tài liệu rồi lưu phân bổ mới. Người gọi phải đang giữ khóa Vault → ca → dossier.

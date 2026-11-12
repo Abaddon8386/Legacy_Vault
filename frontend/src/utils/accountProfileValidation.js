@@ -1,9 +1,4 @@
 /**
- * Account Profile Validation & Role Mapping — EX-01
- * Based on active session and GET /auth/me contract.
- */
-
-/**
  * Logic kiểm tra và ánh xạ vai trò cho trang hồ sơ tài khoản (EX-01), dựa trên session đang hoạt động và hợp đồng GET /api/v1/auth/me.
  * Được dùng bởi App.jsx, components/layout/AppShell.jsx và pages/account/AccountProfilePage.jsx.
  *
@@ -70,7 +65,7 @@ export function canAccessAccountProfile(session, now = Date.now()) {
  * @param {string} [lang='vi']
  * @returns {string}
  *
- * Dùng bởi AppShell/AccountProfilePage để hiển thị vai trò dễ đọc theo ngôn ngữ.
+ * Dùng bởi AccountProfilePage (và gián tiếp AppShell qua resolveUserRoleLabel) để hiển thị vai trò dễ đọc theo ngôn ngữ; bỏ tiền tố ROLE_, vai trò lạ thì trả nguyên tên.
  */
 export function formatRoleName(role, lang = 'vi') {
   if (!role || typeof role !== 'string') {

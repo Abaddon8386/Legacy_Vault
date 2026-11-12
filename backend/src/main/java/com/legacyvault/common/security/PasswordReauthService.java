@@ -23,7 +23,8 @@ import com.legacyvault.user.repository.UserRepository;
  * cũng là bộ đếm cho giới hạn: quá {@code max-failed-attempts} lần trong {@code window-minutes} phút thì 429, kể cả khi
  * lần sau nhập đúng. Bộ đếm lấy từ {@code audit_logs} nên không mất khi restart và dùng chung giữa các instance.
  *
- * <p>Được các service hiển thị nội dung bảo mật (ví dụ mở tài sản, xem file di chúc) gọi; ghi audit qua
+ * <p>Được các service hiển thị nội dung bảo mật (mở tài sản/ảnh/tài liệu, xem file di chúc, xem tài sản nhận được) và
+ * {@code AuthService} (đổi mật khẩu) gọi; ghi audit qua
  * {@link ReauthFailureRecorder} và đếm bằng {@code AuditLogRepository}.
  */
 @Service

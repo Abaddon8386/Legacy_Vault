@@ -17,8 +17,9 @@ import com.legacyvault.verification.repository.ReceiptAllocationRow;
  * với bản phân bổ hiện hành (chống thay đổi sau khi duyệt) và để gắn vào biên nhận bàn giao.
  *
  * Lớp tiện ích tĩnh, không có trạng thái, không truy cập DB. Được dùng bởi {@code DistributionWorkflowService},
- * {@code BasisDossierViewService} (băm {@link AllocationRow} đã duyệt) và {@code HandoverReceiptService}
- * (băm {@link ReceiptAllocationRow}). Định dạng chuỗi chuẩn phải giữ ổn định vì hash đã được lưu trong DB.
+ * {@code BasisDossierViewService}, {@code LegalApprovalService}, {@code LegalApprovalGuard}, {@code LegalReadService},
+ * {@code LegalBasisReviewService} (băm {@link AllocationRow} đã duyệt), {@code HandoverReceiptService}
+ * và {@code GroupFingerprint} (băm {@link ReceiptAllocationRow}). Định dạng chuỗi chuẩn phải giữ ổn định vì hash đã được lưu trong DB.
  */
 public final class AllocationScopeHash {
     /**

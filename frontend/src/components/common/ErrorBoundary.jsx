@@ -5,7 +5,7 @@ import './ErrorBoundary.css';
 // Contains a render error to its own area. Resets when `resetKey` changes (route change).
 /**
  * Error boundary giữ lỗi render trong phạm vi vùng của nó (không làm sập cả ứng dụng); hiển thị thông báo lỗi kèm nút "Thử lại" và "Về trang chính".
- * Tự đặt lại khi {@code resetKey} đổi (ví dụ khi chuyển trang). Dùng trong {@code App.jsx} bao quanh nội dung từng màn hình.
+ * Tự đặt lại khi {@code resetKey} đổi (ví dụ khi chuyển trang). Được {@code AppShell} dùng để bọc phần nội dung ({@code children}) của mọi màn hình, với {@code resetKey} ghép từ tab hiện tại và pathname.
  *
  * Props: {@code resetKey}, {@code lang}, {@code children}.
  */

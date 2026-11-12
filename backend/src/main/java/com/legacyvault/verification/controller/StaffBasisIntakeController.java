@@ -59,7 +59,7 @@ public class StaffBasisIntakeController {
     }
 
     /**
-     * ST-19: chuyển đúng phiên bản (chỉ phiên bản mới nhất) cho Legal. Phiên bản cũ trả 409 BASIS_VERSION_STALE.
+     * ST-19: chuyển đúng phiên bản (chỉ phiên bản mới nhất) cho Legal; phiên bản cũ trả 409 BASIS_VERSION_STALE.
      *
      * {@code POST .../basis-dossier/versions/{version}/forward}: chuyển phiên bản (chỉ bản mới nhất)
      * sang Legal qua {@code DistributionWorkflowService.forward}; trả {@link BasisDossierResponse}.

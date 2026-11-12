@@ -136,10 +136,6 @@ public class LegalBasisDossierController {
     /**
      * PS-37: Legal trả hồ sơ về Staff để bổ sung chứng cứ.
      *
-     * Package: com.legacyvault.verification.controller
-     * Class: LegalBasisDossierController
-     * Vị trí: ngay sau recordReview().
-     *
      * {@code POST .../basis-dossier/request-supplementation}. Body {@link RecordLegalBasisReviewRequest}
      * (chỉ dùng {@code reason}); gọi {@code LegalBasisReviewService.requestSupplementationByCasePublicId};
      * trả {@link LegalBasisReviewResponse}.

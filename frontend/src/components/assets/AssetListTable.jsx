@@ -19,7 +19,7 @@ import { getAssetTranslations } from '../../pages/assets/assetI18n.js'
  * Displays contract metadata: name, assetType (TEXT | CREDENTIAL), hasPayload, createdAt.
  * Supports sorting and pagination.
  *
- * Bảng danh sách tài sản (dạng bảng trên desktop/tablet): tên, loại, trạng thái nội dung bảo mật, ngày tạo, thao tác xem/sửa; hỗ trợ sắp xếp theo cột và phân trang phía máy chủ.
+ * Danh sách tài sản (bảng trên desktop/tablet, danh sách thẻ {@code lv-mobile-card} trên mobile): tên, loại, trạng thái nội dung bảo mật, ngày tạo, thao tác xem/sửa; hỗ trợ sắp xếp theo cột và phân trang phía máy chủ.
  * Được dùng bởi {@code pages/assets/AssetManagementPage.jsx} (trang quản lý tài sản của chủ hầm VAULT_OWNER).
  * Dữ liệu lấy từ {@code assetService.getAssets} = {@code GET /vaults/{vaultId}/assets?page&size&sort}.
  *

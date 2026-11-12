@@ -22,13 +22,8 @@ import com.legacyvault.verification.service.DistributionWorkflowService;
 import jakarta.validation.Valid;
 
 /**
- * Distribution workflow (PR #226 contract). The document upload and forward stay on the existing Staff dossier endpoints;
- * only the steps that have no endpoint yet are here. Staff see their own cases, Legal act on any case.
- *
- * Nhóm controller của quy trình phân chia (distribution workflow) cho hồ sơ căn cứ pháp lý.
- * Gồm hai lớp lồng nhau: {@link Staff} (đường dẫn {@code /api/v1/staff/...}) và {@link Legal}
- * (đường dẫn {@code /api/v1/legal-verifications/...}); cả hai đều gọi {@link DistributionWorkflowService}
- * với tham số vai trò khác nhau. Mọi response gắn {@code Cache-Control: no-store}.
+ * Quy trình phân chia (distribution workflow, theo contract PR #226). Việc upload giấy tờ và forward vẫn dùng các endpoint
+ * dossier hiện có của Staff; ở đây chỉ có các bước chưa có endpoint. Staff chỉ thấy ca của mình, Legal thao tác trên mọi ca.
  *
  * Nhóm controller của quy trình phân chia (distribution workflow) cho hồ sơ căn cứ pháp lý.
  * Gồm hai lớp lồng nhau: {@link Staff} (đường dẫn {@code /api/v1/staff/...}) và {@link Legal}

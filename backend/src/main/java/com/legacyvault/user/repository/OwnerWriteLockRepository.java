@@ -10,8 +10,8 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 /**
- * Điểm tuần tự hóa dùng chung cho việc tạo Vault và mọi thao tác ghi nội dung/hạn mức của Owner (ví dụ {@code VaultService},
- * {@code OwnerQuotaService}, các repository tài sản): khóa dòng {@code users} của Owner nên các thay đổi phải nhất quán với nhau.
+ * Điểm tuần tự hóa dùng chung cho việc tạo Vault và mọi thao tác ghi nội dung/hạn mức của Owner ({@code VaultService} khi tạo Vault,
+ * {@code OwnerQuotaService} khi ghi hạn mức): khóa dòng {@code users} của Owner nên các thay đổi phải nhất quán với nhau.
  */
 public interface OwnerWriteLockRepository extends Repository<User, Long> {
 

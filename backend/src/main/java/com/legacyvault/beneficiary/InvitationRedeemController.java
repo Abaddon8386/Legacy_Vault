@@ -14,8 +14,8 @@ import com.legacyvault.common.security.CustomUserPrincipal;
 import jakarta.validation.Valid;
 
 /**
- * Controller đổi mã mời. Đường dẫn gốc {@code /api/v1/auth/invitations}; yêu cầu đã đăng nhập. Frontend dùng ở trang
- * {@code pages/beneficiary/InvitationPage.jsx}.
+ * Controller đổi mã mời. Đường dẫn gốc {@code /api/v1/auth/invitations}; yêu cầu đã đăng nhập (không đòi vai trò cụ thể, vì vai trò
+ * {@code ROLE_BENEFICIARY} chỉ được cấp sau khi đổi mã thành công). Ủy quyền cho {@code InvitationRedeemService}.
  */
 @RestController
 @RequestMapping("/api/v1/auth/invitations")

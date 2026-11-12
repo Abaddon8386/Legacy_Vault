@@ -1,8 +1,8 @@
 package com.legacyvault.common.crypto;
 
 /**
- * Kết quả mã hóa của {@link EncryptionService}, được lưu vào DB (cột ciphertext, iv, key_version của tài sản,
- * di chúc, file...).
+ * Kết quả mã hóa của {@link EncryptionService}, được lưu vào DB cùng bản ghi tài sản, di chúc, file... (bản mã, IV và
+ * phiên bản khóa). Không chứa khóa bí mật.
  *
  * <ul>
  *   <li>{@code ciphertext}: bản mã kèm tag xác thực GCM;</li>
@@ -10,8 +10,7 @@ package com.legacyvault.common.crypto;
  *   <li>{@code keyVersion}: phiên bản khóa đã dùng để hỗ trợ xoay khóa.</li>
  * </ul>
  *
- * <p>Kết quả mã hóa: ciphertext (đã gồm GCM tag), IV 12 byte và phiên bản khóa đã dùng.
- * Không chứa khóa bí mật. Lưu cả ba vào DB để giải mã đúng khóa khi có xoay khóa.
+ * <p>Phải lưu cả ba thành phần để giải mã được và biết dùng đúng khóa khi có xoay khóa.
  */
 public record EncryptedData(byte[] ciphertext, byte[] iv, String keyVersion) {
 

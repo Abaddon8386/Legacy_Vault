@@ -84,7 +84,7 @@ public class GlobalExceptionHandler {
 	/*
 	 * Xử lý request sai định dạng (JSON hỏng, thiếu tham số/header bắt buộc, sai kiểu tham số): 400 MALFORMED_REQUEST.
 	 */
-	// A required request header that is absent (for example Idempotency-Key) is a client error, not a server fault.
+	// Thiếu header bắt buộc (ví dụ Idempotency-Key) là lỗi của client chứ không phải lỗi server.
 	@ExceptionHandler({ HttpMessageNotReadableException.class, MissingServletRequestParameterException.class,
 			org.springframework.web.bind.MissingRequestHeaderException.class, MethodArgumentTypeMismatchException.class })
 	ResponseEntity<ApiError> handleMalformed(Exception ex, HttpServletRequest request) {
@@ -135,7 +135,7 @@ public class GlobalExceptionHandler {
 	}
 
 	/**
-	 * SQL Server archive trigger errors are classified by numeric code, never message text.
+	 * Lỗi từ trigger SQL Server của két đã lưu trữ được nhận diện theo mã số, không dựa vào nội dung thông điệp.
 	 * Duyệt chuỗi nguyên nhân tìm {@link java.sql.SQLException} có mã 51300 (trigger chặn ghi vào két đã lưu trữ)
 	 * thì trả 409 {@code VAULT_NOT_EDITABLE}; lỗi DB khác chuyển cho {@link #handleUnexpected}.
 	 */

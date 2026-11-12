@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 /**
- * ROLE_ADMIN-only account creation, role assignment (Staff, Legal, Vault Owner) and lock/unlock.
+ * API ghi chỉ dành cho {@code ROLE_ADMIN}: tạo tài khoản, đổi role (Staff, Legal, Vault Owner) và khoá/mở khoá.
  * <p>Base path {@code /api/v1/admin/users}. Các endpoint ghi (tạo, khoá/mở khoá, đổi vai trò); phần đọc nằm ở
  * {@link AdminUserQueryController}. Controller chỉ lấy id Admin từ {@code CustomUserPrincipal} rồi gọi
  * {@link AdminUserManagementService}, nơi chứa toàn bộ nghiệp vụ và ghi audit.
@@ -42,7 +42,7 @@ public class AdminUserManagementController {
      *
      * @param admin   Admin đang đăng nhập
      * @param request họ tên, email, SĐT (tùy chọn), mật khẩu ban đầu, role
-     * @return 201 {@link AdminUserResponse}; 409 {@code EMAIL_ALREADY_EXISTS} nếu email đã dùng; {@code ADMIN_ROLE_NOT_ASSIGNABLE} nếu role không được cấp
+     * @return 201 {@link AdminUserResponse}; 409 {@code EMAIL_ALREADY_EXISTS} nếu email đã dùng; 400 {@code ADMIN_ROLE_NOT_ASSIGNABLE} nếu role không được cấp
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -56,7 +56,7 @@ public class AdminUserManagementController {
      *
      * @param publicId id công khai của tài khoản cần khoá
      * @param request  body tùy chọn chứa {@code reason} (tối đa 255 ký tự) ghi vào audit
-     * @return tài khoản sau khi khoá; lỗi {@code ADMIN_ACCOUNT_PROTECTED}, {@code ADMIN_ACCOUNT_IN_HANDOVER}, {@code ADMIN_ACCOUNT_STATE_INVALID}, {@code RESOURCE_NOT_FOUND}
+     * @return tài khoản sau khi khoá; lỗi {@code ADMIN_ACCOUNT_PROTECTED} (chính Admin hoặc tài khoản Admin), {@code ADMIN_ACCOUNT_IN_HANDOVER} (Vault đang trong quy trình thừa kế hoặc đã ARCHIVED), {@code ADMIN_ACCOUNT_STATE_INVALID}, {@code RESOURCE_NOT_FOUND}
      */
     @PostMapping("/{publicId}/lock")
     public AdminUserResponse lockUser(@AuthenticationPrincipal CustomUserPrincipal admin,

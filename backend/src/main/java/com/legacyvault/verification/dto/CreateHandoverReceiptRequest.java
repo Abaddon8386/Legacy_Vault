@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Client selects intended recipient/assets; the service validates them against approved allocations.
+ * Client chọn người nhận và các tài sản dự kiến; service kiểm tra chúng với các phân bổ đã được duyệt.
  *
  * Body của {@code POST .../handover-sessions/{sessionId}/receipts}.
  *

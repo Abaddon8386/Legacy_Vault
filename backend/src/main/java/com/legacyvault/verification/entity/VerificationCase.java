@@ -9,7 +9,7 @@ import java.util.UUID;
  * Ca xác minh di sản của một kho (vault) sau khi chủ kho qua đời hoặc được kích hoạt.
  * <p>
  * Bảng {@code dbo.verification_cases}. Trạng thái: {@link #STATUS_OPEN} (đang xử lý), {@link #STATUS_CLOSED} (đã hoàn tất bàn giao) hoặc
- * {@link #STATUS_CANCELLED} (đã hủy). Ca được mở (ví dụ bởi {@code DmsTriggerProcessor} hoặc luồng yêu cầu liên kết) và giao cho một Staff
+ * {@link #STATUS_CANCELLED} (đã hủy). Ca được mở (hiện do {@code DmsTriggerProcessor} tạo khi DMS kích hoạt, {@code openedByUserId} null) và giao cho một Staff
  * ({@code assigned_staff_user_id}); các thực thể con gồm {@link DeathDocumentRecord}, {@link OriginalWillIntake}, {@link WillComparison},
  * {@link LegalBasisDossier}, {@link HandoverSession}, {@link DistributionWorkflowEvent}. Dùng bởi hầu hết service trong gói verification.
  */

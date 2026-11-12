@@ -9,6 +9,9 @@ import com.legacyvault.auth.EmailNormalizer;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 
+/**
+ * Nhóm DTO của API Staff ghi nhận đã kiểm tra giấy tờ trực tiếp tại quầy ({@code CounterIdentityAttestationController}).
+ */
 public final class CounterIdentityAttestationDtos {
     /**
      * Lớp tiện ích, không cho khởi tạo.
@@ -16,17 +19,17 @@ public final class CounterIdentityAttestationDtos {
     private CounterIdentityAttestationDtos() { }
 
     /**
-     * PS-140: {@code evidenceReference} is optional. Absent, empty and whitespace-only values mean "no reference" and
-     * are stored as NULL; a client that still sends a reference keeps it (trimmed, at most 200 characters).
+     * PS-140: {@code evidenceReference} là tùy chọn; thiếu, rỗng hoặc chỉ có khoảng trắng nghĩa là "không có tham chiếu" và được lưu NULL;
+     * nếu client vẫn gửi thì giữ lại (đã cắt khoảng trắng, tối đa 200 ký tự).
      *
      * Body của {@code POST .../identity-attestations}: {@code evidenceReference} (tùy chọn, tối đa 200) và {@code confirmedEmail}
      * (tùy chọn, email Staff xác nhận để gửi mã mời).
      */
     public record Request(@Size(max = 200) String evidenceReference,
-            /**
-             * @return mã tham chiếu đã cắt khoảng trắng, hoặc null nếu trống.
-             */
             @Email @Size(max = 254) String confirmedEmail) {
+        /**
+         * @return mã tham chiếu đã cắt khoảng trắng, hoặc null nếu trống.
+         */
         public String normalizedEvidenceReference() {
             if (evidenceReference == null) return null;
             String trimmed = evidenceReference.trim();

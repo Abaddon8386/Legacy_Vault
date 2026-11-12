@@ -61,7 +61,7 @@ public class DmsPolicy {
 	}
 
 	/**
-	 * Requested grace in minutes, or null when the request does not carry a grace field.
+	 * Quy đổi gia hạn của request ra phút; trả về null khi request không gửi trường gia hạn nào.
 	 * Không được gửi đồng thời ngày và phút; ngày 0..30, phút 0..{@link DmsConfig#MAX_GRACE_MINUTES}.
 	 *
 	 * @throws com.legacyvault.common.error.BusinessException {@code VALIDATION_FAILED} nếu không hợp lệ

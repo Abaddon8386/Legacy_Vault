@@ -10,7 +10,8 @@ package com.legacyvault.common.error;
  *
  * <p>Mỗi hằng số gồm: mã HTTP status và message key (tra trong {@code messages.properties} / {@code messages_en.properties}).
  * Các nhóm: xung đột trạng thái nghiệp vụ (409), xác thực/phân quyền (401/403), validation (400/422),
- * giới hạn tốc độ (429), lỗi hệ thống (500).
+ * không tìm thấy (404), sai method/media type/kích thước (405/415/413), giới hạn tốc độ (429), dịch vụ tạm không
+ * khả dụng (503) và lỗi hệ thống (500).
  */
 public enum ErrorCode {
     /** Nhóm bàn giao theo nhóm người thụ hưởng bị chặn (HTTP 409). */

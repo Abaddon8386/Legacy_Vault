@@ -110,7 +110,7 @@ public class BasisDossierViewService {
     }
 
     /**
-     * Dựng response từ hồ sơ và danh sách phiên bản đã có (dùng sau khi ghi để trả trạng thái mới).
+     * Dựng response cho một ca đã được kiểm tra quyền truy cập: tự nạp hồ sơ và các phiên bản từ DB (cũng được các service ghi gọi sau khi ghi để trả trạng thái mới).
      *
      * <p>Gộp dữ liệu thành response: nạp hồ sơ, các phiên bản (mới nhất trước), người tạo (UUID công khai), phạm vi phân bổ
      * theo từng phiên bản, lịch sử quyết định của Legal ({@link #legalHistory}) và quyết định hiện hành ({@link #currentDecision}).

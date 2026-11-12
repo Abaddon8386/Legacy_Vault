@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 /**
- * PS-122: read-only endpoints next to the PS-119/120 gate. Every response is {@code no-store}; none of them writes.
- * Mutations stay on {@link GroupHandoverController}.
+ * PS-122: các endpoint chỉ đọc đặt cạnh cổng PS-119/120. Mọi response đều {@code no-store}; không endpoint nào ghi dữ liệu.
+ * Các thao tác ghi nằm ở {@link GroupHandoverController}.
  *
  * Endpoint đọc cho bàn giao theo nhóm: yêu cầu mở lại đang chờ (Legal), lịch sử sự kiện (Staff/Legal) và
  * trạng thái của người thụ hưởng. Dùng {@link GroupHandoverReadService} và {@link GroupHandoverService#history}.
@@ -38,7 +38,7 @@ public class GroupHandoverReadController {
     }
 
     /**
-     * Legal: pending Staff reopen requests that can be decided now (oldest first).
+     * Legal: các yêu cầu mở lại của Staff đang chờ và có thể quyết định ngay (cũ nhất trước).
      *
      * {@code GET /api/v1/legal-verifications/group-handover/reopen-requests?caseId=&caseNumber=&page=0&size=20}
      * Quyền: {@code ROLE_LEGAL_VERIFIER}. Trả trang {@code PendingRequest}.
@@ -52,7 +52,7 @@ public class GroupHandoverReadController {
     }
 
     /**
-     * Staff: event history of the case (newest first).
+     * Staff: lịch sử sự kiện của ca (mới nhất trước).
      *
      * {@code GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover/events}
      * Quyền: {@code ROLE_STAFF_EXECUTOR}. Lịch sử sự kiện phân trang.
@@ -66,7 +66,7 @@ public class GroupHandoverReadController {
     }
 
     /**
-     * Legal: event history of the case (newest first).
+     * Legal: lịch sử sự kiện của ca (mới nhất trước).
      *
      * {@code GET /api/v1/legal-verifications/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover/events}
      * Quyền: {@code ROLE_LEGAL_VERIFIER}. Lịch sử sự kiện phân trang.
@@ -80,8 +80,8 @@ public class GroupHandoverReadController {
     }
 
     /**
-     * Recipient: own linked cases with the case-wide group status and the account's own approved/delivered counts.
-     * The account comes only from the authenticated principal.
+     * Người nhận: các ca mà tài khoản được liên kết, kèm trạng thái cổng nhóm toàn ca và số lượng đã duyệt/đã giao của riêng tài khoản.
+     * Tài khoản chỉ lấy từ principal đã xác thực.
      *
      * {@code GET /api/v1/beneficiary-handover-status}
      * Quyền: {@code ROLE_BENEFICIARY}. Trả {@code BeneficiaryStatus} của tài khoản đang đăng nhập.

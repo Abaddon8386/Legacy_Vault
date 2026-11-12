@@ -8,9 +8,7 @@
 /**
  * Từ điển song ngữ cho trang liên kết/tạo tài khoản người thụ hưởng tại quầy (BeneficiaryAccountPage.jsx).
  * Cấu trúc: { vi: {...}, en: {...} }, mỗi ngôn ngữ chứa các nhãn, thông báo lỗi và hàm tạo chuỗi dùng trên giao diện. Truy cập qua getCounterHandoverTranslations(lang).
- */
-/**
- * Chuỗi giao diện song ngữ (vi/en) cho màn "Tài khoản người thụ hưởng tại quầy" (`BeneficiaryAccountPage.jsx`).
+ * Lưu ý: tên export trùng với handoverSessionI18n.js nhưng là từ điển riêng của màn "Tài khoản người thụ hưởng tại quầy".
  */
 export const COUNTER_HANDOVER_TRANSLATIONS = {
   /**
@@ -479,7 +477,6 @@ export const COUNTER_HANDOVER_TRANSLATIONS = {
  * @param {string} [lang='vi'] 'vi' hoặc 'en'.
  * @returns {Object} Bộ bản dịch tương ứng; ngôn ngữ không hỗ trợ thì dùng tiếng Việt.
  */
-/** Trả bộ chuỗi giao diện theo ngôn ngữ (`vi` mặc định, `en`). */
 export function getCounterHandoverTranslations(lang = 'vi') {
   return COUNTER_HANDOVER_TRANSLATIONS[lang] || COUNTER_HANDOVER_TRANSLATIONS.vi;
 }

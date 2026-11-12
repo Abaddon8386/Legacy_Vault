@@ -11,14 +11,14 @@ import './OwnerCancelAlert.css';
 /**
  * OwnerCancelAlert — Component FE cho task PS-24 (Owner Cancel Alert)
  *
- * Nút và hộp thoại xác nhận để chủ hầm hủy cảnh báo DMS (task PS-24). Hiển thị nút khi đủ điều kiện ({@code checkCancelAlertCapability}: đúng trạng thái DMS, là chủ hầm, hoặc cha ghi đè {@code canCancel}).
+ * Nút và hộp thoại xác nhận để chủ hầm hủy cảnh báo DMS (task PS-24). Hiển thị nút khi đủ điều kiện ({@code checkCancelAlertCapability}): không bao giờ với người không phải chủ hầm; quyền do cha cấp qua {@code canCancel}/{@code customCapability}; chỉ ở DEV preview/test mới có fallback theo {@code dmsStatus} (TRIGGERED hoặc GRACE_PERIOD_EXCEEDED), còn bản production luôn cần cha cấp quyền rõ ràng.
  * Khi xác nhận, {@code handleConfirmCancel} kiểm tra lại quyền trước và sau khi gọi {@code executeCancelAlert} (adapter {@code onCancelAlert}, thường {@code POST /vaults/{vaultId}/cancel-alert}),
  * bỏ kết quả nếu ngữ cảnh đổi trong lúc chờ, rồi chạy {@code onSuccess}/{@code onRefreshRequired}; lỗi sau khi thành công không làm hỏng trạng thái thành công, chỉ hiện cảnh báo tải lại.
  * Hộp thoại dùng portal, focus trap, Escape, chống bấm đôi (pendingSubmitRef) và hủy request khi unmount. Thông báo lỗi lấy từ {@code getCancelAlertMessage}.
  *
  * @param {Object} props
  * @param {'vi'|'en'} [props.lang='vi'] - Ngôn ngữ hiển thị
- * @param {string} [props.dmsStatus] - Trạng thái DMS hiện tại (ví dụ 'TRIGGERED')
+ * @param {string} [props.dmsStatus] - Trạng thái DMS hiện tại (ví dụ 'GRACE_PERIOD_EXCEEDED'); chỉ dùng cho fallback DEV/test
  * @param {boolean} [props.canCancel] - Ghi đè capability trực tiếp từ cha/backend
  * @param {Function} [props.customCapability] - Hàm kiểm tra capability tùy biến
  * @param {boolean} [props.isOwner=true] - Người dùng có phải là Owner không

@@ -5,19 +5,14 @@ import { getStaffCaseTranslations } from './staffCaseI18n.js';
 import './StaffCaseDetailModal.css';
 
 /**
- * StaffCaseDetailModal — Khung xem thông tin tham chiếu chỉ đọc cho PS-25.
- *
- * RÀNG BUỘC NGHIỆP VỤ & PHÁP LÝ:
- * - Đây chỉ là khung trình bày (presentation view model), CHƯA tích hợp API detail.
- * - Tuyệt đối KHÔNG thêm nút tạo case thủ công, xác nhận tử vong, phê duyệt pháp lý,
- *   unlock, decrypt hay bàn giao di sản. Các hành động tiếp nhận thuộc phạm vi PS-26.
- */
-/**
- * Hộp thoại chỉ đọc hiển thị thông tin tham chiếu của một hồ sơ xác minh: mã hồ sơ, trạng thái, tên kho,
+ * StaffCaseDetailModal (PS-25) — Hộp thoại chỉ đọc hiển thị thông tin tham chiếu của một hồ sơ xác minh: mã hồ sơ, trạng thái, tên kho,
  * chủ kho và thời điểm tạo hồ sơ (hoặc kết thúc thời gian chờ nếu là dữ liệu mô phỏng).
  * Không gọi API; dữ liệu `caseItem` là một dòng của danh sách `GET /api/v1/staff/verification-cases`
  * do `StaffCaseDashboard.jsx` truyền xuống. Có nút đóng và (tùy chọn) nút chuyển sang xác minh hoặc tiếp nhận hồ sơ.
  * Chuỗi giao diện lấy từ `getStaffCaseTranslations` (`staffCaseI18n.js`).
+ *
+ * Ràng buộc nghiệp vụ: chỉ là khung trình bày, chưa gọi API chi tiết hồ sơ; không có nút tạo case thủ công, xác nhận tử vong,
+ * phê duyệt pháp lý, unlock, decrypt hay bàn giao di sản. Hai nút tùy chọn chỉ điều hướng sang màn tiếp nhận (PS-26) hoặc xác minh (PS-27).
  *
  * @param {object} props
  * @param {boolean} props.isOpen hộp thoại đang mở hay không.

@@ -13,8 +13,7 @@ import com.legacyvault.audit.AuditEvent;
  * Lớp tương thích (bean tên {@code workflowAuditService}) cho các service quy trình (xác minh, bàn giao, pháp lý)
  * muốn ghi audit bằng chuỗi thay vì {@link AuditEvent}. Chỉ chuyển đổi tham số rồi ủy quyền cho
  * {@link com.legacyvault.audit.AuditService#record(AuditEvent)}, vốn lưu vào bảng {@code audit_logs}.
- *
- * <p>Compatibility entry point; persistence stays in the PS-13 audit service.
+ * Việc lưu vẫn nằm ở service audit chính (PS-13).
  */
 @Service("workflowAuditService")
 public class AuditService {

@@ -33,7 +33,7 @@ export function workflowUrl(path, { caseId, sessionId, lang = 'vi', preview = fa
 
 // Presentation only. A visited screen is never evidence that a step is complete.
 /**
- * Tính hướng dẫn cho nhân viên với các bước intake, legal, handover, confirmation, archive. Dựa vào trạng thái hồ sơ/kho (caseStatus, vaultStatus), kết quả quy trình phân phối (distributionWorkflow.phase), phiên bàn giao, số tài sản đã giao và số người đã xác nhận (qua evaluateCompletionProgress).
+ * Tính hướng dẫn cho nhân viên với các bước intake, legal, handover, confirmation, archive (hiện chỉ test gọi hàm này, chưa component nào dùng). Dựa vào trạng thái hồ sơ/kho (caseStatus, vaultStatus), kết quả quy trình phân phối (distributionWorkflow.phase), phiên bàn giao, số tài sản đã giao và số người đã xác nhận (qua evaluateCompletionProgress).
  * Trả {current, steps, message, next}: mỗi bước có state (waiting, action, done, blocked) và liên kết; message mô tả việc cần làm; next là bước nên chuyển tới.
  */
 export function staffGuidance({ current = 'intake', caseId, sessionId, caseStatus, vaultStatus, loading, error,
@@ -169,7 +169,7 @@ export function legalGuidance({ context, current, caseId, lang = 'vi', loading =
 }
 
 /**
- * Tính hướng dẫn cho người thụ hưởng với các bước account, request, link, assets dựa trên danh sách yêu cầu liên kết, giai đoạn bàn giao (stage) và khả năng gửi yêu cầu; trả {current, message, steps}.
+ * Tính hướng dẫn cho người thụ hưởng (hiện chỉ test gọi, chưa component nào dùng) với các bước account, request, link, assets dựa trên danh sách yêu cầu liên kết, giai đoạn bàn giao (stage) và khả năng gửi yêu cầu; trả {current, message, steps}.
  */
 export function beneficiaryGuidance({ requests = [], stage, ready, loading, error, eligible, lang = 'vi' } = {}) {
   const pending = requests.some(r => r.status === 'PENDING');

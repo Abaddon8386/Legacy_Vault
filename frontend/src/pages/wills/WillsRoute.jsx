@@ -5,7 +5,7 @@ import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import WillUploadPage from './WillUploadPage.jsx';
 /**
- * Route cho màn hình Di chúc của chủ kho (App.jsx render). Tải kho của chủ sở hữu bằng fetchVault (GET /api/v1/vault) rồi quyết định:
+ * Route cho màn hình Di chúc của chủ kho (App.jsx render). Tải kho của chủ sở hữu bằng fetchVault (GET /api/v1/vaults?page=0&size=20&sort=createdAt,desc) rồi quyết định:
  * đang tải -> LoadingState; lỗi -> ErrorState (401 -> onUnauthorized); chưa có kho -> VaultRequiredState; có kho -> WillUploadPage (chỉ đọc nếu kho không ACTIVE).
  * Có AbortController và cờ active để hủy khi props đổi hoặc unmount; tải lại khi onRefreshTrigger đổi.
  *

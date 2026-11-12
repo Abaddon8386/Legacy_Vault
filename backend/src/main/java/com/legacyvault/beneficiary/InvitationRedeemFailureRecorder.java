@@ -5,7 +5,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Persists a failed code attempt outside the redeem transaction so rollback cannot erase the limit. */
+/**
+ * Lưu lần đổi mã thất bại vào bảng {@code dbo.invitation_redeem_failures} bằng giao dịch riêng, nằm ngoài giao dịch đổi mã,
+ * để rollback không xóa mất bộ đếm giới hạn. Gọi từ {@code InvitationRedeemService}.
+ */
 @Service
 public class InvitationRedeemFailureRecorder {
     private final JdbcTemplate jdbc;

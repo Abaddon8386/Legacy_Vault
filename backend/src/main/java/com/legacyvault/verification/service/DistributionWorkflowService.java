@@ -712,7 +712,9 @@ public class DistributionWorkflowService {
     }
 
     /**
-     * Why an action cannot run now, or null when it can.
+     * Why an action cannot run now, or null when it can. Thứ tự kiểm tra: PREREQUISITES_PENDING, sai pha (riêng
+     * {@code requestDocumentSupplementation} còn được phép ở pha REJECTED), ON_HOLD, rồi điều kiện riêng của
+     * {@code approveDocuments} / {@code forwardDocuments}.
      *
      * @param state trạng thái hiện tại
      * @param action tên hành động

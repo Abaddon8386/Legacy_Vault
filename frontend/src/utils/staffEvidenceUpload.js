@@ -182,11 +182,8 @@ export function validateEvidenceFile(file, lang = 'vi') {
 }
 
 /**
- * Thực hiện upload file kèm metadata qua XMLHttpRequest để theo dõi tiến trình truyền tải thực tế.
- * Khi upload mạng đạt 100%, chuyển sang trạng thái indeterminate để chờ phản hồi từ server.
- *
- * Tải tệp kèm metadata dạng multipart/form-data bằng XMLHttpRequest (để có tiến trình thật) bằng POST tới url được truyền vào, với header Authorization Bearer và Accept-Language.
- * Form gồm phần "metadata" (JSON) và phần "file". Gọi onProgress/onStatusChange (uploading, rồi processing khi đã gửi xong 100% và chờ server băm SHA-256, rồi success hoặc error). Hỗ trợ hủy bằng AbortSignal.
+ * Tải tệp kèm metadata dạng multipart/form-data bằng XMLHttpRequest (để có tiến trình truyền thật) bằng POST tới url được truyền vào, với header Authorization Bearer và Accept-Language.
+ * Form gồm phần "metadata" (JSON) và phần "file". Gọi onProgress/onStatusChange (uploading, rồi processing khi đã gửi xong 100% - lúc này thanh tiến trình chuyển sang indeterminate - và chờ server băm SHA-256, rồi success hoặc error). Hỗ trợ hủy bằng AbortSignal.
  * Được dùng bởi pages/staff/staffLegalDocumentsService.js (tải văn bản căn cứ pháp lý) và pages/staff/staffLiveService.js (tệp đính kèm của hồ sơ tiếp nhận).
  * @returns {Promise<object>} Phản hồi JSON của server. Lỗi có code: FILE_*, ABORTED, NETWORK_ERROR, INVALID_RESPONSE, PAYLOAD_TOO_LARGE (413), UNSUPPORTED_MEDIA_TYPE (415), SERVER_ERROR hoặc mã từ backend.
  */

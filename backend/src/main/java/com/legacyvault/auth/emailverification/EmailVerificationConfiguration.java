@@ -65,7 +65,7 @@ public class EmailVerificationConfiguration {
     }
 
     /**
-     * Phân tích chuỗi hạn mức {@code max/giây,...}. Cửa sổ tối đa 1 ngày vì {@code RecoveryRateLimiter} dọn sự kiện sau một ngày,
+     * Phân tích chuỗi hạn mức {@code max/giây,...}. Cửa sổ tối đa 1 ngày vì {@code PasswordRecoveryService.cleanup} xóa sự kiện của {@code RecoveryRateLimiter} sau một ngày,
      * cửa sổ dài hơn sẽ đếm thiếu.
      *
      * @param spec chuỗi cấu hình

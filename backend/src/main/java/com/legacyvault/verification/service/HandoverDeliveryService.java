@@ -33,7 +33,7 @@ import com.legacyvault.verification.service.HandoverScopeResolver.ScopeLine;
 
 /**
  * PS-64 / PS-65 (ST-25, LV-HANDOVER-001): lists the assets Legal allows to be handed over and records each delivery
- * made by Staff at the counter. Every operation passes {@link HandoverAuthorizationGuard} first, then works only on
+ * made by Staff at the counter. {@code eligibleAssets} and {@code deliver} pass {@link HandoverAuthorizationGuard} first, then work only on
  * the Legal-approved lines of the current dossier version. Deliveries are all-or-nothing, append-only and audited.
  * The first delivery moves the Vault UNLOCKED -> HANDOVER_IN_PROGRESS.
  *

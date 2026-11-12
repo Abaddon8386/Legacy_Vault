@@ -8,11 +8,11 @@ import './AssetSummaryCards.css'
 import { getAssetTranslations } from '../../pages/assets/assetI18n.js'
 
 /**
- * Ba thẻ thống kê đầu trang tài sản: tổng số tài sản, số tài sản có nội dung bảo mật ({@code hasPayload}) trên tổng, và phân bố theo loại (TEXT/CREDENTIAL). Thuần hiển thị, tính từ danh sách đang tải.
+ * Ba thẻ thống kê đầu trang tài sản: tổng số tài sản, số tài sản có nội dung bảo mật ({@code hasPayload}) trên tổng, và phân bố theo loại (TEXT/CREDENTIAL). Thuần hiển thị, tính từ danh sách {@code assets} truyền vào.
  * Được dùng bởi {@code pages/assets/AssetManagementPage.jsx} (trang quản lý tài sản của chủ hầm VAULT_OWNER).
  *
  * @param {object} props
- * @param {Array<{assetType:string, hasPayload:boolean}>} props.assets Danh sách tài sản của trang hiện tại.
+ * @param {Array<{assetType:string, hasPayload:boolean}>} props.assets Danh sách tài sản đang hiển thị (đã lọc phía client trong AssetManagementPage).
  * @param {object} [props.t] Bộ chuỗi dịch bên ngoài.
  * @param {string} [props.lang='vi']
  */

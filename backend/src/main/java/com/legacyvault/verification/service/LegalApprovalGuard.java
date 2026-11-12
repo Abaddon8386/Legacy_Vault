@@ -22,7 +22,7 @@ import java.util.Objects;
  * này chỉ đọc nên không ghi trùng sự kiện vô hiệu hóa khi bị thử chuyển bước nhiều lần. So sánh: dossier còn FRESH,
  * phiên bản/SHA-256/trạng thái tranh chấp/hash phân bổ lần xem xét cuối khớp phiên bản hiện tại, và quyết định mới nhất
  * là LEGAL_APPROVED với lý do APPROVE. Dùng bảng lịch sử xem xét ({@code LegalBasisReviewHistory}) và phân bổ phiên
- * bản; được các luồng mở khóa Vault, phân phối và bàn giao gọi trước khi chuyển trạng thái.
+ * bản; được {@link LegalWorkflowGuard} (trước khi duyệt, mở khóa hoặc bàn giao), {@code LegalReadService} (tính khả năng thao tác của GET context) và {@code DistributionWorkflowService} (xác định trạng thái duyệt) gọi.
  */
 @Component
 public class LegalApprovalGuard {

@@ -23,7 +23,8 @@ import java.util.UUID;
  * Được gọi bởi {@code CourtDecisionController}, đường dẫn
  * {@code /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/court-decisions} (vai trò {@code LEGAL_VERIFIER}):
  * {@code POST} → {@link #record}, {@code GET} → {@link #history}. {@link #record} cũng được
- * {@link DistributionWorkflowService} gọi khi Legal duyệt tài liệu của nhánh COURT. Ghi bảng {@code court_decisions},
+ * {@link DistributionWorkflowService} gọi khi Legal duyệt tài liệu của nhánh COURT; việc kiểm tra kết luận này khi
+ * duyệt/mở khóa nằm ở {@link CourtRouteGuard}. Ghi bảng {@code court_decisions},
  * audit {@code COURT_DECISION_RECORDED}.
  */
 @Service
@@ -57,7 +58,7 @@ public class CourtDecisionService {
      * @param principal Legal đang đăng nhập
      * @param request phiên bản, kết quả và lý do (tối đa 1000 ký tự)
      * @return kết luận vừa ghi
-     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED, BASIS_DOSSIER_INVALID_STATE, RESOURCE_NOT_FOUND,
+     * @throws com.legacyvault.common.error.BusinessException VALIDATION_FAILED, LEGAL_WORKFLOW_ON_HOLD, BASIS_DOSSIER_INVALID_STATE, RESOURCE_NOT_FOUND,
      *         BASIS_VERSION_STALE, COURT_EVIDENCE_REQUIRED
      */
     @Transactional

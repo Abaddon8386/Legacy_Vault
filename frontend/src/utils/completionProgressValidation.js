@@ -13,7 +13,7 @@
  */
 
 /**
- * Trạng thái tiến độ hoàn tất hồ sơ: COMPLETED, INCOMPLETE, INDETERMINATE (thiếu dữ liệu). Dùng bởi pages/staff/CloseAndArchivePage.jsx và utils/workflowGuidance.js.
+ * Trạng thái tiến độ hoàn tất hồ sơ: COMPLETED, INCOMPLETE, INDETERMINATE (thiếu dữ liệu). Là giá trị overallStatus mà evaluateCompletionProgress trả về (hàm đó được CloseAndArchivePage.jsx và workflowGuidance.js dùng); bản thân hằng số chỉ dùng trong file này.
  */
 export const COMPLETION_PROGRESS_STATUS = {
   COMPLETED: 'COMPLETED',
@@ -38,7 +38,7 @@ export const COMPLETION_MISSING_CONDITIONS = {
  * @param {Object|null|undefined} session
  * @returns {boolean}
  *
- * Chỉ ROLE_STAFF_EXECUTOR có session còn hạn mới được xem tiến độ hoàn tất.
+ * Chỉ ROLE_STAFF_EXECUTOR có session còn hạn mới được xem tiến độ hoàn tất. Hiện chưa có nơi nào ngoài test gọi hàm này (App.jsx dùng canAccessCloseArchive).
  */
 export function canAccessCompletionProgress(session) {
   if (!session || !session.accessToken || typeof session.expiresAt !== 'number') {

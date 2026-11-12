@@ -24,12 +24,12 @@ export default function StaffSessionBoundary(props) {
  * Tải và kiểm tra điều kiện của hồ sơ + phiên bàn giao, rồi quyết định hiển thị trang con hay thông báo chờ.
  * Các bước trong effect (chỉ khi `caseId` là UUID):
  * 1. `loadStaffCase` (`GET /api/v1/staff/verification-cases/{caseId}`); nếu `UNASSIGNED_CLAIMABLE` thì yêu cầu nhận xử lý trước.
- * 2. Có `sessionId`: `getLiveSession` (`GET .../handover-sessions/{sessionId}`); với thao tác `delivery`
- *    mà phiên không còn `OPEN` thì coi là đã kết thúc.
+ * 2. Có `sessionId`: `getLiveSession` (`GET .../handover-sessions/{sessionId}`) rồi dừng; với thao tác `delivery`
+ *    mà phiên không còn `OPEN` thì coi là đã kết thúc. Các bước 3-5 chỉ chạy khi URL chưa có `sessionId`.
  * 3. Nếu kho đang ở `AWAITING_LEGAL_BASIS`/`LEGAL_BASIS_VERIFICATION` thì nạp `loadDistributionWorkflow` (vai trò STAFF).
- * 4. Không cần phiên (`requireSession` false): kiểm tra tiền điều kiện bằng `staffSessionPrerequisite`.
+ * 4. Không cần phiên (`requireSession` false): đánh giá `staffSessionPrerequisite` và dừng (`ready` nếu kho đã UNLOCKED/HANDOVER_IN_PROGRESS/ARCHIVED hoặc chưa có vaultStatus, ngược lại `waiting`).
  * 5. Ngược lại `listLiveSessions` (`GET .../handover-sessions`), tự chọn phiên OPEN hoặc phiên duy nhất, ghi
- *    `sessionId` vào URL (history.replaceState) và gọi `onSessionChange`; nhiều phiên thì cho người dùng chọn.
+ *    `sessionId` vào URL (history.replaceState) và gọi `onSessionChange`; nhiều phiên thì cho người dùng chọn, không có phiên thì `waiting`.
  * Kết quả `ready` sẽ clone `children` với `caseItem` và `sessionId`; thao tác `delivery` còn được bọc bởi
  * `StaffGroupHandover`. Lỗi 401 gọi `onUnauthorized`; các lỗi khác hiển thị qua `workflowFailure`.
  *

@@ -24,8 +24,8 @@ import com.legacyvault.verification.service.HandoverDeliveryService;
 import jakarta.validation.Valid;
 
 /**
- * PS-64 / PS-65 (ST-25): scope of assets that may be handed over and the recorded deliveries of a session.
- * Staff Executor only; ownership of the case and session is enforced by {@code HandoverAuthorizationGuard}.
+ * PS-64 / PS-65 (ST-25): phạm vi tài sản được phép bàn giao và các lần giao đã ghi nhận của một phiên.
+ * Chỉ STAFF_EXECUTOR; quyền sở hữu ca và phiên được kiểm tra bởi {@code HandoverAuthorizationGuard}.
  */
 @RestController
 @RequestMapping("/api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}")

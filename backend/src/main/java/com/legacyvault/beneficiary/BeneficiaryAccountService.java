@@ -46,6 +46,9 @@ public class BeneficiaryAccountService {
 	 * Mã bước nghiệp vụ ghi vào chi tiết audit.
 	 */
 	static final String STEP_ID = "ST-24";
+	/**
+	 * Mã quy tắc nghiệp vụ ghi vào chi tiết audit.
+	 */
 	static final String RULE_ID = "LV-ID-001";
 	/**
 	 * Vai trò được cấp cho tài khoản khi liên kết thành công.

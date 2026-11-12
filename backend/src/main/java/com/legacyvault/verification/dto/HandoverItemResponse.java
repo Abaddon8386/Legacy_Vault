@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * A recorded delivery (PS-65). Public ids only.
+ * Một lần giao tài sản đã ghi nhận (PS-65), chỉ chứa ID công khai.
  *
  * Các trường: {@code itemId}, {@code sessionId}, {@code assetId}, {@code recipientId}, {@code status},
  * {@code deliveredAt}, {@code staffId} (Staff thực hiện). Dùng cho {@code POST/GET .../deliveries}.

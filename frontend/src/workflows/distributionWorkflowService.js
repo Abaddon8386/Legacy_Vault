@@ -90,7 +90,7 @@ export function documentMatchesWorkflow(value, dossier) {
   return !!latest && latest.version === value?.document?.version && latest.sha256?.toLowerCase() === value.document.sha256.toLowerCase();
 }
 /**
- * Kiểm tra quy trình đã sẵn sàng cho bước cuối (phê duyệt cuối hoặc mở khóa có kiểm soát): pha đúng, tiền đề đạt, giấy tờ và phân bổ đã APPROVED, khớp phiên bản,
+ * Kiểm tra quy trình đã sẵn sàng cho bước cuối: pha phải là FINAL_APPROVAL (bước approval-review; chấp nhận APPROVED nếu {@code context.snapshot.approvalCurrent === true}) hoặc APPROVED (bước controlled-unlock), tiền đề đạt, giấy tờ và phân bổ đã APPROVED, khớp phiên bản,
  * giấy tờ khớp hồ sơ căn cứ và hash phân bổ khớp snapshot.
  */
 export function distributionFinalReady(value, context, step) {
@@ -109,7 +109,7 @@ export async function loadDistributionWorkflow(caseId, workspace, options) {
 }
 /**
  * Thực hiện một action của quy trình: {@code POST .../distribution-workflow/{request-documents|approve-documents|request-document-supplementation|submit-allocations|approve-allocations|request-allocation-changes}}.
- * Trước khi gửi chạy {@link preflightDistributionAction} (tải lại và so sánh revision/phạm vi, lệch thì ném {@code CONFLICT}); body gồm revision hiện tại, lý do hoặc danh sách phân bổ,
+ * Ném {@code CONFLICT} ngay nếu action không có đường dẫn API (upload/forward) hoặc {@link canUseDistributionAction} không cho phép. Trước khi gửi chạy {@link preflightDistributionAction} (tải lại và so sánh revision/phạm vi, lệch thì ném {@code CONFLICT}); body gồm revision hiện tại, lý do hoặc danh sách phân bổ,
  * và phiên bản/sha256 giấy tờ, phân bổ để máy chủ chống ghi đè.
  * @returns {Promise<object>} Biên nhận (receipt) có revision mới hơn.
  */

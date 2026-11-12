@@ -114,7 +114,7 @@ public class DmsService {
 		try {
 			config = configs.saveAndFlush(config);
 		} catch (DataIntegrityViolationException ex) {
-			// Handles a concurrent first-time configuration; the database unique constraint is authoritative.
+			// Xử lý trường hợp hai request cấu hình lần đầu đồng thời; ràng buộc unique của DB là căn cứ quyết định.
 			throw new BusinessException(ErrorCode.DMS_NOT_MONITORING);
 		}
 		audit.record(owner.getUserId(), vault.getVaultId(), "DMS_CONFIGURED", "DMS_CONFIG", config.getId(), "USER",
@@ -150,7 +150,8 @@ public class DmsService {
 	 *
 	 * @param requestedAt giờ dùng làm "bây giờ" (cho kiểm thử), null thì lấy giờ UTC hiện tại
 	 * @return cấu hình sau khi check-in
-	 * @throws BusinessException {@code RESOURCE_NOT_FOUND} (chưa có két/cấu hình) hoặc {@code DMS_NOT_MONITORING}
+	 * @throws BusinessException {@code RESOURCE_NOT_FOUND} (chưa có két/cấu hình), {@code VAULT_NOT_EDITABLE} (két đã
+	 *         lưu trữ) hoặc {@code DMS_NOT_MONITORING}
 	 */
 	DmsDtos.Response checkInAt(LocalDateTime requestedAt) {
 		User owner = owners.requireOwner();

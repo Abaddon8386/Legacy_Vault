@@ -5,7 +5,7 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 /**
- * Projection chỉ chứa UUID công khai của một quyết định tòa án, trả về từ {@link CourtDecisionRepository#findRows}.
+ * Projection một quyết định tòa án (chỉ UUID công khai, không có khóa nội bộ: id, ca, người đánh giá; kèm phiên bản, SHA-256, kết quả, lý do, thời điểm), trả về từ {@link CourtDecisionRepository#findRows}.
  */
 public record CourtDecisionRow(UUID id, UUID caseId, int version, String sha256, String result,
         String reason, UUID reviewedBy, LocalDateTime reviewedAt) {

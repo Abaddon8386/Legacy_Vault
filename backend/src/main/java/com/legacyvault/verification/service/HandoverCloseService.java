@@ -33,8 +33,8 @@ this.group=group;
   this.access=access;this.completion=completion;this.sessions=sessions;this.evidence=evidence;this.audit=audit;
  }
  /**
-  * Đóng phiên. Idempotent: nếu phiên đã COMPLETED thì chỉ xác minh bằng chứng và trả kết quả. Ngược lại: khóa snapshot (cho phép phiên
-  * đã hoàn tất), kiểm tra bàn giao nhóm sẵn sàng, yêu cầu cổng hoàn tất kép đạt, đóng phiên, lưu bằng chứng (phiên bản, SHA-256, hash phạm vi,
+  * Đóng phiên. Idempotent: luôn khóa snapshot (cho phép phiên đã hoàn tất), kiểm tra bàn giao nhóm sẵn sàng và yêu cầu cổng
+  * hoàn tất kép đạt (cả khi phiên đã COMPLETED). Nếu phiên đã COMPLETED thì chỉ xác minh bằng chứng và trả kết quả. Ngược lại: đóng phiên, lưu bằng chứng (phiên bản, SHA-256, hash phạm vi,
   * số tài sản, số người nhận) và ghi audit.
   *
   * @param caseId UUID công khai của ca
@@ -70,8 +70,8 @@ this.group=group;
   * Cũng được {@link HandoverArchiveService} gọi. Phải có transaction sẵn ({@code Propagation.MANDATORY}).
   *
   * @return bằng chứng đóng phiên
-  * @throws com.legacyvault.common.error.BusinessException HANDOVER_SESSION_INVALID_STATE (chưa có bằng chứng hoặc phiên chưa hoàn tất),
-  *         LEGAL_DECISION_STALE (bằng chứng không còn khớp)
+  * @throws com.legacyvault.common.error.BusinessException HANDOVER_SESSION_INVALID_STATE (chưa có bản ghi bằng chứng),
+  *         LEGAL_DECISION_STALE (phiên chưa COMPLETED hoặc bằng chứng không còn khớp snapshot)
   */
  @Transactional(propagation=Propagation.MANDATORY)
  public HandoverCompletionEvidence requireEvidence(HandoverCompletionAccess.Snapshot s){

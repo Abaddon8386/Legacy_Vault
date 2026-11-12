@@ -8,8 +8,10 @@ import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.UserRepository;
 
-/** Authenticated PS-87 orchestration. The account-row lock is the cross-instance limiter mutex and
- * also establishes the PS-86 User -> Vault lock order. */
+/**
+ * Điều phối đổi mã mời PS-87 cho tài khoản đã xác thực. Khóa dòng tài khoản vừa là mutex của bộ giới hạn số lần thử giữa
+ * nhiều instance, vừa thiết lập thứ tự khóa User -> Vault của PS-86. Gọi từ {@code InvitationRedeemController}.
+ */
 @Service
 public class InvitationRedeemService {
     private final UserRepository users;

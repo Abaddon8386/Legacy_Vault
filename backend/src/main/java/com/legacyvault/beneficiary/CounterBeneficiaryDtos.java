@@ -33,21 +33,23 @@ public final class CounterBeneficiaryDtos {
 	public static final String STEP_ACCOUNT_LINKED = "ACCOUNT_LINKED";
 
 	/**
-	 * State of the current invitation: NOT_ISSUED, PENDING, EXPIRED, REVOKED or CONSUMED. {@code generation} is 0 when
-	 * nothing was issued; it is the {@code expectedGeneration} the Staff invitation-email request must echo back.
+	 * Tóm tắt mã mời hiện hành: {@code state} là NOT_ISSUED, PENDING, EXPIRED, REVOKED hoặc CONSUMED; {@code expiresAt} hạn của mã (null nếu chưa cấp);
+	 * {@code generation} bằng 0 khi chưa cấp mã, và là giá trị {@code expectedGeneration} mà yêu cầu gửi email mời của Staff phải gửi lại.
 	 */
 	public record InvitationSummary(String state, Instant expiresAt, int generation) { }
 
 	/**
-	 * What Staff recorded at the counter (CounterIdentityAttestation): only whether it exists, when, and whether an email
-	 * was confirmed. Never the evidence reference or the email itself. This is a Staff responsibility record, not an
-	 * automatic identity verification.
+	 * Tóm tắt chứng thực Staff đã ghi tại quầy ({@code BeneficiaryCounterAttestation}): chỉ cho biết có hay chưa ({@code recorded}), thời điểm
+	 * ({@code recordedAt}) và đã xác nhận email hay chưa ({@code confirmedEmailRecorded}); không bao giờ trả mã tham chiếu bằng chứng hay email.
+	 * Đây là bản ghi trách nhiệm của Staff, không phải kết quả xác minh danh tính tự động.
 	 */
 	public record CounterAttestationSummary(boolean recorded, Instant recordedAt, boolean confirmedEmailRecorded) { }
 
 	/**
-	 * Hints for the UI only. The server re-checks every precondition when the action is requested, so a false value must
-	 * hide the action while a true value never replaces the server decision.
+	 * Gợi ý cho UI: {@code canLinkAccount} (liên kết tài khoản có sẵn), {@code canCreateAccount} (tạo tài khoản), {@code canHandOverWithoutAccount}
+	 * (bàn giao không cần tài khoản, chỉ cần đã xác minh tại quầy) và {@code canRequestInvitationEmail} (xếp email mời; cần đã xác minh, chưa
+	 * liên kết, đã có email xác nhận và mã hiện hành chưa dùng/chưa gắn email). Server kiểm tra lại mọi điều kiện khi thực hiện hành động,
+	 * nên giá trị false nên ẩn hành động còn giá trị true không thay thế quyết định của server.
 	 */
 	public record Actions(boolean canLinkAccount, boolean canCreateAccount, boolean canHandOverWithoutAccount,
 			boolean canRequestInvitationEmail) { }

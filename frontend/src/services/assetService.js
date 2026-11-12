@@ -23,7 +23,7 @@ export function readAsset(raw, vaultId) {
     hasPayload: raw.hasPayload, createdAt: raw.createdAt, updatedAt: raw.updatedAt };
 }
 /**
- * Service CRUD tài sản trong hầm (dùng bởi trang quản lý tài sản của chủ hầm, {@code AssetFormModal}, {@code AssetEditModal}, {@code AssetDetailModal}).
+ * Service tài sản trong hầm: xem, liệt kê, tạo, sửa và xem nội dung bí mật (reveal); không có thao tác xóa (dùng bởi trang quản lý tài sản của chủ hầm, {@code AssetFormModal}, {@code AssetEditModal}, {@code AssetDetailModal}).
  * Tất cả đường dẫn nằm dưới {@code /vaults/{vaultId}/assets}.
  */
 export const assetService = {

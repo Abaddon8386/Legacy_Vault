@@ -94,7 +94,7 @@ public class VaultService {
     public VaultResponse createVault(CreateVaultRequest request, CustomUserPrincipal principal) {
         Long ownerUserId = CustomUserPrincipal.requireUserId(principal);
 
-        // Serialize first creation on a row that already exists. A lock on a missing Vault is insufficient.
+        // Tuần tự hóa việc tạo két đầu tiên trên một dòng đã tồn tại (dòng user); khóa một Vault chưa có thì không đủ.
         creationLockRepository.findActiveOwnerForUpdate(ownerUserId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
 
@@ -107,7 +107,7 @@ public class VaultService {
         vault.setName(request.name().trim());
         vault.setDescription(request.description());
 
-        // The DB unique key remains the final constraint; do not query a failed Hibernate transaction.
+        // Khóa unique ở DB vẫn là ràng buộc cuối cùng; không truy vấn thêm trong transaction Hibernate đã lỗi.
         Vault savedVault = vaultRepository.saveAndFlush(vault);
 
         // Ghi audit trong transaction tạo Vault hiện tại.
@@ -190,11 +190,12 @@ public class VaultService {
     }
 
     /**
-     * Content writers hold Owner -> Vault locks through quota checks, content and audit commit.
-     * Re-read status after locking: a cached ACTIVE entity cannot bypass a committed freeze/hold.
+     * Các luồng ghi nội dung giữ khóa Owner -> Vault suốt các bước kiểm tra hạn mức, ghi nội dung và commit audit.
+     * Trạng thái được đọc lại sau khi khóa để entity ACTIVE còn trong cache không vượt qua được việc két đã bị đóng
+     * băng/tạm giữ.
      *
      * <p>Bắt buộc chạy trong transaction có sẵn ({@code MANDATORY}); khóa két, đọc lại từ DB rồi yêu cầu trạng thái
-     * {@code ACTIVE}. Dùng bởi các service ghi nội dung (tài sản, di chúc, người thụ hưởng, DMS cấu hình...).
+     * {@code ACTIVE}. Dùng bởi các service ghi nội dung (tài sản/ảnh/tài liệu, di chúc, người thụ hưởng, lời mời, cấu hình DMS...).
      *
      * @throws BusinessException {@code RESOURCE_NOT_FOUND} hoặc {@code VAULT_NOT_EDITABLE}
      */
@@ -208,7 +209,7 @@ public class VaultService {
     }
 
     /**
-     * DMS check-in retains its existing MONITORING policy, but cannot append logs after archive.
+     * Dùng cho check-in DMS: vẫn giữ chính sách MONITORING hiện có nhưng không được ghi thêm log sau khi két đã lưu trữ.
      * Khóa két của chủ (theo publicId + owner), đọc lại từ DB, và chỉ từ chối khi két đã {@code ARCHIVED}.
      *
      * @throws BusinessException {@code RESOURCE_NOT_FOUND} hoặc {@code VAULT_NOT_EDITABLE}

@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 /**
- * ROLE_ADMIN-only read API for account search and detail.
+ * API chỉ đọc dành cho {@code ROLE_ADMIN}: tìm kiếm và xem chi tiết tài khoản.
  * <p>Base path {@code /api/v1/admin/users}. Chỉ đọc; dữ liệu do {@link AdminUserQueryService} dựng.
  * Tham số được kiểm tra bằng Bean Validation (độ dài, regex trạng thái, giới hạn trang).
  */

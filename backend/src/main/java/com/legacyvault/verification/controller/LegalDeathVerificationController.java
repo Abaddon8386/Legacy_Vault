@@ -33,9 +33,6 @@ public class LegalDeathVerificationController {
     /**
      * Xử lý quyết định thẩm định giấy tờ chứng tử.
      *
-     * Vị trí: class LegalDeathVerificationController,
-     * package com.legacyvault.verification.controller.
-     *
      * {@code POST /api/v1/legal-verifications/death-documents/{deathDocumentPublicId}/decision}
      * Body {@link LegalDeathDecisionRequest}; trả {@link LegalDeathDecisionResponse}.
      *
@@ -55,10 +52,6 @@ public class LegalDeathVerificationController {
 
     /**
      * Đọc chi tiết hồ sơ chứng tử và kết quả thẩm định.
-     *
-     * Package: com.legacyvault.verification.controller
-     * Class: LegalDeathVerificationController
-     * Vị trí: ngay sau phương thức decide().
      *
      * {@code GET /api/v1/legal-verifications/death-documents/{deathDocumentPublicId}}
      * Trả {@link LegalDeathDocumentDetailResponse}.

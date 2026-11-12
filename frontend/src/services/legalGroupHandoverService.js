@@ -99,11 +99,8 @@ export async function loadGroupHandoverEvents(caseId, sessionId, { page = 0, siz
 }
 
 /**
- * Legal decision on the current Staff request. The key makes a retry of the same decision idempotent;
- * the body carries no actor, time or scope (the server derives them).
- *
- * Legal quyết định yêu cầu mở lại: {@code POST .../group-handover/reopen-requests/{requestId}/decision} với {expectedRevision, decision APPROVE|REJECT, reason <= 1000}.
- * Gửi {@code Idempotency-Key}; phản hồi phải tăng revision thêm 1 và trạng thái khớp (READY hoặc SUSPENDED).
+ * Legal quyết định yêu cầu mở lại hiện tại của Staff: {@code POST .../group-handover/reopen-requests/{requestId}/decision} với {expectedRevision, decision APPROVE|REJECT, reason <= 1000}.
+ * Gửi {@code Idempotency-Key} để thử lại cùng một quyết định an toàn; body không chứa người thực hiện, thời gian hay phạm vi (server tự suy ra). Phản hồi phải tăng revision thêm 1 và trạng thái khớp (READY hoặc SUSPENDED).
  *
  * @throws {ApiError} {@code VALIDATION_FAILED}, mã lỗi backend, {@code INVALID_RESPONSE}.
  */

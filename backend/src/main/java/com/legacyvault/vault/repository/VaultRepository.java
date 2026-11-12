@@ -27,14 +27,14 @@ public interface VaultRepository extends JpaRepository<Vault, Long> {
     /** Kiểm tra chủ sở hữu có két đang ở một trong các trạng thái đã cho. */
     boolean existsByOwnerUserIdAndStatusIn(Long ownerUserId, java.util.Collection<String> statuses);
 
-    /** Lấy các két của nhiều chủ sở hữu cùng lúc. */
+    /** Lấy các két của nhiều chủ sở hữu cùng lúc (dùng cho danh sách tài khoản admin). */
     java.util.List<Vault> findByOwnerUserIdIn(java.util.Collection<Long> ownerUserIds);
 
-    /** Tìm két theo UUID công khai (không kiểm tra chủ sở hữu, chỉ dùng cho luồng nội bộ/nhân viên). */
+    /** Tìm két theo UUID công khai, không kiểm tra chủ sở hữu (hiện chưa có nơi gọi trong mã main; luồng của Owner phải dùng {@link #findByPublicIdAndOwnerUserId}). */
     Optional<Vault> findByPublicId(UUID publicId);
 
     /**
-     * Ownership (PS-14, vaults.md): luồng của Owner luôn truy vấn theo cặp (publicId, ownerUserId),
+     * Kiểm tra quyền sở hữu (PS-14, vaults.md): luồng của Owner luôn truy vấn theo cặp (publicId, ownerUserId),
      * không tìm theo publicId rồi mới so chủ sở hữu.
      *
      * @param publicId    UUID công khai của két
@@ -72,7 +72,7 @@ public interface VaultRepository extends JpaRepository<Vault, Long> {
             @Param("ownerUserId") Long ownerUserId
     );
 
-    /** Tìm két theo khóa chính nội bộ và khóa ghi dòng, dùng trong các luồng xử lý nghiệp vụ nhân viên/bàn giao. */
+    /** Tìm két theo khóa chính nội bộ và khóa ghi dòng, dùng trong các luồng xác minh, pháp lý, bàn giao và lời mời người thụ hưởng. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select v from Vault v where v.vaultId = :vaultId")
     Optional<Vault> findByIdForUpdate(@Param("vaultId") Long vaultId);

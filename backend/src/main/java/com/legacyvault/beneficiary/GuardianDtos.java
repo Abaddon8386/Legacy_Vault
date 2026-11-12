@@ -18,13 +18,13 @@ public final class GuardianDtos {
      * {@code relationship} (tối đa 100), {@code email} (tối đa 254) và {@code phone} (tối đa 20); cần ít nhất email hoặc phone.
      */
     public record UpsertRequest(@NotNull(message="validation.NotNull") @Min(value=0, message="validation.Min") Long expectedRevision,
-            /**
-             * Body của {@code POST .../guardian/revoke}: {@code expectedRevision} phiên bản hiện tại.
-             */
             @NotBlank(message="validation.NotBlank") @Size(message="validation.Size", max=150) String fullName,
             @NotBlank(message="validation.NotBlank") @Size(message="validation.Size", max=100) String relationship,
             @Email(message="validation.Email") @Size(message="validation.Size", max=254) String email,
             @Size(message="validation.Size", max=20) String phone) {}
+    /**
+     * Body của {@code POST .../guardian/revoke}: {@code expectedRevision} là phiên bản client đang thấy (khóa lạc quan).
+     */
     public record RevokeRequest(@NotNull(message="validation.NotNull") @Min(value=0, message="validation.Min") Long expectedRevision) {}
     /**
      * Một bản ghi người giám hộ: {@code id}, {@code revision}, {@code fullName}, {@code relationship}, {@code email}, {@code phone},

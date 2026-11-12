@@ -296,10 +296,10 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
       actions={counterLinkActions}
       onError={onError}
     /> : <LegacyCounterBeneficiariesSection caseId={caseId} caseItem={caseItem} selectedSessionId={selected?.sessionId} accessToken={accessToken} lang={lang} mode={mode} onError={onError} />;
-  // Order of the work: open the session and record attendance, check identities, then hand over assets.
-  // One tab per step; every panel stays mounted (hidden) so typed values and selections survive a tab change.
   /**
-   * Bố cục 4 tab của phiên bàn giao (Phiên bàn giao, Người có mặt, Đối chiếu và liên kết, Bàn giao tài sản).
+   * Bố cục 4 tab của phiên bàn giao theo thứ tự công việc: mở phiên, điểm danh người có mặt, đối chiếu danh tính, rồi bàn giao tài sản
+   * (Phiên bàn giao, Người có mặt, Đối chiếu và liên kết, Bàn giao tài sản). Mỗi tab một bước; mọi panel vẫn mount (chỉ ẩn)
+   * để giá trị đã nhập và lựa chọn không mất khi đổi tab.
    * Được truyền cho `StaffGroupHandover` làm `layout(attendance, delivery, groupView)`; tab chưa khả dụng bị khóa.
    */
   const layout = (attendance, delivery, groupView) => {

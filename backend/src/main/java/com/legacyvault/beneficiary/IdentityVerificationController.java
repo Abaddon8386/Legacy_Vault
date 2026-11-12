@@ -19,7 +19,7 @@ import jakarta.validation.Valid;
 /**
  * Controller xác minh danh tính người thụ hưởng tại quầy (ST-14). Đường dẫn gốc
  * {@code /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications}; yêu cầu {@code ROLE_STAFF_EXECUTOR}.
- * Frontend gọi qua {@code pages/staff/staffIdentityService.js}.
+ * Phía frontend, {@code pages/staff/staffIdentityService.js} hiện mới chạy chế độ mô phỏng và chưa gọi các endpoint này.
  */
 @Validated
 @RestController

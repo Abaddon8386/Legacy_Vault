@@ -321,7 +321,10 @@ export async function createAdminUser(accessToken, { fullName, email, phone = ''
   return validateAdminUser(await request('/admin/users', { ...options, method: 'POST', body, accessToken, expectedStatus: 201 }));
 }
 
-/** Replaces the account's Staff/Legal/Vault Owner role with the given one. */
+/**
+ * Thay vai trò Staff/Legal/Vault Owner của tài khoản bằng vai trò mới: {@code PUT /api/v1/admin/users/{id}/role} (ROLE_ADMIN, body {role: ROLE_X}, mong đợi 200).
+ * @throws {ApiError} VALIDATION_FAILED nếu id không phải UUID hoặc role không thuộc ASSIGNABLE_ADMIN_ROLES; INVALID_USER_RECORD nếu phản hồi sai id.
+ */
 export async function changeAdminUserRole(accessToken, id, role, options = {}) {
   if (!isUuid(id) || !ASSIGNABLE_ADMIN_ROLES.includes(normalizeAdminRole(role))) throw new ApiError('VALIDATION_FAILED', 400);
   const user = validateAdminUser(await request(`/admin/users/${id}/role`, {
@@ -339,8 +342,8 @@ export async function changeAdminUserRole(accessToken, id, role, options = {}) {
  * @returns {Promise<Object>}
  *
  * Gọi GET /api/v1/admin/audit-logs (ROLE_ADMIN) lấy nhật ký kiểm toán có phân trang.
- * Tham số lọc: action, actorRole/actorKind (suy ra từ actorType), actorId, vaultId, caseNumber, from/to (ngày YYYY-MM-DD đổi thành mốc ISO UTC;
- * ngày kết thúc cộng thêm 1 ngày để thành cận trên loại trừ), page-1, size.
+ * Tham số hàm: action, actorType (nếu là một vai trò thì gửi lên query {@code actorRole}, ngược lại gửi {@code actorKind}), actorId, vaultId, caseNumber (HS-YYYY-NNNNNN, tự viết hoa),
+ * fromDate/toDate (YYYY-MM-DD, gửi thành query {@code from}/{@code to} dạng ISO UTC; toDate cộng thêm 1 ngày để thành cận trên loại trừ), page (từ 1, gửi page-1), pageSize (gửi thành {@code size}).
  * @returns {Promise<{items:object[],total:number,page:number,pageSize:number}>}
  * @throws {ApiError} VALIDATION_FAILED (400); INVALID_AUDIT_LOGS_RESPONSE (500).
  */

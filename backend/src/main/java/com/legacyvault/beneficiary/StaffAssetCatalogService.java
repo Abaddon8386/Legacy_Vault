@@ -69,7 +69,7 @@ public class StaffAssetCatalogService {
 	}
 
 	/**
-	 * @return {@code true} nếu trạng thái Vault thuộc giai đoạn trước khi mở khóa (chờ xác minh, xác minh tài liệu, di chúc, căn cứ pháp lý).
+	 * @return {@code true} nếu trạng thái Vault thuộc giai đoạn trước khi mở khóa (chờ xác minh, xác minh tài liệu, xác minh di chúc, chờ căn cứ pháp lý, xác minh căn cứ pháp lý).
 	 */
 	static boolean isPreUnlockStatus(String status) {
 		return Vault.STATUS_AWAITING_VERIFICATION.equals(status)

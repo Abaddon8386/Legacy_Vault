@@ -3,7 +3,7 @@ package com.legacyvault.verification.dto;
 import java.util.UUID;
 
 /**
- * Legal decision only when it still covers the current dossier snapshot.
+ * Quyết định của Legal, chỉ có khi nó còn bao phủ snapshot hồ sơ hiện tại.
  *
  * Được nhúng trong {@link BasisDossierResponse#currentDecision()}.
  *

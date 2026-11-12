@@ -6,7 +6,7 @@ import './CourtAllocationEditor.css';
  * Bộ soạn các dòng phân bổ tài sản theo văn bản (ví dụ quyết định của Tòa án).
  * Mỗi dòng gồm: tài sản, người nhận (người đã có trong hồ sơ hoặc người mới do Tòa án nêu tên)
  * và mô tả phần được hưởng. Component hoàn toàn "controlled": không tự giữ state,
- * mọi thay đổi được báo lên cha qua các callback. Được dùng trong `StaffLegalDocumentsPage.jsx`.
+ * mọi thay đổi được báo lên cha qua các callback. Được dùng trong `StaffDistributionAllocations.jsx` (pages/staff).
  *
  * Với người nhận mới theo Tòa án (`recipientKind === 'court'`) chỉ ghi thông tin theo phiên bản văn bản,
  * không tạo hoặc liên kết tài khoản. Không gọi API trực tiếp.

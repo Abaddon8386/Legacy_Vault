@@ -15,7 +15,7 @@ import './EvidenceFileUploader.css';
 import FeedbackNotice from './FeedbackNotice.jsx';
 
 /**
- * Ô tải tệp chứng cứ (giấy tờ) cho nhân viên/pháp lý: vùng kéo-thả hoặc bấm chọn một tệp, kiểm tra bằng {@code validateEvidenceFile} ({@code utils/staffEvidenceUpload.js}; loại và dung lượng cho phép),
+ * Ô chọn tệp chứng cứ/giấy tờ dùng chung cho các trang nhân viên ({@code StaffLiveCase}, {@code StaffLegalDocumentsPage}, {@code BeneficiaryConfirmationPage}) và trang tải di chúc của chủ hầm ({@code WillUploadPage}): vùng kéo-thả hoặc bấm chọn một tệp, kiểm tra bằng {@code validateEvidenceFile} ({@code utils/staffEvidenceUpload.js}; loại và dung lượng cho phép),
  * hiển thị bảng tên/dung lượng, nút bỏ tệp, thanh tiến trình theo pha (uploading, processing, success) và thông báo lỗi. Không tự gọi API: việc tải lên do component cha thực hiện, cha truyền {@code uploadProgress}.
  *
  * @param {object} props

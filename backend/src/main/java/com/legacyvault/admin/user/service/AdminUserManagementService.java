@@ -30,9 +30,9 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Admin-only account provisioning and role assignment. Only the Staff, Legal and Vault Owner roles can be
- * granted here; Admin accounts are never created or altered through this API, and an Admin cannot change
- * their own role. Roles are read from the database on every request, so a change applies immediately.
+ * Cấp tài khoản và gán role, chỉ dành cho Admin. Chỉ gán được các role Staff, Legal và Vault Owner;
+ * tài khoản Admin không bao giờ được tạo hay sửa qua API này và Admin không thể đổi
+ * role của chính mình. Role được đọc từ DB mỗi request nên thay đổi có hiệu lực ngay.
  */
 @Service
 public class AdminUserManagementService {
@@ -155,9 +155,9 @@ public class AdminUserManagementService {
     }
 
     /**
-     * Locks (ACTIVE to LOCKED) or unlocks (LOCKED to ACTIVE) an account. Locking revokes every issued token, so
-     * unlocking later never revives an old session. Admin accounts and the caller are protected; repeating the
-     * requested state is a no-op.
+     * Khoá (ACTIVE -> LOCKED) hoặc mở khoá (LOCKED -> ACTIVE) tài khoản ({@code POST .../lock} và {@code .../unlock}).
+     * Khoá sẽ thu hồi mọi token đã cấp ({@code revokeSessions}) nên mở khoá sau đó không làm sống lại phiên cũ. Khoá dòng user
+     * (kể cả LOCKED/PENDING); chính Admin và tài khoản Admin được bảo vệ ({@code ADMIN_ACCOUNT_PROTECTED}); lặp lại trạng thái đang có thì không làm gì; trạng thái nguồn khác ACTIVE/LOCKED báo {@code ADMIN_ACCOUNT_STATE_INVALID}; khoá chủ Vault đang bàn giao/ARCHIVED báo {@code ADMIN_ACCOUNT_IN_HANDOVER}. Ghi audit {@code ADMIN_USER_LOCKED}/{@code ADMIN_USER_UNLOCKED} (lý do chỉ ghi khi khoá).
      */
     @Transactional
     public AdminUserResponse setLocked(Long adminUserId, UUID publicId, boolean lock, String reason) {

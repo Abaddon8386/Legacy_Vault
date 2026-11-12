@@ -178,7 +178,7 @@ export function checkCancelAlertCapability({
  * @param {boolean} [options.isTest=false] - Test runner flag
  * @returns {Promise<Object>}
  *
- * Thực hiện hủy cảnh báo DMS thông qua adapter do component truyền vào (adapter thường gọi API hủy cảnh báo trong vaultService/dmsService; hàm này không tự gọi endpoint nào).
+ * Thực hiện hủy cảnh báo DMS thông qua adapter do component truyền vào (adapter thật nằm ở components/dms/OwnerLiveCancelAlert.jsx và gọi {@code POST /vaults/{vaultId}/cancel-alert}; hàm này không tự gọi endpoint nào).
  * Các bước: kiểm tra quyền (ném ApiError FORBIDDEN 403), kiểm tra signal.aborted, gọi adapter(signal), kiểm tra phản hồi bằng isValidCancelAlertResponse (ném INVALID_RESPONSE 500), gọi onUnauthorized khi 401.
  * Nếu không có adapter ném ApiError BACKEND_NOT_READY (503).
  */

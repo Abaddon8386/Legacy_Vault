@@ -83,7 +83,11 @@ public class ReceivedAssetController {
 		return noStore(service.listImages(account(principal), itemId));
 	}
 
-	/** POST because the password travels in the body; returns the decrypted asset content once, never cached. */
+	/**
+	 * {@code POST /api/v1/received-assets/{itemId}/content}: mở nội dung tài sản đã giải mã. Dùng POST vì mật khẩu đăng nhập nằm trong body
+	 * ({@code RevealAssetRequest}); phản hồi {@code no-store}.
+	 * @return {@code ReceivedAssetDtos.Content}
+	 */
 	@PostMapping("/{itemId}/content")
 	public ResponseEntity<ReceivedAssetDtos.Content> content(@PathVariable UUID itemId, @Valid @RequestBody RevealAssetRequest request,
 			@AuthenticationPrincipal CustomUserPrincipal principal) {

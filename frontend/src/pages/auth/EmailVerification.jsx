@@ -4,7 +4,7 @@ import {loadEmailVerification, sendEmailVerification, confirmEmailVerification, 
 import './EmailVerification.css';
 
 /**
- * Khối trạng thái xác minh email của tài khoản đang đăng nhập (dùng trong `AccountProfilePage` và `VerifyEmailPage`).
+ * Khối trạng thái xác minh email của tài khoản đang đăng nhập (dùng trong `AccountProfilePage` và, sau khi xác nhận thành công, trong `VerifyEmailPage`).
  * Bọc `EmailStatus` với `key` theo user/token/email/ngôn ngữ để state được reset khi đổi phiên.
  *
  * @param {object} props

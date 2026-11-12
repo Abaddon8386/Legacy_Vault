@@ -29,7 +29,7 @@ export function workflowNotificationWarning(receipt, recipientWorkspace, lang = 
 
 // A saved operation and a recorded notification are separate confirmations.
 /**
- * Trả câu xác nhận nếu đã ghi nhận, hoặc câu nêu rõ chưa xác nhận được; thao tác đã lưu và thông báo đã ghi là hai xác nhận riêng biệt.
+ * Trả câu xác nhận nếu đã ghi nhận, hoặc câu nêu rõ chưa xác nhận được (hiện chỉ test dùng); thao tác đã lưu và thông báo đã ghi là hai xác nhận riêng biệt.
  */
 export function workflowNotificationStatus(receipt, recipientWorkspace, lang = 'vi') {
   const recorded = workflowNotificationFeedback(receipt, recipientWorkspace, lang);

@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Public metadata only. No internal keys, file bytes or secret payloads.
+ * Chỉ metadata công khai: không có khóa nội bộ, byte file hay payload bí mật.
  *
  * DTO đọc cho Legal, dùng bởi {@code LegalReadController}.
  */

@@ -56,7 +56,7 @@ import { mapCurrentBasisDecision } from './staffLegalDocumentsService.js';
  * - Tải hồ sơ căn cứ `fetchBasisDossier` (`GET /api/v1/staff/verification-cases/{caseId}/basis-dossier`), danh mục tài sản
  *   (`fetchStaffAssetCatalog`, `GET .../assets`) và người nhận (`fetchStaffCaseBeneficiaries`).
  * - Tiếp nhận phiên bản mới: `receiveAndForwardBasisVersion` (tải tệp multipart lên
- *   `POST .../basis-dossier/versions`, kiểm tra bằng `validateStaffLegalDocumentForm`, kèm các dòng phân bổ nếu là văn bản Tòa án).
+ *   `POST .../basis-dossier/versions`, kiểm tra bằng `validateStaffLegalDocumentForm`; metadata không kèm phân bổ, phân bổ được gửi riêng ở tab `allocations` sau khi Legal chấp nhận văn bản).
  * - Chuyển cho Legal: `forwardBasisVersion` = `POST .../basis-dossier/versions/{version}/forward`.
  * - Xem tệp của phiên bản: `readBasisVersionContent` = `GET .../basis-dossier/versions/{versionNo}/content` qua `EvidencePreviewModal`.
  * - Workflow phân phối (`useDistributionWorkflow`, vai trò STAFF) quyết định hành động nào được phép (tiếp nhận, gửi phân bổ
@@ -609,9 +609,8 @@ export default function StaffLegalDocumentsPage({
               : !latestVersion ? (en ? 'Receive the distribution document first.' : 'Tiếp nhận giấy tờ phân chia trước.')
                 : isLatestForwarded ? (en ? 'This version has already been sent to Legal Department.' : 'Phiên bản này đã chuyển cho Ban Pháp lý.') : '';
 
-  // Submit phiên bản mới (Finding B & C & Lỗi A/B/C)
   /**
-   * Kiểm tra biểu mẫu (loại căn cứ theo tuyến, các trường, tệp, phân bổ) rồi tiếp nhận phiên bản căn cứ mới và chuyển cho Legal
+   * Gửi phiên bản mới: kiểm tra biểu mẫu (loại căn cứ theo tuyến, các trường, tệp; không gồm phân bổ, phân bổ gửi riêng sau) rồi tiếp nhận phiên bản căn cứ mới và chuyển cho Legal
    * bằng `receiveAndForwardBasisVersion`; thành công thì làm mới hồ sơ và workflow, báo thông báo cho Legal.
    *
    * @param {Event} e sự kiện submit.

@@ -7,7 +7,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 /**
- * Controller đóng (close) một phiên bàn giao khi mọi điều kiện hoàn tất đã đạt.
+ * Controller đóng phiên bàn giao (OPEN sang COMPLETED) khi cổng hoàn tất kép đạt (mọi tài sản và người nhận đã xong); lưu bằng chứng đóng phiên.
  * Phạm vi: {@code /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}}.
  * Quyền: {@code ROLE_STAFF_EXECUTOR}. Ủy quyền cho {@link HandoverCloseService}.
  */
@@ -19,7 +19,7 @@ public class HandoverCloseController {
  public HandoverCloseController(HandoverCloseService service){this.service=service;}
  /**
   * {@code POST /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/close}
-  * Đóng phiên bàn giao; trả về {@link HandoverCloseResponse}.
+  * Đóng phiên bàn giao (idempotent nếu đã COMPLETED); trả về {@link HandoverCloseResponse}.
   *
   * @param caseId    mã công khai của ca xác minh
   * @param sessionId mã công khai của phiên bàn giao

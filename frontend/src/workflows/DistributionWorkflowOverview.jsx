@@ -53,7 +53,7 @@ export function DistributionFeedback({ workflow, workspace, lang = 'vi' }) {
 }
 /**
  * Tổng quan quy trình phân chia hiển thị đầu trang xử lý hồ sơ: cảnh báo tiền đề chưa xong (Staff, kèm liên kết {@code /staff/cases?caseId=...}), chờ Legal yêu cầu giấy tờ, nút làm mới,
- * lỗi tải, yêu cầu giấy tờ/ý kiến xử lý gần nhất và {@link DistributionFeedback}.
+ * lỗi tải, yêu cầu giấy tờ ban đầu (chỉ khi pha AWAITING_DOCUMENTS và chưa có phản hồi) hoặc ý kiến xử lý gần nhất, và {@link DistributionFeedback}.
  * @param {{workflow:object, workspace:('STAFF'|'LEGAL'), lang?:string, showRefresh?:boolean}} props
  */
 export default function DistributionWorkflowOverview({ workflow, workspace, lang = 'vi', showRefresh = true }) {

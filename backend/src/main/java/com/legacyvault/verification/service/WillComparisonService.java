@@ -44,7 +44,7 @@ import java.util.UUID;
  * thông thường là {@link #isApprovalBlocked(Long)}: chỉ qua khi kết quả đối chiếu mới nhất của ca là MATCH.
  *
  * <p>PS-139: mỗi bản giấy (originalWillIntakeId) chỉ có tối đa một kết luận; ghi lần hai bị từ chối
- * {@code WILL_COMPARISON_ALREADY_RECORDED} (409) và không sửa kết luận cũ. Quy tắc khi bản số đổi sau kết luận chưa được chốt.
+ * {@code WILL_COMPARISON_ALREADY_RECORDED} (409) và không sửa kết luận cũ. Nếu bản scan được thay bằng phiên bản mới hơn sau kết luận, kết luận cũ chỉ còn là lịch sử và cổng duyệt bị chặn lại.
  *
  * <p>Thứ tự khóa dòng: Vault -> ca xác minh (như Cancel Alert và quyết định chứng tử) để không deadlock.
  *
@@ -302,7 +302,7 @@ public class WillComparisonService {
      * Cổng chặn luồng duyệt thông thường (LV-WILL-001): chỉ được qua khi kết quả đối chiếu <b>mới nhất</b> của ca là
      * MATCH <b>và</b> bản scan được đối chiếu vẫn là phiên bản mới nhất của di chúc đó (PS-139 AC4). Chưa đối chiếu,
      * MISMATCH, INCONCLUSIVE, hoặc MATCH của một bản số đã bị thay bằng bản mới hơn đều chặn: kết luận cũ chỉ là lịch sử
-     * của bản số cũ. Dành cho bước duyệt ST-21 về sau.
+     * của bản số cũ. Được {@code CourtRouteGuard} (trả WILL_NOT_VERIFIED) và {@code DistributionWorkflowService} (cờ khả năng duyệt) gọi.
      *
      * @param verificationCaseId id nội bộ của hồ sơ xác minh
      * @return {@code true} nếu bị chặn (kể cả khi không tìm thấy hồ sơ)

@@ -157,7 +157,10 @@ public class BeneficiaryLinkRequestService {
 				.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
 	}
 
-	/** The code is HS-yyyy-n: n is the case id and yyyy must match its creation year. Anything else is "invalid". */
+	/**
+	 * Phân giải mã hồ sơ dạng HS-yyyy-n: n là id hồ sơ và yyyy phải trùng năm tạo hồ sơ; hồ sơ phải đang mở và đã giao cho một Staff.
+	 * Mọi trường hợp khác đều là {@code BENEFICIARY_LINK_REQUEST_INVALID}.
+	 */
 	private VerificationCase resolveOpenCase(String caseCode) {
 		Matcher matcher = caseCode == null ? null : CASE_CODE.matcher(caseCode.trim());
 		if (matcher == null || !matcher.matches()) throw invalid();

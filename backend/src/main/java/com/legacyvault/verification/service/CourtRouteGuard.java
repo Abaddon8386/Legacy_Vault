@@ -14,7 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
  * COURT needs a VALID court assessment of the current version. A legacy NOTARIAL dossier needs a stored, forwarded
  * deed with notary, number and date, no recorded dispute and a MATCH will comparison (LV-WILL-001).
  *
- * <p>Bổ sung: được dùng bởi {@code LegalApprovalGuard}, {@link DistributionWorkflowService} và các luồng duyệt/mở khóa/bàn giao.
+ * <p>Bổ sung: được dùng bởi {@code LegalApprovalService}, {@code LegalWorkflowGuard} (qua {@link #requireValidDecision}) và
+ * {@code LegalReadService}, {@link DistributionWorkflowService} (qua {@link #blocker}).
  * Chỉ đọc {@code court_decisions} và phiên bản hồ sơ, không có API riêng.
  */
 @Component

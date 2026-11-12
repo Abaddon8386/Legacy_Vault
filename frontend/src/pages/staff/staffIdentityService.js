@@ -1,6 +1,6 @@
 /**
  * staffIdentityService.js - Xác minh danh tính trực tiếp người thụ hưởng và xem lịch sử xác minh (PS-27 / PS-45).
- * Được dùng bởi StaffCaseVerificationPage.jsx. Hiện chỉ có chế độ mô phỏng (dữ liệu trong bộ nhớ); chế độ thật ném BACKEND_NOT_READY.
+ * Được dùng bởi StaffCaseVerificationPage.jsx. Hiện chỉ có chế độ mô phỏng (dữ liệu trong bộ nhớ); chế độ thật ném BACKEND_NOT_READY dù backend đã có endpoint identity-verifications (chưa nối ở frontend).
  */
 import { getStaffCaseTranslations } from './staffCaseI18n.js';
 import { isStaffSimulationPermitted } from './staffCasePreview.js';
@@ -127,7 +127,7 @@ export async function fetchCaseBeneficiaries(caseId, options = {}) {
 }
 
 /**
- * Lấy lịch sử xác minh danh tính của người thụ hưởng (dự kiến GET /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications).
+ * Lấy lịch sử xác minh danh tính của người thụ hưởng (backend đã có GET /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications nhưng hàm này chưa gọi).
  * Chế độ mô phỏng đọc từ SYNTHETIC_VERIFICATION_HISTORY; chế độ thật chưa nối backend (PS-45) nên ném BACKEND_NOT_READY (503).
  * @param {string} beneficiaryId Mã người thụ hưởng.
  * @param {Object} [options] { signal, isDevPreview, isTest, accessToken }
@@ -230,7 +230,7 @@ export function validateVerificationForm(data = {}, lang = 'vi') {
 }
 
 /**
- * Ghi nhận xác minh danh tính trực tiếp (dự kiến POST /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications).
+ * Ghi nhận xác minh danh tính trực tiếp (backend đã có POST /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications nhưng hàm này chưa gọi).
  * Kiểm tra beneficiaryId và validateVerificationForm(); ở chế độ mô phỏng tạo bản ghi { id, beneficiaryId, documentType, result, issuingAuthority, documentSuffix, verifiedAt, isSimulation }
  * và thêm vào đầu SYNTHETIC_VERIFICATION_HISTORY[beneficiaryId]; chế độ thật chưa nối backend (PS-45) nên ném BACKEND_NOT_READY (503).
  * @param {string} beneficiaryId Mã người thụ hưởng.

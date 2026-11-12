@@ -15,38 +15,61 @@ import java.util.UUID;
 public class BeneficiaryInvitation {
     /**
      * Khóa chính nội bộ (cột {@code invitation_id}).
-     *
-     * Mã công khai của lời mời.
-     *
-     * Thế hệ của mã (bắt đầu từ 1, tăng khi cấp lại).
-     *
-     * Cờ mã hiện hành (đảm bảo duy nhất bởi unique index lọc); đặt về false khi cấp mã mới.
-     *
-     * Hash SHA-256 (hex 64 ký tự) của mã mời, tạo bởi {@code InvitationTokens.hash}.
-     *
-     * Email gắn với mã (do Staff xác nhận ở PS-106); null với mã Owner cấp (không ràng buộc email).
-     *
-     * Id người dùng cấp mã (Owner hoặc Staff).
-     *
-     * Thời điểm thu hồi, null nếu chưa thu hồi.
-     *
-     * Thời điểm mã được dùng để liên kết tài khoản, null nếu chưa dùng.
      */
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "invitation_id") private Long id;
+    /**
+     * Mã công khai của lời mời, trả về là {@code invitationId}.
+     */
     @Column(name = "public_id", nullable = false, updatable = false) private UUID publicId;
+    /**
+     * Người thụ hưởng được mời (không đổi sau khi tạo).
+     */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "beneficiary_id", updatable = false) private Beneficiary beneficiary;
+    /**
+     * Thế hệ của mã (bắt đầu từ 1, tăng khi cấp lại).
+     */
     @Column(nullable = false, updatable = false) private int generation;
+    /**
+     * Cờ mã hiện hành (đảm bảo duy nhất bởi unique index lọc); đặt về false khi cấp mã mới.
+     */
     @Column(name = "is_current", nullable = false) private boolean current;
+    /**
+     * Hash SHA-256 (hex 64 ký tự) của mã mời, tạo bởi {@code InvitationTokens.hash}.
+     */
     @Column(name = "code_hash", nullable = false, updatable = false, length = 64) private String codeHash;
+    /**
+     * Email gắn với mã (do Staff xác nhận ở PS-106); null với mã Owner cấp (không ràng buộc email).
+     */
     @Column(name = "recipient_email", length = 254) private String recipientEmail;
+    /**
+     * Thời điểm cấp mã (UTC).
+     */
     @Column(name = "issued_at", nullable = false, updatable = false) private LocalDateTime issuedAt;
+    /**
+     * Thời điểm hết hạn (UTC), bằng thời điểm cấp cộng 7 ngày.
+     */
     @Column(name = "expires_at", nullable = false, updatable = false) private LocalDateTime expiresAt;
+    /**
+     * Id người dùng cấp mã (Owner hoặc Staff).
+     */
     @Column(name = "issued_by_user_id", nullable = false, updatable = false) private Long issuedBy;
+    /**
+     * Thời điểm thu hồi, null nếu chưa thu hồi.
+     */
     @Column(name = "revoked_at") private LocalDateTime revokedAt;
+    /**
+     * Id người dùng thu hồi mã, null nếu chưa thu hồi.
+     */
     @Column(name = "revoked_by_user_id") private Long revokedBy;
+    /**
+     * Thời điểm mã được dùng để liên kết tài khoản, null nếu chưa dùng.
+     */
     @Column(name = "consumed_at") private LocalDateTime consumedAt;
+    /**
+     * Id tài khoản đã dùng mã, null nếu chưa dùng.
+     */
     @Column(name = "consumed_by_user_id") private Long consumedBy;
 
     /**

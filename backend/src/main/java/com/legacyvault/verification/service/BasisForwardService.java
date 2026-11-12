@@ -92,11 +92,7 @@ public class BasisForwardService {
     }
 
     /**
-     * ST-19: chuyển phiên bản dossier mới nhất cho Legal.
-     *
-     * Thứ tự khóa chuẩn: Vault -> VerificationCase -> Dossier.
-     *
-     * <p>ST-19: chuyển tiếp phiên bản dossier mới nhất cho Legal.
+     * ST-19: chuyển tiếp phiên bản dossier mới nhất cho Legal. Thứ tự khóa chuẩn: Vault -> VerificationCase -> Dossier.
      *
      * Các bước: (1) tìm ca thuộc Staff (không khóa) để biết Vault; (2) khóa Vault → VerificationCase → Dossier và làm mới
      * trạng thái; (3) kiểm tra quyền sở hữu, ca còn mở, Vault ở trạng thái tiếp nhận căn cứ, không bị ON_HOLD, hồ sơ đang
@@ -109,7 +105,7 @@ public class BasisForwardService {
      * @param principal Staff đang đăng nhập (phải là người nhận ca)
      * @return hồ sơ căn cứ sau khi chuyển (kèm thông báo), không kèm lý do phân loại
      * @throws com.legacyvault.common.error.BusinessException RESOURCE_NOT_FOUND (ca không thuộc Staff hoặc phiên bản không tồn tại),
-     *         BASIS_DOSSIER_INVALID_STATE, BASIS_VERSION_STALE (không phải phiên bản mới nhất hoặc thấp hơn phiên bản yêu cầu)
+     *         LEGAL_WORKFLOW_ON_HOLD, BASIS_DOSSIER_INVALID_STATE, BASIS_VERSION_STALE (không phải phiên bản mới nhất hoặc thấp hơn phiên bản yêu cầu)
      */
     @Transactional
     public BasisDossierResponse forward(

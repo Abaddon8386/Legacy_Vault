@@ -45,8 +45,8 @@ import com.legacyvault.subscription.service.QuotaPolicy.Delta;
  * (các endpoint {@code /api/v1/vaults/{vaultId}/wills}).
  *
  * <ul>
- * <li>Chỉ ghi nhận bản scan/ảnh: trạng thái là {@code UPLOADED}; không bao giờ đặt {@code LEGAL_APPROVED} hay bất kỳ
- * trạng thái thẩm định nào (thuộc Legal ở ST-15).</li>
+ * <li>Chỉ ghi nhận bản scan/ảnh: trạng thái tải lên của phiên bản là {@code UPLOADED} và {@code legal_documents.verification_status}
+ * luôn khởi đầu {@code PENDING_VERIFICATION}; không bao giờ đặt {@code LEGAL_APPROVED} hay bất kỳ trạng thái thẩm định nào (thuộc Legal ở ST-15).</li>
  * <li>Mỗi phiên bản có metadata toàn vẹn riêng (SHA-256 của byte gốc, kích thước, loại). File mới = phiên bản mới,
  * phiên bản cũ giữ nguyên.</li>
  * <li>Nội dung file mã hóa trước khi lưu; không log, không đưa vào audit.</li>

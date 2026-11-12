@@ -79,7 +79,7 @@ function buildValidationMessage(errorType, { isEn, min, max }) {
 /**
  * Universal accessible DatePicker component for LegacyVault
  * Supports VI (DD/MM/YYYY) and EN (YYYY-MM-DD) display formats
- * Value contract: always ISO string YYYY-MM-DD (or raw string when invalid/typing, empty string when cleared)
+ * Value contract: always ISO string YYYY-MM-DD (or the raw typed string when invalid, outside min/max or still being typed; empty string when cleared)
  *
  * Props: {@code value} (ISO), {@code onChange}, {@code min}/{@code max} (ISO), {@code disabled}, {@code required}, {@code id}, {@code name}, {@code placeholder}, {@code className}, {@code lang}, {@code aria-label}, {@code aria-invalid}, {@code aria-describedby}.
  * State: {@code isOpen}, {@code popoverStyle} (vị trí lịch), {@code inputValue} (chuỗi hiển thị), {@code inputError}, {@code navYear}/{@code navMonth} (tháng đang xem), {@code focusedDate}.
@@ -408,7 +408,7 @@ export function DatePicker({
   };
 
   /**
-   * Điều hướng bằng bàn phím trong lịch: phím mũi tên đổi ngày, PageUp/PageDown đổi tháng, Home/End về đầu/cuối tuần, Enter/Space chọn ngày, Escape đóng lịch.
+   * Điều hướng bằng bàn phím trong lịch: trên ô ngày: mũi tên trái/phải đổi 1 ngày, lên/xuống đổi 7 ngày, PageUp/PageDown đổi tháng, Home/End về ngày đầu/cuối tháng, Enter/Space chọn ngày, Escape đóng lịch; Alt+Mũi tên xuống mở lịch, Mũi tên xuống ở ô nhập chuyển focus vào lịch.
    */
   const handleKeyDownCalendar = (e) => {
     if (!isOpen) {

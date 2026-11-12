@@ -141,9 +141,9 @@ public class AdminSubscriptionDtos {
     ) {}
 
     /**
-     * Kết quả tra cứu tài khoản: định danh (accountId, username, email, role), gói hiệu lực ({@code effectivePlanCode/Name/Status},
+     * Kết quả tra cứu tài khoản: định danh (accountId = public UUID, username = họ tên, email, {@code role} - thực tế service gán trạng thái tài khoản, mặc định ACTIVE), gói hiệu lực ({@code effectivePlanCode/Name/Status},
      * {@code entitlementStatus}, {@code effectiveSince/Until}, {@code billingModel}), mức dùng ({@code assetCount}, {@code storageBytes}) so với giới hạn
-     * ({@code assetLimit}, {@code storageBytesLimit}, {@code maxFileBytes}, {@code maxFileBytesLimit}) và thông tin Vault ({@code hasVault}, {@code vaultId}).
+     * ({@code assetLimit}, {@code storageBytesLimit}, {@code maxFileBytes}, {@code maxFileBytesLimit}; hai trường file hiện cùng nhận giới hạn dung lượng mỗi file của gói) và thông tin Vault ({@code hasVault}, {@code vaultId}).
      */
     public record AccountUsageLookupDto(
         String accountId,

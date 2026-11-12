@@ -33,9 +33,8 @@ import './StaffCaseIntakePage.css';
  * 2. Người nộp (Trustee/người thi hành/thân nhân) có thể ở ngoài hệ thống, không cần tài khoản.
  * 3. Tách rõ Ngày cấp giấy tờ với Thời điểm Staff tiếp nhận hồ sơ.
  * 4. Người tiếp nhận xác định tự động từ phiên Staff; FE không gửi actor ID tùy ý.
- */
-/**
- * Trang tiếp nhận giấy tờ bản cứng của người nộp hồ sơ tử vong. Bọc `IntakeForm` với `key` theo
+ *
+ * Component: trang tiếp nhận giấy tờ bản cứng của người nộp hồ sơ tử vong. Bọc `IntakeForm` với `key` theo
  * (hồ sơ, token, dev preview) để đổi hồ sơ thì biểu mẫu được tạo lại. Được mở từ `StaffCaseDashboard.jsx`.
  * Lưu ý: việc gửi biên bản (`submitPhysicalIntakeRecord`) hiện chỉ có chế độ mô phỏng, chế độ thật ném `BACKEND_NOT_READY`.
  * Màn tiếp nhận giấy tờ thật của hồ sơ nằm ở `StaffLiveCase.jsx`.

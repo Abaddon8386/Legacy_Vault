@@ -14,15 +14,14 @@ public final class InvitationEmailDtos {
     private InvitationEmailDtos() { }
 
     /**
-     * The generation observed by Staff; 0 means no invitation exists yet.
-     *
-     * Body của {@code POST .../invitation-email}: {@code expectedGeneration} thế hệ mã Staff đang thấy (tối thiểu 0).
+     * Body của {@code POST .../invitation-email}: {@code expectedGeneration} thế hệ mã Staff đang thấy (tối thiểu 0; 0 nghĩa là chưa có mã mời nào).
      */
     public record Request(@NotNull @Min(0) Integer expectedGeneration) { }
 
     /**
-     * Kết quả (HTTP 202): {@code outboxId} mã dòng outbox, {@code invitationId}, {@code invitationGeneration}, {@code queueStatus} và
-     * {@code transportStatus} (luôn {@code DISABLED} vì dịch vụ gửi mail đang tắt).
+     * Kết quả (HTTP 202): {@code outboxId} mã công khai dòng outbox, {@code invitationId} mã công khai lời mời, {@code invitationGeneration} thế hệ
+     * lời mời, {@code queueStatus} trạng thái dòng outbox (hiện là {@code QUEUED}) và {@code transportStatus} (luôn {@code DISABLED} vì
+     * dịch vụ gửi mail đang tắt).
      */
     public record Queued(UUID outboxId, UUID invitationId, int invitationGeneration,
             String queueStatus, String transportStatus) { }

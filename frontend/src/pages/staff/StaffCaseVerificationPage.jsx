@@ -44,9 +44,9 @@ import { isUuid } from '../../api/contracts.js';
  *    A. Tiếp nhận bản chính di chúc (PS-39): ghi nhận giao nhận vật lý, chưa kết nối API Backend.
  *    B. Xác minh danh tính người thụ hưởng (PS-45): Staff bắt buộc chọn đúng người được xác minh,
  *       không mặc định người nộp PS-26 là người thụ hưởng.
- */
-/**
- * Trang xác minh danh tính người thụ hưởng trực tiếp tại quầy (Staff). Bọc `VerificationForm` với `key` theo
+ *    (Mục A trên trang chỉ là thẻ minh họa tĩnh, không gọi API; chỉ mục B gọi service xác minh.)
+ *
+ * Component: trang xác minh danh tính người thụ hưởng trực tiếp tại quầy (Staff). Bọc `VerificationForm` với `key` theo
  * (hồ sơ, token, dev preview). Được mở từ `StaffCaseDashboard.jsx`.
  *
  * @param {object} props xem `VerificationForm`.
@@ -61,9 +61,9 @@ export default function StaffCaseVerificationPage(props) {
  * 4 ký tự cuối số giấy tờ và cơ quan cấp, rồi gửi. Quy trình:
  * - Tải danh sách người thụ hưởng của hồ sơ bằng `loadBeneficiaries` (mặc định `fetchCaseBeneficiaries`).
  * - Khi chọn một người, tải lịch sử xác minh bằng `loadHistory` (mặc định `fetchVerificationHistory`,
- *   dự kiến `GET /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications`).
- * - Gửi bằng `onSubmitVerification` (mặc định `submitIdentityVerification`, dự kiến
- *   `POST /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications`), kiểm tra bằng `validateVerificationForm`
+ *   hiện chỉ mô phỏng; backend đã có `GET /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications` nhưng chưa được nối).
+ * - Gửi bằng `onSubmitVerification` (mặc định `submitIdentityVerification`, hiện chỉ mô phỏng;
+ *   backend đã có `POST /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications` nhưng chưa được nối), kiểm tra bằng `validateVerificationForm`
  *   và `validateVerificationReceipt`.
  * Dùng các ref `AbortController` để hủy request cũ và bỏ qua phản hồi của hồ sơ/người đã đổi. Không dùng camera, eKYC hay tải ảnh giấy tờ.
  *

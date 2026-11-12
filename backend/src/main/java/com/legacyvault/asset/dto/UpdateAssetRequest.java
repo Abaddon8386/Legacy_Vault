@@ -28,10 +28,10 @@ public record UpdateAssetRequest(
 		@NullOrNotBlank @PayloadSize String payload,
 		@NotBlank @Size(max = 72) String password) {
 
-	/** Body không có trường hợp lệ nào (vd {@code {}} hoặc chỉ có trường bị bỏ qua) -> 400 VALIDATION_FAILED. */
 	@AssertTrue(message = "validation.atLeastOneField")
 	/**
-	 * Body không có trường hợp lệ nào (vd {@code {}} hoặc chỉ có trường bị bỏ qua) -> 400 VALIDATION_FAILED.
+	 * Ràng buộc bean validation: phải có ít nhất một trong name, description, payload khác null; body không có trường hợp lệ nào
+	 * (vd {@code {}} hoặc chỉ có trường bị bỏ qua) -> 400 VALIDATION_FAILED.
 	 */
 	public boolean isAnyFieldPresent() {
 		return name != null || description != null || payload != null;

@@ -192,7 +192,7 @@ export async function fetchBasisDossier(caseId, options = {}) {
  * Chế độ thật gọi uploadEvidenceMultipart() (transport PS-98) với metadata và file, báo tiến trình qua onProgress/onStatusChange. Chế độ mô phỏng giả lập tiến trình
  * (uploading -> processing -> success) và trả về dossier mô phỏng chứa phiên bản mới.
  * @param {string} caseId UUID hồ sơ.
- * @param {{metadata: Object, file: File}} payload Siêu dữ liệu văn bản (legalBasisType, issuingAuthority, documentNumber, issueDate, allocations...) và tệp.
+ * @param {{metadata: Object, file: File}} payload Siêu dữ liệu văn bản (legalBasisType, issuingAuthority, documentNumber, issueDate...; allocations chỉ là trường tùy chọn mà nhánh mô phỏng lưu vào dossier giả) và tệp.
  * @param {Object} [options] { accessToken, signal, lang, onProgress, onStatusChange }
  * @returns {Promise<Object>} Dossier sau khi tiếp nhận.
  * @throws {Error} AbortError; CASE_ID_REQUIRED; hoặc lỗi từ bộ tải lên.

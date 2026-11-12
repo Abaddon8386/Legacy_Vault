@@ -426,12 +426,12 @@ export default function App(props) {
  * 5. {@code /shared-with-me} (cũ {@code /beneficiary}): người thụ hưởng (BENEFICIARY) xem tài sản được chia.
  * 6. Cổng nhân viên: {@code /staff/cases}, {@code /staff/handover}, {@code /staff/legal-documents}, {@code /staff/asset-handover}, {@code /staff/beneficiary-confirmation}, {@code /staff/close-and-archive}, {@code /staff/beneficiary-accounts}: yêu cầu STAFF_EXECUTOR (trừ chế độ preview khi dev), bọc bằng StaffShell.
  * 7. Cổng pháp lý: {@code /legal}, {@code /legal/death-verification}, {@code /legal/will-document-verification}, {@code /legal/basis-route-selection}, {@code /legal/dossier-review}, {@code /legal/approval-review}, {@code /legal/controlled-unlock}: yêu cầu LEGAL_VERIFIER.
- * 8. Hồ sơ tài khoản {@code /account/profile} và {@code /account/edit}: mọi vai trò; khung giao diện (shellRole) chọn theo vai trò ưu tiên STAFF > LEGAL > ADMIN > BENEFICIARY > OWNER.
+ * 8. Hồ sơ tài khoản {@code /account/profile} và {@code /account/edit}: mọi vai trò; khung giao diện (shellRole) chọn theo vai trò ưu tiên STAFF_EXECUTOR > LEGAL_VERIFIER > ADMIN (nếu không đồng thời là VAULT_OWNER) > BENEFICIARY (nếu không đồng thời là VAULT_OWNER) > OWNER (mặc định); truy cập cần phiên còn hiệu lực ({@code canAccessAccountProfile}/{@code canAccessAccountEdit}), riêng chế độ preview bỏ qua.
  * 9. Khu chủ hầm: {@code /vault}, {@code /dms}, {@code /assets}, {@code /wills}, {@code /beneficiaries}, {@code /subscription}: yêu cầu VAULT_OWNER.
- * 10. {@code /}: nếu đã đăng nhập thì chuyển tới trang đích theo vai trò ({@code resolvePostLoginRoute}; nhân viên thuần thì {@code /staff/cases}); nếu chưa thì trang giới thiệu.
+ * 10. {@code /}: luôn hiển thị LandingPage (không tự chuyển hướng); nếu đã đăng nhập với vai trò VAULT_OWNER hoặc BENEFICIARY thì nút "dashboard" dẫn tới trang đích ({@code resolvePostLoginRoute}; nhân viên thuần thì {@code /staff/cases}).
  * 11. {@code /login}, {@code /register}, và các đường dẫn khác (NotFoundFallback).
  *
- * Ghi chú: Role từ API đã bỏ tiền tố {@code ROLE_}. Mỗi màn hình được bọc ErrorBoundary theo đường dẫn. Hỗ trợ lịch sử trình duyệt có chặn rời form chưa lưu ({@code isEditFormDirty}, {@code pendingNavigationTarget}), tự đăng xuất khi phiên hết hạn ({@code session.expiresAt}), chuyển ngôn ngữ vi/en qua {@code ?lang=}.
+ * Ghi chú: Role từ API đã bỏ tiền tố {@code ROLE_}. Nội dung bên trong AppShell được bọc ErrorBoundary ngay trong components/layout/AppShell.jsx (resetKey theo tab và đường dẫn); App.jsx không tự bọc ErrorBoundary. Hỗ trợ lịch sử trình duyệt có chặn rời form chưa lưu ({@code isEditFormDirty}, {@code pendingNavigationTarget}), tự đăng xuất khi phiên hết hạn ({@code session.expiresAt}), chuyển ngôn ngữ vi/en qua {@code ?lang=}.
  *
  * Props (đều tùy chọn, dùng cho test/mock): {@code invitationActions}, {@code beneficiaryAssetActions}, {@code legalDiscovery}, {@code caseLinkActions}, {@code counterLinkActions}, {@code dmsGraceActions}; cùng {@code session}, {@code setSession} từ {@code App}.
  * State chính: {@code location}, {@code lang}, {@code invitationIntent}, {@code pendingInvitationCode}, {@code restoreStatus}, {@code refreshTrigger}, {@code isRefreshing}, {@code isEditFormDirty}, {@code staffContextCaseId}/{@code staffContextSessionId}/{@code staffActiveCase} (hồ sơ nhân viên đang chọn, đồng bộ với query {@code caseId}/{@code sessionId}).
@@ -692,7 +692,7 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     navigateTo(user.roles?.includes('STAFF_EXECUTOR') && !user.roles?.includes('VAULT_OWNER') && !user.roles?.includes('LEGAL_VERIFIER') ? '/staff/cases' : resolvePostLoginRoute(user));
   };
   /**
-   * Làm mới dữ liệu người dùng: gọi {@code GET /auth/me}, cập nhật phiên và tăng {@code refreshTrigger} để các trang tải lại. 401 thì đăng xuất. Cũng được kích hoạt bởi sự kiện window {@code lv:refresh}.
+   * Làm mới dữ liệu người dùng: gọi {@code GET /auth/me}, cập nhật phiên và tăng {@code refreshTrigger} để các trang tải lại. Bỏ qua nếu đang có lần làm mới khác hoặc đang lưu hồ sơ; không có token thì chỉ tăng {@code refreshTrigger}; 401/INVALID_AUTH_RESPONSE hoặc id người dùng khác thì đăng xuất. Cũng được kích hoạt bởi sự kiện window {@code lv:refresh}.
    */
   const handleRefresh = useCallback(async () => {
     if (profileWriteRef.current && !profileWriteRef.current.aborted) return;

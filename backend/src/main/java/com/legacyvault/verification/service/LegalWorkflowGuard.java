@@ -14,7 +14,7 @@ import java.util.UUID;
  * Cổng pháp lý trung tâm cho các bước được bảo vệ: phê duyệt (APPROVAL), mở khóa (UNLOCK) và bàn giao (HANDOVER). Đây
  * không thay thế việc kiểm tra quyền hay các điều kiện nghiệp vụ về sau.
  *
- * <p>Được {@link LegalVaultUnlockService} và {@link HandoverSessionService} (cùng các service bàn giao/phân phối khác)
+ * <p>Được {@link LegalVaultUnlockService} và {@link HandoverSessionService} (UNLOCK, HANDOVER), cùng {@code HandoverAuthorizationGuard}, {@code HandoverCompletionAccess}, {@code HandoverReceiptService} (HANDOVER) và {@code GroupHandoverService} (APPROVAL)
  * gọi trong transaction đã được ủy quyền; khóa giữ đến khi commit. Phối hợp {@link LegalBasisCaseAccess},
  * {@link CourtRouteGuard} và {@link LegalApprovalGuard}.
  */

@@ -41,7 +41,9 @@ public class BeneficiaryLinkRequest {
 	 * Trạng thái người yêu cầu tự hủy.
 	 */
 	public static final String CANCELLED = "CANCELLED";
-	/** Persisted when an expired PENDING row is touched; also reported for a PENDING row past expires_at. */
+	/**
+	 * Trạng thái hết hạn: được lưu khi một dòng PENDING đã quá hạn bị chạm tới; cũng được báo ra cho dòng PENDING đã quá {@code expires_at}.
+	 */
 	public static final String EXPIRED = "EXPIRED";
 
 	/**
@@ -135,7 +137,9 @@ public class BeneficiaryLinkRequest {
 	@PreUpdate
 	void onUpdate() { updatedAt = LocalDateTime.now(ZoneOffset.UTC); }
 
-	/** PENDING, or EXPIRED when the pending request ran past its deadline. */
+	/**
+	 * @return trạng thái thực tế tại thời điểm {@code now}: {@code EXPIRED} nếu yêu cầu PENDING đã quá hạn, ngược lại là trạng thái đã lưu.
+	 */
 	public String effectiveStatus(LocalDateTime now) {
 		return PENDING.equals(status) && !expiresAt.isAfter(now) ? EXPIRED : status;
 	}

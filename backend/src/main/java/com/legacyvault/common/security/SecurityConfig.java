@@ -85,10 +85,6 @@ public class SecurityConfig {
 		return http.build();
 	}
 
-	/**
-	 * Chặn Spring Boot tự sinh tài khoản "user" kèm mật khẩu ngẫu nhiên in ra log.
-	 * Bean giữ lại có chủ đích: xác thực thật do JwtAuthenticationFilter xử lý, không tra cứu người dùng qua UserDetailsService.
-	 */
 	@Bean
 	/**
 	 * Chặn Spring Boot tự sinh tài khoản "user" kèm mật khẩu ngẫu nhiên in ra log.
@@ -100,10 +96,6 @@ public class SecurityConfig {
 		};
 	}
 
-	/**
-	 * CORS chỉ cho các origin khai báo trong legacyvault.cors.allowed-origins (mặc định rỗng = không origin nào).
-	 * Khi dev dùng Vite proxy thì không cần CORS.
-	 */
 	@Bean
 	/**
 	 * CORS chỉ cho các origin khai báo trong legacyvault.cors.allowed-origins (mặc định rỗng = không origin nào).

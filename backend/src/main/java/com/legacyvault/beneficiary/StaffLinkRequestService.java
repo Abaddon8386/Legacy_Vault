@@ -145,7 +145,11 @@ public class StaffLinkRequestService {
 		return new BeneficiaryLinkRequestDtos.Decision(request.getPublicId(), request.getStatus(), null, null);
 	}
 
-	/** Re-read the request under its row lock: a cancel, expiry or another Staff decision may have won the race. */
+	/**
+	 * Đọc lại yêu cầu dưới khóa ghi dòng (và refresh) vì người yêu cầu hủy, hết hạn hoặc Staff khác quyết định có thể đã thắng cuộc đua;
+	 * yêu cầu phải thuộc đúng case.
+	 * @throws com.legacyvault.common.error.BusinessException {@code RESOURCE_NOT_FOUND} nếu không thấy hoặc khác case, {@code BENEFICIARY_LINK_REQUEST_NOT_PENDING} nếu không còn chờ
+	 */
 	private BeneficiaryLinkRequest lockPending(UUID requestId, VerificationCase target) {
 		BeneficiaryLinkRequest request = requests.findByPublicIdForUpdate(requestId)
 				.filter(r -> r.getVerificationCaseId().equals(target.getVerificationCaseId()))

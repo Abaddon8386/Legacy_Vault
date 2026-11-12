@@ -1,12 +1,7 @@
 /**
- * Account Profile Editing Validation & State Logic — EX-02
- * Handles validation, role formatting, dirty-state tracking, and session isolation.
- */
-
-/**
  * Logic kiểm tra hợp lệ và trạng thái cho trang chỉnh sửa hồ sơ tài khoản (thuần phía client, không gọi API).
  * Được dùng bởi App.jsx, pages/account/AccountEditPage.jsx và services/profileService.js
- * (việc lưu thật sự do profileService gọi PATCH/PUT hồ sơ của backend; backend vẫn là nơi quyết định quyền).
+ * (EX-02; việc lưu thật sự do profileService gọi {@code PATCH /auth/me}; backend vẫn là nơi quyết định quyền).
  */
 import { EMAIL_REGEX } from './registrationValidation.js';
 export { EMAIL_REGEX };
@@ -228,7 +223,7 @@ export function isFormDirty(current, initial, options = {}) {
  * @param {Object|null|undefined} session
  * @returns {{ id: string, fullName: string, email: string, roles: string[] }|null}
  *
- * Dùng bởi AccountEditPage/profileService để lấy dữ liệu khởi tạo form từ session.user (id, fullName, email, roles và phoneNumber nếu có); trả null nếu session không đủ trường.
+ * Dùng bởi AccountEditPage để lấy dữ liệu khởi tạo form từ session.user (id, fullName, email, roles và phoneNumber nếu có); trả null nếu session không đủ trường.
  */
 export function resolveInitialProfileData(session) {
   const user = session?.user;
@@ -260,7 +255,7 @@ export function resolveInitialProfileData(session) {
  * @param {string|null|undefined} newUserId
  * @returns {boolean}
  *
- * Dùng bởi AccountEditPage khi session được làm mới để quyết định có ghi đè form hay không.
+ * Quyết định có ghi đè form bằng dữ liệu session mới hay không: luôn ghi đè nếu không có newUserId hoặc đổi tài khoản; cùng tài khoản thì chỉ ghi đè khi form chưa bị sửa. Hiện chỉ được test dùng, AccountEditPage chưa gọi hàm này.
  */
 export function shouldUpdateFormFromSession(isDirty, prevUserId, newUserId) {
   if (!newUserId) {

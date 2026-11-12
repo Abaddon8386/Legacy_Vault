@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * PS-103: metadata of a file attached to a received document. Never contains content, a storage path or an internal key.
+ * PS-103: metadata của file đính kèm vào giấy tờ đã nhận. Không bao giờ chứa nội dung, đường dẫn lưu trữ hay khóa nội bộ.
  * {@code subjectType} is DEATH_DOCUMENT or ORIGINAL_WILL; {@code subjectId} is that record's public id.
  *
  * Các trường: {@code id}, {@code caseId}, {@code subjectType}, {@code subjectId}, {@code fileName},

@@ -6,7 +6,6 @@ import './StaffLegalOutcomeCard.css';
 /** Biểu tượng tương ứng với tông màu của chip kết quả Legal. */
 const icons = { positive: CheckCircle2, negative: XCircle, warning: AlertTriangle, history: History };
 
-// The latest Legal decision on a document version, drawn as a flat verdict band (not an information card).
 /**
  * Dải kết luận phẳng thể hiện quyết định mới nhất của Ban Pháp lý đối với một phiên bản giấy tờ:
  * biểu tượng, nhãn kết quả (từ `versionOutcomeChip`), lý do, ghi chú lịch sử và thời điểm quyết định.

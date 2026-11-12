@@ -34,8 +34,8 @@ import java.util.UUID;
  * {@code POST /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/review}
  * ({@link #recordCompletedReviewByCasePublicId(UUID, Long, CompleteLegalBasisReviewRequest)}) và
  * {@code POST .../basis-dossier/request-supplementation} ({@link #requestSupplementationByCasePublicId}), vai trò
- * LEGAL_VERIFIER. {@code BasisIntakeService}, {@code BasisForwardService} và {@code DistributionWorkflowService} gọi
- * {@code evaluate*} sau khi dữ liệu thay đổi. Thứ tự khóa luôn là Vault, VerificationCase, rồi Dossier (FOR UPDATE).
+ * LEGAL_VERIFIER. {@code BasisIntakeService} và {@code BasisForwardService} gọi
+ * {@code evaluateAfterChange} sau khi dữ liệu thay đổi; {@code DistributionWorkflowService} gọi bản String của {@code recordCompletedReviewByCasePublicId} và {@code requestSupplementationByCasePublicId}. Thứ tự khóa luôn là Vault, VerificationCase, rồi Dossier (FOR UPDATE).
  * Bảng: {@code vaults}, {@code verification_cases}, {@code legal_basis_dossiers}, các bảng phiên bản, phân bổ, lịch sử
  * review.
  */

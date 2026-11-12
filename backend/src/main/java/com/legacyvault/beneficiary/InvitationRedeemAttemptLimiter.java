@@ -6,8 +6,9 @@ import org.springframework.stereotype.Service;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 
-/** SQL Server backed sliding-window checks. The caller holds the target User row lock, serializing
- * attempts for that account across application instances.
+/**
+ * Kiểm tra cửa sổ trượt dựa trên SQL Server. Nơi gọi đang giữ khóa dòng User của tài khoản, nhờ đó các lần thử của tài khoản
+ * được tuần tự hóa giữa các instance ứng dụng.
  *
  * <p>Đếm các lần đổi mã thất bại trong bảng {@code dbo.invitation_redeem_failures} theo cửa sổ trượt 15 phút, giới hạn 5 lần trên mỗi tài khoản
  * và 5 lần trên mỗi cặp tài khoản và mã. Gọi từ {@code InvitationRedeemService.redeem}.

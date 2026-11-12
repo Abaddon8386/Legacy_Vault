@@ -14,8 +14,6 @@ import com.legacyvault.common.crypto.EncryptedData;
 import com.legacyvault.common.crypto.EncryptionService;
 
 /**
- * Encrypts recipient+one-time code with invitation-bound AAD and persists it in the same transaction.
- *
  * <p>Dịch vụ nội bộ của {@code StaffInvitationEmailService}: tuần tự hóa payload JSON (email và mã mời thô), mã hóa AES-GCM bằng
  * {@code EncryptionService} với AAD là mã công khai lời mời và ghi vào bảng {@code beneficiary_invitation_mail_outbox}.
  */

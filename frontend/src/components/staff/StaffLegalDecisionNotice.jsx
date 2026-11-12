@@ -1,5 +1,5 @@
-// FE adapter input, not an invented backend field. Ignore decisions from older document versions.
 /**
+ * Đầu vào `decision` là dữ liệu đã được FE chuẩn hóa (không phải trường backend mới); quyết định của phiên bản cũ bị bỏ qua.
  * Thông báo khi Ban Pháp lý đã từ chối (`LEGAL_REJECTED`) đúng phiên bản hồ sơ hiện tại.
  * Chỉ hiển thị nếu quyết định thuộc cùng `caseId`, cùng `documentVersion` với `currentVersion` và có lý do;
  * ngược lại trả `null` (bỏ qua quyết định của phiên bản cũ). Nhắc Staff chỉ gửi thay đổi sau khi Legal yêu cầu bổ sung.

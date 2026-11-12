@@ -22,7 +22,7 @@ public record RegisterRequest(
         String fullName,
 
         // Email bắt buộc, phải đúng định dạng email và không vượt quá 254 ký tự.
-        // Việc kiểm tra email đã tồn tại sẽ được xử lý trong Service/Repository sau này.
+        // Việc kiểm tra email đã tồn tại do AuthService.register xử lý (EMAIL_ALREADY_EXISTS).
         @NotBlank(message = "{auth.register.email.required}")
         @Email(message = "{auth.register.email.invalid}")
         @Size(max = 254, message = "{auth.register.email.max}")
