@@ -39,11 +39,20 @@
 
 .lv-feedback--floating {
   position: fixed;
-  inset-block-start: 16px;
-  inset-inline-start: 16px;
+  /* Top right, below the 72px shell header, so it covers neither the sidebar nor the header controls. */
+  inset-block-start: 88px;
+  inset-inline-end: 16px;
   z-index: 1100;
   max-inline-size: min(420px, calc(100vw - 32px));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+@media (max-width: 640px) {
+  .lv-feedback--floating {
+    inset-block: auto 16px;
+    inset-inline: 16px;
+    max-inline-size: none;
+  }
 }
 
 .lv-feedback__icon { flex-shrink: 0; margin-block-start: 2px; }
