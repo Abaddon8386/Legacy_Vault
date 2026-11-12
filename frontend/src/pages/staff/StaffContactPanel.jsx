@@ -27,7 +27,7 @@ const blankDraft = { channel: 'PHONE', outcome: 'CONTACTED', fallbackStatus: 'NO
 const statusOf = person => person.contacts[0]?.outcome || 'NOT_CONTACTED';
 
 /** Who Staff can reach on an assigned case, read from the server, with the log of each contact with the executor. */
-export default function StaffContactPanel({ caseId, accessToken, lang = 'vi', onUnauthorized }) {
+export default function StaffContactPanel({ caseId, accessToken, lang = 'vi', onUnauthorized, assigned = true }) {
   const en = lang === 'en';
   const [people, setPeople] = useState(null);
   const [error, setError] = useState(null);
@@ -41,7 +41,9 @@ export default function StaffContactPanel({ caseId, accessToken, lang = 'vi', on
   const saveLock = useRef(false);
   useEffect(() => { auth.current = onUnauthorized; }, [onUnauthorized]);
 
+  // The server shows contacts only on a case assigned to this Staff, so an unassigned case is not read (and not an error).
   useEffect(() => {
+    if (assigned !== true) return undefined;
     const controller = new AbortController();
     fetchCaseContacts(caseId, { accessToken, lang, signal: controller.signal })
       .then(list => { if (!controller.signal.aborted) { setPeople(list); setError(null); } })
@@ -51,7 +53,7 @@ export default function StaffContactPanel({ caseId, accessToken, lang = 'vi', on
         if (failure.status === 401) auth.current?.();
       });
     return () => controller.abort();
-  }, [caseId, accessToken, lang, attempt]);
+  }, [caseId, accessToken, lang, attempt, assigned]);
 
   const pick = (map, key) => map[key]?.[en ? 1 : 0] ?? key;
   const recordable = (people || []).filter(person => person.canRecord);
@@ -91,7 +93,9 @@ export default function StaffContactPanel({ caseId, accessToken, lang = 'vi', on
       <button type="button" className="lv-contact__reload" onClick={() => setAttempt(value => value + 1)} disabled={saving}>
         <RefreshCw size={16} aria-hidden="true" />{en ? 'Reload' : 'Tải lại'}</button>
     </div>
-    {!people && !error && <p role="status">{en ? 'Loading contacts…' : 'Đang tải danh sách liên hệ…'}</p>}
+    {assigned === false && <p className="lv-contact__empty" role="status">
+      {en ? 'Claim the case to see who to contact' : 'Nhận hồ sơ để xem thông tin liên hệ'}</p>}
+    {assigned !== false && !people && !error && <p role="status">{en ? 'Loading contacts…' : 'Đang tải danh sách liên hệ…'}</p>}
     {error && <div className="lv-contact__alert" role="alert"><AlertTriangle size={22} aria-hidden="true" />
       <div><strong>{failure.title}</strong><span>{failure.description}</span></div></div>}
     {people && people.length === 0 && <p className="lv-contact__empty" role="status">

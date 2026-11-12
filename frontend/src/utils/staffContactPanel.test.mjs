@@ -27,8 +27,27 @@ async function mount(extra = {}) {
   const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
   await act(async () => root.render(React.createElement(Panel, { caseId, accessToken: 'synthetic', lang: 'vi', ...extra })));
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
-  return { host, close: async () => { await act(async () => root.unmount()); host.remove(); } };
+  return {
+    host,
+    render: async value => { await act(async () => root.render(React.createElement(Panel, { caseId, accessToken: 'synthetic', lang: 'vi', ...value }))); await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); }); },
+    close: async () => { await act(async () => root.unmount()); host.remove(); },
+  };
 }
+
+test('a case that is not yet claimed asks to claim it instead of reading or failing, then loads once claimed', async () => {
+  const urls = [];
+  globalThis.fetch = async url => { urls.push(url); return json({ caseId, people: [trustee()] }); };
+  const v = await mount({ assigned: false });
+  try {
+    assert.equal(urls.length, 0, 'nothing is read before the case is assigned');
+    assert.match(v.host.textContent, /Nhận hồ sơ để xem thông tin liên hệ/);
+    assert.equal(v.host.querySelector('[role=alert]'), null);
+    await v.render({ assigned: true });
+    assert.equal(urls.length, 1);
+    assert.equal(v.host.querySelector('.lv-contact__who strong').textContent, 'Dương Văn Tâm');
+    assert.doesNotMatch(v.host.textContent, /Nhận hồ sơ để xem/);
+  } finally { await v.close(); }
+});
 
 test('the panel lists the executor then the beneficiaries from the server, with no sample-data label', async () => {
   const urls = [];

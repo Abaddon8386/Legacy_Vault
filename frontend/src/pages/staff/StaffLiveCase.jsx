@@ -394,7 +394,8 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       }}>{en ? english : vi}</button>)}
     </div>
 
-    {contactsOpen && <StaffContactPanel caseId={caseId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized} />}
+    {contactsOpen && <StaffContactPanel key={String(data?.assignmentStatus)} caseId={caseId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized}
+      assigned={data ? data.assignmentStatus === 'ASSIGNED_TO_CURRENT_STAFF' : null} />}
     {!contactsOpen && <>
     <div className="lv-staff-live__records-section lv-staff-glow">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
