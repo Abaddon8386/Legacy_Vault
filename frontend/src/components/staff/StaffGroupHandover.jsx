@@ -7,9 +7,11 @@ export default function StaffGroupHandover(props){return <GroupScope key={JSON.s
 function GroupScope({caseId,sessionId,accessToken,lang='vi',children,onUnauthorized,layout,hideWhenAllowed=false}){
   const en=lang==='en',[result,setResult]=useState(null),[attempt,setAttempt]=useState(0),[error,setError]=useState(null),[busy,setBusy]=useState(false),[present,setPresent]=useState([]),[reason,setReason]=useState(''),[notice,setNotice]=useState('');
   const [editing,setEditing]=useState(false);
-  const mutation=useRef(null),lock=useRef(false),retry=useRef(null),draftRevision=useRef(null),savedAttendance=useRef(null),auth=useRef(onUnauthorized);
+  const mutation=useRef(null),unsure=useRef(false),lock=useRef(false),retry=useRef(null),draftRevision=useRef(null),savedAttendance=useRef(null),auth=useRef(onUnauthorized);
   useEffect(()=>{auth.current=onUnauthorized;},[onUnauthorized]);
-  useEffect(()=>{const c=new AbortController();Promise.all([loadGroupHandover(caseId,sessionId,{accessToken,lang,signal:c.signal}),fetchStaffCaseBeneficiaries(caseId,{accessToken,lang,signal:c.signal})]).then(([view,people])=>{if(!c.signal.aborted){setResult({attempt,view,people});setError(null);const draftScope=JSON.stringify([view.state.revision,view.snapshot]);if(draftRevision.current!==draftScope){
+  useEffect(()=>{const c=new AbortController();Promise.all([loadGroupHandover(caseId,sessionId,{accessToken,lang,signal:c.signal}),fetchStaffCaseBeneficiaries(caseId,{accessToken,lang,signal:c.signal})]).then(([view,people])=>{if(!c.signal.aborted){setResult({attempt,view,people});setError(null);
+    // The request may have reached the server although its reply was lost: trust the server state over the failure message.
+    if(unsure.current){unsure.current=false;if(view.state.status==='AWAITING_LEGAL')setNotice(lang==='en'?'Reopening requested':'Đã gửi yêu cầu mở lại');}const draftScope=JSON.stringify([view.state.revision,view.snapshot]);if(draftRevision.current!==draftScope){
     const fresh=view.state.snapshot===view.snapshot;
     const acknowledged=savedAttendance.current?.revision===view.state.revision?savedAttendance.current.ids:[];
     const recorded=view.attendance?.presentRecipientIds || (view.state.allPresent?view.requiredRecipientIds:acknowledged);
@@ -25,7 +27,7 @@ function GroupScope({caseId,sessionId,accessToken,lang='vi',children,onUnauthori
       // Everyone is present while the handover is suspended: one submit records attendance and sends the reopening request.
       const chain=action==='attendance'&&view.state.status==='SUSPENDED'&&allSelected;
       if(chain){try{await saveGroupHandover(caseId,sessionId,'reopen-requests',{expectedRevision:saved.state.revision,reason:reason.trim()},crypto.randomUUID(),{accessToken,lang,signal:c.signal});}
-        catch(e2){if(!c.signal.aborted){retry.current=null;setEditing(false);setNotice(en?'Attendance saved, request not sent':'Đã lưu người có mặt, chưa gửi được yêu cầu');setError(e2);if(e2.status===401)auth.current?.();setAttempt(x=>x+1);}return;}}
+        catch(e2){if(!c.signal.aborted){retry.current=null;unsure.current=true;setEditing(false);setNotice(en?'Attendance saved, request not sent':'Đã lưu người có mặt, chưa gửi được yêu cầu');setError(e2);if(e2.status===401)auth.current?.();setAttempt(x=>x+1);}return;}}
       retry.current=null;setEditing(false);setNotice(action==='reopen-requests'||chain
         ?(en?'Reopening requested':'Đã gửi yêu cầu mở lại')
         :(en?'Attendance saved':'Đã lưu'));
