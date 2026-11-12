@@ -97,6 +97,11 @@ test('one submit that fails at the reopening step keeps the saved attendance and
  const v=await mount();try{await act(async()=>v.host.querySelectorAll('input:not(:checked)').forEach(input=>input.click()));await fill(v.host,'Both attended');await click(v.host,'Request reopening');assert.deepEqual(posts,['attendance','reopen-requests']);assert.match(v.host.textContent,/Attendance saved, request not sent/);assert.ok([...v.host.querySelectorAll('button')].some(x=>x.textContent==='Request reopening'));}finally{await v.close();}
 });
 
+test('a lost reply at the reopening step does not contradict the server, which already holds the request',async()=>{
+ let current=view('SUSPENDED',2,false);globalThis.fetch=async(url,init={})=>{if(init.method==='POST'){if(url.endsWith('/reopen-requests')){current={...view('AWAITING_LEGAL',4,true),attendance:{presentRecipientIds:[r,q]}};return json({code:'INTERNAL_ERROR'},500);}current=view('SUSPENDED',3,true);return json({caseId:a,sessionId:s,eventId:q,state:current.state,notification:null});}return url.endsWith('/group-handover')?json(current):json([{beneficiaryId:r,fullName:'Recipient An'},{beneficiaryId:q,fullName:'Recipient Binh'}]);};
+ const v=await mount();try{await act(async()=>v.host.querySelectorAll('input:not(:checked)').forEach(input=>input.click()));await fill(v.host,'Both attended');await click(v.host,'Request reopening');assert.match(v.host.textContent,/Reopening requested/);assert.doesNotMatch(v.host.textContent,/request not sent/);}finally{await v.close();}
+});
+
 test('the delivery step receives the recipient names next to the server view',async()=>{
  const current=view('READY',3,true);globalThis.fetch=async url=>url.endsWith('/group-handover')?json(current):json([{beneficiaryId:r,fullName:'Recipient An'},{beneficiaryId:q,fullName:'Recipient Binh'}]);
  const v=await mount({children:(groupView,people)=>React.createElement('p',{'data-names':true},groupView.requiredRecipientIds.map(id=>people.find(p=>p.beneficiaryId===id).fullName).join(' + '))});
