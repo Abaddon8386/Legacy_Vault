@@ -646,7 +646,7 @@ export function DatePicker({
                     isSelected ? 'is-selected' : ''
                   } ${isToday ? 'is-today' : ''} ${isDisabled ? 'is-disabled' : ''}`}
                   aria-pressed={isSelected}
-                  aria-label={`${cell.day} ${monthNames[navMonth]} ${navYear}`}
+                  aria-label={`${cell.day} ${monthNames[Number(cell.iso.slice(5, 7)) - 1]} ${cell.iso.slice(0, 4)}`}
                 >
                   {cell.day}
                 </button>
