@@ -68,6 +68,32 @@ async function mountPicker(propsObj) {
   };
 }
 
+test('calendar day labels match the actual month and year, including adjacent months', async () => {
+  for (const lang of ['vi', 'en']) {
+    for (const value of ['2026-11-12', '2027-01-12', '2026-12-12']) {
+      let selected;
+      const picker = await mountPicker({ value, lang, onChange: next => { selected = next; } });
+      try {
+        await act(async () => picker.host.querySelector('.lv-datepicker-toggle-btn').click());
+        const days = [...picker.host.querySelectorAll('[data-iso]')];
+        const labels = days.map(day => day.getAttribute('aria-label'));
+        assert.equal(new Set(labels).size, labels.length, 'every date has a unique accessible name');
+        for (const day of days) {
+          const [year, month, date] = day.dataset.iso.split('-').map(Number);
+          const monthName = lang === 'vi' ? `Tháng ${month}` : new Intl.DateTimeFormat('en', { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, date)));
+          assert.equal(day.getAttribute('aria-label'), `${date} ${monthName} ${year}`);
+        }
+        const outside = picker.host.querySelector('.lv-datepicker-day.is-outside');
+        assert.ok(outside);
+        await act(async () => outside.click());
+        assert.equal(selected, outside.dataset.iso, 'the announced date is the selected date');
+      } finally {
+        await picker.close();
+      }
+    }
+  }
+});
+
 test('isValidCalendarDate strictly checks days in month and leap years', () => {
   assert.equal(isValidCalendarDate(2026, 2, 31), false, '2026-02-31 must be false');
   assert.equal(isValidCalendarDate(2026, 2, 29), false, '2026-02-29 must be false (non leap year)');
