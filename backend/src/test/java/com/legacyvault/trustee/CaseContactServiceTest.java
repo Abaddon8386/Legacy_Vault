@@ -98,6 +98,12 @@ class CaseContactServiceTest {
 	}
 
 	@Test
+	void theAuditActionTheServiceWritesIsADeclaredAuditAction() {
+		// AuditService resolves the action with AuditAction.valueOf, so an undeclared name fails the whole read at runtime.
+		assertThat(com.legacyvault.audit.AuditAction.valueOf("CASE_CONTACTS_VIEWED")).isNotNull();
+	}
+
+	@Test
 	void aCaseNotAssignedToThisStaffIsNotFoundAndNothingIsRead() {
 		when(cases.findByPublicIdAndAssignedStaffUserId(CASE_ID, STAFF_ID)).thenReturn(Optional.empty());
 
