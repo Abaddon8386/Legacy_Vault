@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Eye, Lock, LockOpen, Plus, UserCog } from 'lucide-react';
+import { Eye, KeyRound, Lock, LockOpen, Plus, UserCog } from 'lucide-react';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n, adminRoleLabel } from './adminI18n.js';
 import { formatAdminTimestamp } from './adminPresentation.js';
 import { ADMIN_VAULT_STATUSES, PROCESSING_ACCOUNT_ROLES, fetchAdminUsers, fetchAdminUserDetail } from '../../utils/adminService.js';
-import { ChangeRoleModal, CreateUserModal, LockUserModal } from './AdminUserForms.jsx';
+import { ChangeRoleModal, CreateUserModal, LockUserModal, ResetPasswordModal } from './AdminUserForms.jsx';
 import './AdminPages.css';
 
 // The backend refuses to lock an ACTIVE account that is in a case or whose vault is archived; hide the actions up front.
@@ -38,6 +38,8 @@ export default function AdminUsersPage({
   const [creating, setCreating] = useState(false);
   const [roleTarget, setRoleTarget] = useState(null);
   const [lockTarget, setLockTarget] = useState(null);
+  // null = dialog closed; { user: null } = opened from the header (any e-mail); { user } = opened from a table row.
+  const [passwordTarget, setPasswordTarget] = useState(null);
   const [notice, setNotice] = useState('');
 
   const handleCreated = () => {
@@ -53,6 +55,11 @@ export default function AdminUsersPage({
     setNotice(lockTarget?.lock ? t.lockedOk : t.unlockedOk);
     setLockTarget(null);
     handleReload();
+  };
+  /** Closes the reset-password dialog and shows the success notice. */
+  const handlePasswordReset = () => {
+    setPasswordTarget(null);
+    setNotice(t.resetPasswordOk);
   };
   const handleRoleChanged = () => {
     setRoleTarget(null);
@@ -97,10 +104,16 @@ export default function AdminUsersPage({
           </h1>
           <p className="lv-admin-header-subtitle">{t.usersSubtitle}</p>
         </div>
-        <button type="button" className="lv-admin-btn lv-admin-btn-primary" onClick={() => { setNotice(''); setCreating(true); }}>
-          <Plus size={18} aria-hidden="true" />
-          {t.createUserBtn}
-        </button>
+        <div className="lv-admin-header-actions" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={() => { setNotice(''); setPasswordTarget({ user: null }); }}>
+            <KeyRound size={18} aria-hidden="true" />
+            {t.resetPasswordBtn}
+          </button>
+          <button type="button" className="lv-admin-btn lv-admin-btn-primary" onClick={() => { setNotice(''); setCreating(true); }}>
+            <Plus size={18} aria-hidden="true" />
+            {t.createUserBtn}
+          </button>
+        </div>
       </header>
 
       {notice && <p className="lv-admin-form-notice" role="status">{notice}</p>}
@@ -316,6 +329,17 @@ export default function AdminUsersPage({
                     >
                       <Eye size={18} aria-hidden="true" />
                     </button>
+                    {!user.roles.includes('ADMIN') && user.status !== 'DELETED' && (
+                      <button
+                        type="button"
+                        className="lv-admin-icon-btn"
+                        onClick={() => { setNotice(''); setPasswordTarget({ user }); }}
+                        aria-label={t.resetPasswordRowBtn}
+                        title={t.resetPasswordRowBtn}
+                      >
+                        <KeyRound size={18} aria-hidden="true" />
+                      </button>
+                    )}
                     {!user.roles.includes('ADMIN') && ['ACTIVE', 'LOCKED'].includes(user.status) && !manageBlocked(user) && (
                       <button
                         type="button"
@@ -380,6 +404,8 @@ export default function AdminUsersPage({
 
       {creating && <CreateUserModal lang={lang} accessToken={accessToken} onClose={() => setCreating(false)}
         onCreated={handleCreated} onUnauthorized={onUnauthorized} onDenied={deny} />}
+      {passwordTarget && <ResetPasswordModal key={passwordTarget.user?.id || 'any'} lang={lang} accessToken={accessToken} user={passwordTarget.user}
+        onClose={() => setPasswordTarget(null)} onDone={handlePasswordReset} onUnauthorized={onUnauthorized} onDenied={deny} />}
       {roleTarget && <ChangeRoleModal key={roleTarget.id} lang={lang} accessToken={accessToken} user={roleTarget}
         onClose={() => setRoleTarget(null)} onChanged={handleRoleChanged} onUnauthorized={onUnauthorized} onDenied={deny} />}
 
