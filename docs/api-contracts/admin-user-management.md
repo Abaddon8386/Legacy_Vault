@@ -1,8 +1,8 @@
-# Admin — quản lý tài khoản (PS-109 tra cứu; tạo tài khoản và đổi vai trò)
+# Admin — quản lý tài khoản (PS-109 tra cứu; tạo tài khoản)
 
 ## Trạng thái
 
-PS-109 bổ sung hai thao tác chỉ đọc (danh sách, chi tiết). Admin còn có thể tạo tài khoản và đổi vai trò Staff/Legal/Vault Owner (mục cuối). Mọi route yêu cầu Bearer JWT và `ROLE_ADMIN`; authorization được kiểm tra backend ở `/api/v1/admin/**` và controller. Khóa/mở khóa tài khoản xem mục cuối.
+PS-109 bổ sung hai thao tác chỉ đọc (danh sách, chi tiết). Admin còn có thể tạo tài khoản với vai trò Staff/Legal/Vault Owner (mục cuối). Mọi route yêu cầu Bearer JWT và `ROLE_ADMIN`; authorization được kiểm tra backend ở `/api/v1/admin/**` và controller. Khóa/mở khóa tài khoản xem mục cuối.
 
 ## Danh sách
 
@@ -45,7 +45,7 @@ Ví dụ `200`:
 
 Chi tiết có role Owner/Beneficiary/Legal/Staff cũng loại tài khoản `PENDING`/`DELETED` và trả `404 RESOURCE_NOT_FOUND`. Admin vẫn xem được chi tiết tài khoản cũ bằng request không có role. Truyền trạng thái lọc không được hỗ trợ bởi vai trò trả `400 VALIDATION_FAILED`.
 
-Các response chỉ chứa public ID, tên, email, role codes, thời điểm tạo UTC, trạng thái xác thực gốc (`status`), trạng thái hiển thị (`accountStatus`), cùng `vaultStatus` cho Owner (`NO_VAULT` nếu chưa tạo kho, `null` với vai trò khác hoặc trạng thái chưa nhận diện). Frontend chỉ hiển thị cột và bộ lọc tình trạng kho khi lọc Chủ sở hữu kho; đổi vai trò sẽ xóa điều kiện lọc kho. Không trả khóa DB, password/hash, token, credential, nội dung kho hoặc `deletedAt`.
+Các response chỉ chứa public ID, tên, email, role codes, thời điểm tạo UTC, trạng thái xác thực gốc (`status`), trạng thái hiển thị (`accountStatus`), cùng `vaultStatus` cho Owner (`NO_VAULT` nếu chưa tạo kho, `null` với vai trò khác hoặc trạng thái chưa nhận diện). Frontend chỉ hiển thị cột và bộ lọc tình trạng kho khi lọc Chủ sở hữu kho. Không trả khóa DB, password/hash, token, credential, nội dung kho hoặc `deletedAt`.
 
 ## Trạng thái hiển thị theo vai trò
 
@@ -77,15 +77,7 @@ Với ba vai trò trên, cả danh sách, chi tiết theo vai trò và dropdown 
 
 ## Đổi vai trò
 
-`PUT /api/v1/admin/users/{publicId}/role` với `{ "role": "ROLE_LEGAL_VERIFIER" }` → `200` + user sau khi đổi.
-
-- Thay thế mọi role Staff/Legal/Vault Owner hiện có bằng role được gửi; role khác (ví dụ `ROLE_BENEFICIARY`) giữ nguyên. Gửi lại đúng role hiện tại là no-op, không ghi audit.
-- Có hiệu lực ngay (role đọc từ DB ở mỗi request); không cần đăng nhập lại.
-- `409 ADMIN_ACCOUNT_PROTECTED`: tài khoản đích là Admin hoặc chính người gọi.
-- `409 ADMIN_OWNER_HAS_VAULT`: đang là Vault Owner và đã có kho, không được đổi sang role khác.
-- `404 RESOURCE_NOT_FOUND`: không tồn tại, đã xóa mềm hoặc không `ACTIVE`.
-- Audit `ADMIN_USER_ROLE_CHANGED` với role trước/sau.
-- Chưa xử lý: Staff/Legal đang giữ hồ sơ (claimed case) khi bị đổi role — case giữ nguyên người được gán.
+Không hỗ trợ: Admin chỉ chọn vai trò khi tạo tài khoản; không có endpoint đổi vai trò của tài khoản đã tồn tại (`PUT /api/v1/admin/users/{publicId}/role` đã bị gỡ). Sự kiện audit `ADMIN_USER_ROLE_CHANGED` cũ vẫn được giữ để đọc lịch sử.
 
 ## Khóa / mở khóa
 

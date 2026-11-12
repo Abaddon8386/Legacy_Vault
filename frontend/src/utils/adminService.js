@@ -273,16 +273,6 @@ export async function createAdminUser(accessToken, { fullName, email, phone = ''
   return validateAdminUser(await request('/admin/users', { ...options, method: 'POST', body, accessToken, expectedStatus: 201 }));
 }
 
-/** Replaces the account's Staff/Legal/Vault Owner role with the given one. */
-export async function changeAdminUserRole(accessToken, id, role, options = {}) {
-  if (!isUuid(id) || !ASSIGNABLE_ADMIN_ROLES.includes(normalizeAdminRole(role))) throw new ApiError('VALIDATION_FAILED', 400);
-  const user = validateAdminUser(await request(`/admin/users/${id}/role`, {
-    ...options, method: 'PUT', body: { role: `ROLE_${normalizeAdminRole(role)}` }, accessToken, expectedStatus: 200,
-  }));
-  if (user.id !== id) throw new ApiError('INVALID_USER_RECORD', 500);
-  return user;
-}
-
 /**
  * Fetches audit logs with action and date filters.
  *
