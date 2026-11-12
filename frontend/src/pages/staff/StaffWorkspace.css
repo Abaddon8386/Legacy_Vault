@@ -4,7 +4,7 @@
   --staff-muted: #67776f;
   --staff-line: #e2e5dc;
 }
-.lv-staff-surfaces > :is(.lv-staff-dashboard,.lv-staff-live,.lv-live-handover,.lv-staff-documents-view,.lv-asset-handover-view,.lv-beneficiary-confirmation-view,.lv-completion-progress-view,.lv-close-archive-view) {
+.lv-staff-surfaces > :is(.lv-staff-dashboard,.lv-staff-live,.lv-live-handover,.lv-staff-documents-view,.lv-asset-handover-view,.lv-beneficiary-confirmation-view,.lv-close-archive-view) {
   width: 100%;
   max-width: 1140px;
   min-width: 0;
