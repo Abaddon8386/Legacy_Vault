@@ -14,7 +14,7 @@ RECOVERY_RECIPIENT_ALLOWLIST=approved-mailbox@your-owned-domain.example
 
 After a domain/sender is verified with Resend, turn off click/open tracking for password emails in provider settings, configure all values and approve test recipients before enabling. Comma-separated recipient allowlist is mandatory; no wildcard is supported. Sender/API key are not VITE variables. Never paste the key into chat or verification evidence.
 
-Reset URL must be the exact configured /reset-password URL, HTTPS without userinfo/query/fragment; http://localhost:5173/reset-password is allowed for local testing only. This configured URL is the redirect allowlist; requests cannot choose it or derive it from Host headers. No redirects are followed by the mail client.
+Reset URL must be the exact configured /reset-password URL, HTTPS without userinfo/query/fragment; `http://localhost:<port>/reset-password` (any port 1024-65535, host exactly `localhost`) is allowed for local testing only, so a dev server on 5173, 5196 or 5198 all work. This configured URL is the redirect allowlist; requests cannot choose it or derive it from Host headers. No redirects are followed by the mail client.
 
 Startup fails closed if email-enabled=true but required settings are missing/invalid. Mail HTTP timeout is 10s; connect timeout 5s. Provider responses/bodies/exceptions are not logged, and FAILED jobs are not automatically retried. Enabling this configuration is an explicit operational action separate from merging source.
 

@@ -44,7 +44,7 @@ public class RecoveryConfiguration {
         if(!enabled || !providerReady()) return false;
         try {
             URI uri=URI.create(resetUrl);
-            boolean local="http".equals(uri.getScheme()) && "localhost".equals(uri.getHost()) && uri.getPort()==5173;
+            boolean local="http".equals(uri.getScheme()) && "localhost".equals(uri.getHost()) && uri.getPort()>=1024 && uri.getPort()<=65535;
             boolean https="https".equals(uri.getScheme()) && uri.getHost()!=null;
             return (local||https) && "/reset-password".equals(uri.getPath())
                     && uri.getRawQuery()==null && uri.getRawFragment()==null && uri.getUserInfo()==null;
