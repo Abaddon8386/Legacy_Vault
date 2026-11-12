@@ -11,6 +11,7 @@ import {
 import { formatFileSize, EVIDENCE_UPLOAD_I18N } from '../../utils/staffEvidenceUpload.js';
 import { formatIsoToDisplay } from '../../utils/datePickerHelpers.js';
 import EvidenceFileUploader from '../../components/common/EvidenceFileUploader.jsx';
+import StaffContactPanel from './StaffContactPanel.jsx';
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.jsx';
 import { DatePicker } from '../../components/common/DatePicker.jsx';
@@ -94,6 +95,19 @@ export default function StaffLiveCase(props) {
 function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized }) {
   const en = lang === 'en';
   const [data, setData] = useState(null);
+  const [contactsOpen, setContactsOpen] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'contacts');
+  // Keep the chosen tab in the address, so a reload opens the same tab.
+  const rememberTab = value => {
+    if (typeof window === 'undefined') return;
+    try {
+      const url = new URL(window.location.href);
+      // Only entering or leaving the Contacts tab touches the address; the document tabs keep their existing behaviour.
+      if (value === 'contacts') url.searchParams.set('tab', 'contacts');
+      else if (url.searchParams.get('tab') === 'contacts') { if (value) url.searchParams.set('tab', value); else url.searchParams.delete('tab'); }
+      else return;
+      window.history.replaceState(window.history.state, '', url.pathname + url.search);
+    } catch { /* The tab still works when the address cannot be updated. */ }
+  };
   const distribution = useDistributionWorkflow({ caseId, workspace: 'STAFF', accessToken, lang, enabled: Boolean(data), onUnauthorized });
   const [kind, setKind] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -360,7 +374,11 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       if (claimed) loadDocuments(kind);
     }}>{en ? 'Claim case' : 'Nhận hồ sơ'}</button>}
     <div className="lv-intake-tabs" role="group" aria-label={en ? 'Record category' : 'Nhóm giấy tờ'}>
-      {documentKinds.map(([nextKind, vi, english]) => <button key={nextKind} type="button" aria-pressed={kind === nextKind} disabled={busy || recordsLoading} onClick={() => {
+      {/* Staff reaches the executor and family first, then they bring the documents recorded in the other tabs. */}
+      <button type="button" aria-pressed={contactsOpen} onClick={() => { setContactsOpen(true); rememberTab('contacts'); }}>{en ? 'Contacts' : 'Liên hệ'}</button>
+      {documentKinds.map(([nextKind, vi, english]) => <button key={nextKind} type="button" aria-pressed={!contactsOpen && kind === nextKind} disabled={busy || recordsLoading} onClick={() => {
+        setContactsOpen(false);
+        rememberTab(nextKind === 'original-will-intakes' ? 'original-will' : null);
         if (kind === nextKind) return;
         abortAttachments();
         setStagedFile(null);
@@ -376,6 +394,8 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       }}>{en ? english : vi}</button>)}
     </div>
 
+    {contactsOpen && <StaffContactPanel caseId={caseId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized} />}
+    {!contactsOpen && <>
     <div className="lv-staff-live__records-section lv-staff-glow">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
         <h2>{en ? 'Received documents' : 'Giấy tờ đã tiếp nhận'}{recordsLoaded && !recordsError && !recordsLoading && <span className="lv-intake-count">{records.length}</span>}</h2>
@@ -577,6 +597,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
         <button type="submit">{en ? 'Record intake' : 'Tiếp nhận giấy tờ'}</button>
       </fieldset>
     </form>}
+    </>}
 
     <EvidencePreviewModal
       isOpen={Boolean(previewModal?.isOpen)}

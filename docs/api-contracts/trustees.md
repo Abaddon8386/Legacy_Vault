@@ -57,8 +57,14 @@ including empty history. Anonymous callers receive 401; other roles receive 403.
 Writes lock Vault then VerificationCase until history and audit commit together; audit failure rolls back both.
 The Vault relationship is immutable through this API. OPEN is authorization only, not legal clearance for PS-46–48.
 
-FE dependency: the Staff case queue/detail currently returns Vault/Owner IDs, not Trustee IDs.
-No Staff target-discovery API is implemented; Owner endpoints and manual UUID entry are not a supported workflow.
+Target discovery: `GET /api/v1/staff/verification-cases/{caseId}/contacts` returns the people Staff must reach on a case
+assigned to them: `{ caseId, people: [{ kind: TRUSTEE | BENEFICIARY, id, fullName, relationship, phone, email, canRecord,
+contacts }] }`. Appointed Trustees come first (revoked ones are omitted), then the Beneficiaries of the Vault. `id` is the
+public id, usable as `{trusteeId}` below when `canRecord` is true; `contacts` is that Trustee's history, newest first.
+Beneficiaries have `canRecord=false` and an empty `contacts` (no contact record exists for them yet).
+Same guard as the other Staff reads (assigned Staff, `OPEN` case; otherwise 404; anonymous 401; other roles 403),
+`Cache-Control: no-store`. It exposes phone and email, so every successful read writes a `CASE_CONTACTS_VIEWED` audit event
+(case, people count; never the phone or email values). Owner endpoints and manual UUID entry are not a supported workflow.
 Confirmed policy (2026-10-17): new contact records for a REVOKED Trustee are rejected with
 `409 TRUSTEE_REVOKED` after the case guard succeeds. Writes refresh and lock the Trustee after Vault/Case
 locks so a previously loaded APPOINTED entity cannot bypass a committed revocation.
