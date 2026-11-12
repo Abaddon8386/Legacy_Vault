@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {listLiveSessions,getLiveSession,openLiveSession,cancelLiveSession,handoverUrl,fetchStaffCaseBeneficiaries,recordCounterAttestation,requestInvitationEmail} from '../pages/staff/liveHandoverService.js';
+import {listLiveSessions,getLiveSession,openLiveSession,cancelLiveSession,handoverUrl,counterLinkTabUrl,fetchStaffCaseBeneficiaries,recordCounterAttestation,requestInvitationEmail} from '../pages/staff/liveHandoverService.js';
 const id='11111111-1111-4111-8111-111111111111',sid='22222222-2222-4222-8222-222222222222',bid='33333333-3333-4333-8333-333333333333';
 const record={caseId:id,sessionId:sid,vaultId:id,staffId:id,status:'OPEN',openedAt:'2026-10-20T06:00:00',closedAt:null};
 const json=(v,status=200)=>new Response(JSON.stringify(v),{status,headers:{'Content-Type':'application/json'}});
@@ -56,6 +56,7 @@ for(const status of [401,403,404,409])test('API error preserved without mock '+s
  await assert.rejects(openLiveSession(id,{fetchFn:async()=>json({code:'HANDOVER_SESSION_INVALID_STATE'},status)}),{code:'HANDOVER_SESSION_INVALID_STATE',status});
 });
 test('Navigation carries only validated case/session IDs and optional lang=en',()=>{
+ assert.equal(counterLinkTabUrl(id,sid),`/staff/handover?caseId=${id}&sessionId=${sid}&tab=link`);
  assert.equal(handoverUrl('/staff/beneficiary-accounts',id,sid),`/staff/beneficiary-accounts?caseId=${id}&sessionId=${sid}`);
  assert.equal(handoverUrl('/staff/beneficiary-accounts',id,sid,'vi'),`/staff/beneficiary-accounts?caseId=${id}&sessionId=${sid}`);
  assert.equal(handoverUrl('/staff/beneficiary-accounts',id,sid,'en'),`/staff/beneficiary-accounts?caseId=${id}&sessionId=${sid}&lang=en`);

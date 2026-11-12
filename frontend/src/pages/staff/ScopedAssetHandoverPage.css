@@ -610,29 +610,6 @@
   margin: 2px 0 0;
 }
 
-.lv-asset-handover-view .lv-review-warning-box {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  background-color: #fff9ed;
-  border: 1px solid var(--lv-accent-gold-border, rgba(197, 160, 89, 0.3));
-  border-radius: 8px;
-  padding: 12px 14px;
-}
-
-.lv-asset-handover-view .lv-review-warning-icon {
-  color: var(--lv-accent-gold-text, #8c6820);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.lv-asset-handover-view .lv-review-warning-box p {
-  font-size: 14px;
-  color: #7a5010;
-  margin: 0;
-  line-height: 1.45;
-}
-
 .lv-asset-handover-view .lv-handover-modal-actions {
   display: flex;
   align-items: center;

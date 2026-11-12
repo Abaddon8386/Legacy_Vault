@@ -122,17 +122,13 @@ async function requestReopening(view, lang) {
   assert.equal(deliveryVisible(view), false); assert.equal(view.legal.querySelector('textarea'), null);
   await act(async () => view.staff.querySelector('input').click());
   await fill(view.staff, 'Thiếu người nhận Bình');
-  await click(view.staff, en ? 'Record absence and suspend all delivery' : 'Ghi nhận thiếu người và tạm khóa toàn bộ');
+  await click(view.staff, en ? 'Suspend handover' : 'Tạm khóa bàn giao');
   assert.equal(deliveryVisible(view), false);
   assert.equal(view.staff.querySelectorAll('input:checked').length, 1);
   assert.equal(view.legal.querySelector('textarea'), null, 'Legal has no decision before Staff requests reopening');
   await act(async () => view.staff.querySelectorAll('input')[1].click());
-  await fill(view.staff, 'Hai người đã có mặt');
-  await click(view.staff, en ? 'Record everyone present' : 'Ghi nhận đã có đủ người');
-  assert.equal(deliveryVisible(view), false, 'all present does not self-reopen');
-  assert.equal(view.staff.querySelectorAll('input:checked').length, 2);
   await fill(view.staff, 'Đề nghị xét mở lại');
-  await click(view.staff, en ? 'Request Legal reopening' : 'Gửi yêu cầu mở lại');
+  await click(view.staff, en ? 'Request reopening' : 'Gửi yêu cầu mở lại');
   assert.equal(deliveryVisible(view), false); assert.ok(view.staff.querySelector('fieldset').disabled);
   assert.match(view.legal.textContent, /Nguyễn An/); assert.match(view.legal.textContent, /Trần Bình/);
   assert.match(view.legal.textContent, /Thiếu người nhận Bình/); assert.match(view.legal.textContent, /Đề nghị xét mở lại/);
@@ -155,7 +151,7 @@ for (const lang of ['vi', 'en']) for (const decision of ['APPROVE', 'REJECT']) {
       // A recorded notification needs no message; only a missing one is reported.
       if (decision === 'APPROVE') assert.doesNotMatch(view.legal.textContent, en ? /notification for Staff has been recorded/ : /Đã ghi nhận thông báo cho Nhân viên/);
       else assert.match(view.legal.textContent, en ? /not confirmed/ : /Chưa xác nhận thông báo/);
-      await click(view.staff, en ? 'Reload attendance' : 'Tải lại danh sách có mặt');
+      await click(view.staff, en ? 'Reload' : 'Tải lại');
       assert.equal(deliveryVisible(view), decision === 'APPROVE');
       assert.deepEqual(log.posts.map(call => call.body.expectedRevision), [0, 1, 2, 3]);
       assert.equal(new Set(log.posts.map(call => call.key)).size, 4);
@@ -170,7 +166,7 @@ test('Legal approval cannot reveal Staff delivery when another server gate still
   contract({ lang: 'en', deliveryAfterApproval: false }); const view = await mount('en');
   try {
     await requestReopening(view, 'en'); await fill(view.legal, 'Attendance accepted'); await click(view.legal, 'Allow reopening');
-    await click(view.staff, 'Reload attendance');
+    await click(view.staff, 'Reload');
     assert.equal(deliveryVisible(view), false);
   } finally { await view.close(); }
 });
@@ -179,11 +175,11 @@ test('a refused request can be followed by a new Staff request and Legal approva
   const log = contract({ lang: 'en' }); const view = await mount('en');
   try {
     await requestReopening(view, 'en'); await fill(view.legal, 'Need confirmation'); await click(view.legal, 'Refuse reopening');
-    await click(view.staff, 'Reload attendance'); assert.equal(deliveryVisible(view), false);
-    await fill(view.staff, 'Conditions confirmed again'); await click(view.staff, 'Request Legal reopening');
+    await click(view.staff, 'Reload'); assert.equal(deliveryVisible(view), false);
+    await fill(view.staff, 'Conditions confirmed again'); await click(view.staff, 'Request reopening');
     assert.ok(view.legal.querySelector('textarea'), 'the new request has its own decision form');
     await fill(view.legal, 'New request accepted'); await click(view.legal, 'Allow reopening');
-    await click(view.staff, 'Reload attendance'); assert.equal(deliveryVisible(view), true);
+    await click(view.staff, 'Reload'); assert.equal(deliveryVisible(view), true);
     assert.deepEqual(log.posts.map(call => call.body.expectedRevision), [0, 1, 2, 3, 4, 5]);
     assert.notEqual(log.posts[3].path, log.posts[5].path, 'the second decision targets the new request id');
     assert.deepEqual(log.posts.filter(call => call.body.decision).map(call => call.body.decision), ['REJECT', 'APPROVE']);
