@@ -31,9 +31,12 @@ public class ResendRecoveryMailTransport implements RecoveryMailTransport {
     }
     /** Single Resend call site, also used by PS-116. Same fixed endpoint, no redirects, recipient allowlist enforced. */
     public void sendMessage(String recipient, String subject, String text) {
-        if(!config.providerReady() || !config.permits(recipient)) throw new IllegalStateException("Recovery delivery unavailable");
+        // Demo/test redirect: the allowlist is checked against the real mailbox, and the body names the account the link belongs to.
+        String target=config.deliveryAddress(recipient);
+        if(config.redirected()) text="[LegacyVault] Account / Tài khoản: "+recipient+"\n"+text;
+        if(!config.providerReady() || !config.permits(target)) throw new IllegalStateException("Recovery delivery unavailable");
         try {
-            String body=json.writeValueAsString(Map.of("from",config.sender(),"to",List.of(recipient),"subject",subject,"text",text));
+            String body=json.writeValueAsString(Map.of("from",config.sender(),"to",List.of(target),"subject",subject,"text",text));
             var request=HttpRequest.newBuilder(URI.create("https://api.resend.com/emails"))
                     .timeout(Duration.ofSeconds(10)).header("Authorization","Bearer "+config.apiKey())
                     .header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build();
