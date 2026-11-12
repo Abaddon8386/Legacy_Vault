@@ -68,6 +68,8 @@ legacyvault:
       sender: ${RECOVERY_EMAIL_FROM:}
       reset-url: ${RECOVERY_RESET_URL:}
       recipient-allowlist: ${RECOVERY_RECIPIENT_ALLOWLIST:}
+      # Demo/test only: send every recovery and verification email to this one mailbox (empty = off). Never set in production.
+      redirect-to: ${RECOVERY_REDIRECT_TO:}
     email-verification:
       # PS-116. Requests stay disabled (503) until a worker can send: also needs RESEND_API_KEY, RECOVERY_EMAIL_FROM and the
       # recipient allowlist above. Policy (TTL 24 h, send/confirm limits) is fixed in EmailVerificationConfiguration.
