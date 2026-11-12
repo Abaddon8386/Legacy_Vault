@@ -4,7 +4,7 @@ import { evaluateCloseArchivePreconditions, isCaseArchived } from '../../utils/c
 import { evaluateCompletionProgress } from '../../utils/completionProgressValidation.js';
 import { fetchHandoverReceipts, fetchCompletionProgress, fetchHandoverSession, fetchHandoverDeliveries, createHandoverReceipt, closeHandoverSession, archiveHandoverCase, isCounterHandoverSimulationPermitted } from './handoverSessionService.js';
 import { loadStaffCase } from './staffLiveService.js';
-import { fetchStaffCaseBeneficiaries } from './liveHandoverService.js';
+import { fetchStaffCaseBeneficiaries, handoverUrl } from './liveHandoverService.js';
 import { closeAndArchiveI18n } from './closeAndArchiveI18n.js';
 import { workflowFailure } from '../../utils/workflowFeedback.js';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
@@ -456,7 +456,7 @@ function CloseArchiveContext({
   const steps = [
     { id: 'overview', label: en ? 'Overview' : 'Tổng quan', node: overviewPanel },
     { id: 'close', label: en ? '1. Close session' : '1. Đóng phiên', node: closePanel, done: sessionStatus === 'COMPLETED' },
-    { id: 'receipt', label: en ? '2. Receipt' : '2. Biên bản', node: receiptPanel, done: hasReceipts },
+    { id: 'receipt', label: en ? '2. Receipt' : '2. Biên bản', node: receiptPanel, done: hasReceipts && allDeliveredCovered },
     { id: 'archive', label: en ? '3. Complete' : '3. Hoàn tất', node: archivePanel, done: isArchived },
   ];
   const usableSteps = steps.filter(item => item.node);
@@ -506,6 +506,7 @@ function CloseArchiveContext({
       {/* Header */}
       <header className="lv-ca-header">
         <h1 className="lv-ca-title">{t.pageTitle}</h1>
+        {caseId && sessionId && <a className="lv-ca-back-link" href={handoverUrl('/staff/handover', caseId, sessionId, lang)}>{en ? 'Back to handover' : 'Về phiên bàn giao'}</a>}
       </header>
 
       {/* Staff Case Context Bar */}
@@ -575,7 +576,7 @@ function CloseArchiveContext({
         ].map(([label, metric, done]) => <li key={label} className={metric.is100 ? 'is-complete' : ''}>
           <div className="lv-ca-progress__head"><span>{label}</span>
             <strong>{metric.isVerified ? `${done}/${metric.total}` : (en ? 'Unavailable' : 'Chưa có số liệu')}</strong></div>
-          <div className="lv-ca-progress__bar" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={metric.percentage ?? 0}>
+          <div className="lv-ca-progress__bar" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} {...(metric.isVerified ? { 'aria-valuenow': metric.percentage ?? 0 } : { 'aria-valuetext': en ? 'Unavailable' : 'Chưa có số liệu' })}>
             <span style={{ width: `${metric.percentage ?? 0}%` }} />
           </div>
         </li>)}
