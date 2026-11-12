@@ -66,10 +66,12 @@ export default function PublicInfoPage({ page, lang }) {
                     <h3>{references.title}</h3>
                     <p className="lv-public-info__refs-note">{references.note}</p>
                     <ul>
-                      {references.items.map(({ name, note, href }) => (
+                      {references.items.map(({ name, note, valid, href, uses }) => (
                         <li key={href}>
                           <a href={href} target="_blank" rel="noopener noreferrer">{name} <ArrowUpRight size={15} aria-hidden="true" /></a>
                           <span>{note}</span>
+                          {valid && <small>{valid}</small>}
+                          <p><strong>{references.labels.uses}</strong> {uses}</p>
                         </li>
                       ))}
                     </ul>

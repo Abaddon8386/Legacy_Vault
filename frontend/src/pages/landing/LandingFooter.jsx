@@ -34,6 +34,7 @@ export default function LandingFooter({ lang }) {
       title: 'LegacyVault',
       links: [
         [`/about?lang=${lang}`, en ? 'About LegacyVault' : 'Về LegacyVault'],
+        [`/about?lang=${lang}#legal`, en ? 'Legal references' : 'Cơ sở pháp lý'],
         [`${support}#contact`, en ? 'Help with a case' : 'Hỗ trợ hồ sơ'],
       ],
     },

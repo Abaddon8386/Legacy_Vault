@@ -221,7 +221,7 @@ test('the footer groups links by topic and keeps page anchors and language in th
       const privacy = `/privacy?lang=${lang}`;
       assert.deepEqual([...footer.querySelectorAll('nav a')].map(link => link.getAttribute('href')), [
         '#features', '#how-it-works', '#plans', support, `${support}#faq`, `${support}#beneficiaries`,
-        `${privacy}#protection`, `${privacy}#access`, `${privacy}#account-safety`, `/about?lang=${lang}`, `${support}#contact`,
+        `${privacy}#protection`, `${privacy}#access`, `${privacy}#account-safety`, `/about?lang=${lang}`, `/about?lang=${lang}#legal`, `${support}#contact`,
       ]);
       const legal = footer.querySelector('.lv-landing-footer-bottom a');
       assert.equal(legal.getAttribute('href'), privacy);
