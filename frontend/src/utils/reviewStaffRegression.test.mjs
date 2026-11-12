@@ -59,3 +59,17 @@ test('Review: live confirmation page must not continuously reload its unchanged 
     assert.equal(reads.filter(url=>url.endsWith('/deliveries')).length,0,'Open sessions must use the full allocation scope');
   }finally{await v.close();}
 });
+
+test('Review: the progress summary shows both gates above the steps',async()=>{
+  globalThis.fetch=staffFixture();
+  const v=await mount(Close,{sessionStatus:'OPEN',assetData:{total:2,delivered:1},beneficiaryData:{total:2,confirmed:2}});
+  try{const bars=[...v.host.querySelectorAll('.lv-ca-progress [role=progressbar]')];assert.equal(bars.length,2);assert.deepEqual(bars.map(bar=>bar.getAttribute('aria-valuenow')),['50','100']);assert.match(v.host.querySelector('.lv-ca-progress').textContent,/1\/2/);assert.match(v.host.querySelector('.lv-ca-progress').textContent,/2\/2/);}finally{await v.close();}
+});
+
+test('Review: issuing the first of several receipts keeps the receipt step open',async()=>{
+  const second={...deliveredItem,itemId:'77777777-7777-4777-8777-777777777777',recipientId:'88888888-8888-4888-8888-888888888888',assetId:'99999999-9999-4999-8999-999999999999'};
+  const receipt={receiptId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',recipientId:deliveredItem.recipientId,assetIds:[deliveredItem.assetId],confirmedAt:'2026-10-20T09:30:00Z',attestationType:'STAFF_ATTESTATION'};
+  globalThis.fetch=staffFixture({status:'COMPLETED',deliveries:[deliveredItem,second],receipts:[receipt]});
+  const v=await mount(Close,{sessionStatus:'COMPLETED',assetData:{total:2,delivered:2},beneficiaryData:{total:2,confirmed:2}});
+  try{assert.match(v.host.querySelector('[role=tab][aria-selected=true]').textContent,/Receipt/);}finally{await v.close();}
+});

@@ -43,7 +43,6 @@ test('sidebarGroups: Staff navigation registry includes all 6 workflow execution
     { id: 'legal-documents', labelVi: 'Giấy tờ và phân bổ', labelEn: 'Documents & allocations' },
     { id: 'asset-handover', labelVi: 'Bàn giao tài sản', labelEn: 'Asset Handover' },
     { id: 'beneficiary-confirmation', labelVi: 'Xác nhận đã nhận tài sản', labelEn: 'Asset receipt confirmation' },
-    { id: 'completion-progress', labelVi: 'Tiến độ hoàn tất', labelEn: 'Completion Progress' },
     { id: 'close-and-archive', labelVi: 'Đóng và lưu trữ hồ sơ', labelEn: 'Close & Archive' },
   ];
 
