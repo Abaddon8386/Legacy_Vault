@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 
+/** API cho Staff Executor ghi nhận đã đối chiếu giấy tờ trực tiếp của một người thụ hưởng trong hồ sơ được phân công. */
 @Validated
 @RestController
 @RequestMapping("/api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}/identity-attestations")
@@ -25,6 +26,7 @@ public class CounterIdentityAttestationController {
         this.service = service;
     }
 
+    /** POST: ghi nhận xác nhận tại quầy, trả 201 kèm Location tới bản ghi attestation. */
     @PostMapping
     public ResponseEntity<CounterIdentityAttestationDtos.Response> attest(@PathVariable UUID caseId,
             @PathVariable UUID beneficiaryId, @Valid @RequestBody CounterIdentityAttestationDtos.Request request) {

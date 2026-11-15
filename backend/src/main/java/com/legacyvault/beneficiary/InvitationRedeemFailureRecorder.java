@@ -5,7 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Persists a failed code attempt outside the redeem transaction so rollback cannot erase the limit. */
+/** Lưu lần nhập mã thất bại ngoài transaction đổi mã, để rollback không xóa mất bộ đếm giới hạn. */
 @Service
 public class InvitationRedeemFailureRecorder {
     private final JdbcTemplate jdbc;
@@ -14,6 +14,7 @@ public class InvitationRedeemFailureRecorder {
         this.jdbc = jdbc;
     }
 
+    /** Ghi một lần đổi mã thất bại. REQUIRES_NEW để commit độc lập, vì transaction redeem sẽ rollback khi ném lỗi. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void record(Long accountId, String invitationCodeHash) {
         jdbc.update("""

@@ -19,10 +19,10 @@ import com.legacyvault.common.error.ErrorCode;
 import jakarta.validation.Valid;
 
 /**
- * PS-62 / PS-63 (ST-24): only Staff Executor, and only for a case they own (checked in the service).
- * BE-01: these two routes accept a client-supplied email/credentials and link in the same call, which bypasses the
- * recipient request + Staff confirmation flow. They answer 410 unless
- * {@code legacyvault.beneficiary.legacy-counter-link-enabled=true} (default false; for migration/tests only).
+ * PS-62 / PS-63 (ST-24): chỉ Staff Executor, và chỉ với hồ sơ họ sở hữu (kiểm tra trong service).
+ * BE-01: hai route này nhận email/credential do client gửi và liên kết ngay trong cùng lời gọi, qua mặt
+ * luồng yêu cầu của người nhận + Staff xác nhận. Chúng trả 410 trừ khi
+ * {@code legacyvault.beneficiary.legacy-counter-link-enabled=true} (mặc định false; chỉ cho migration/test).
  */
 @Validated
 @RestController
@@ -40,6 +40,7 @@ public class StaffBeneficiaryAccountController {
 		this.legacyEnabled = legacyEnabled;
 	}
 
+	/** Chặn các route cũ khi cờ cấu hình tắt (mặc định tắt), trả mã BENEFICIARY_LEGACY_LINK_DISABLED. */
 	private void requireLegacyEnabled() {
 		if (!legacyEnabled) throw new BusinessException(ErrorCode.BENEFICIARY_LEGACY_LINK_DISABLED);
 	}

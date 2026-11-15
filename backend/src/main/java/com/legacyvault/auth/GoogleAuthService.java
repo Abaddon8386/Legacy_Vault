@@ -27,8 +27,8 @@ import java.time.ZoneOffset;
 import java.util.Map;
 
 /**
- * Signs in linked Google subjects, creates an Owner account for a brand-new Google user whose email is not yet
- * registered, and supports authenticated self-linking. It never links an existing account by email.
+ * Đăng nhập các Google subject đã liên kết, tạo tài khoản Owner cho người dùng Google hoàn toàn mới có email chưa
+ * đăng ký, và hỗ trợ tự liên kết khi đã xác thực. Không bao giờ liên kết tài khoản hiện có theo email.
  */
 @Service
 public class GoogleAuthService {
@@ -55,6 +55,12 @@ public class GoogleAuthService {
         this.auditService = auditService;
     }
 
+    /**
+     * Đăng nhập bằng Google ID token.
+     * Luồng: xác thực token; nếu subject chưa liên kết thì đăng ký mới ({@link #signUp}); nếu đã liên kết thì kiểm tra trạng thái tài khoản,
+     * đánh dấu token đã dùng (chống replay qua khóa chính hash) rồi cấp JWT. Token sai được ghi nhận như một lần đăng nhập thất bại.
+     * @throws BusinessException INVALID_GOOGLE_CREDENTIAL, ACCOUNT_LOCKED_BY_ADMIN, INVALID_CREDENTIALS, GOOGLE_EMAIL_ALREADY_REGISTERED, ...
+     */
     @Transactional
     public LoginResponse login(GoogleLoginRequest request) {
         GoogleIdTokenVerifier.VerifiedGoogleCredential credential;
@@ -75,7 +81,7 @@ public class GoogleAuthService {
             return signUp(credential);
         }
         if (user != null && user.getDeletedAt() == null && "LOCKED".equals(user.getStatus())) {
-            // The Google credential is already verified here, so the holder of the linked identity may be told why.
+            // Credential Google đã được xác minh ở đây, nên người giữ danh tính đã liên kết có thể được cho biết lý do.
             auditService.recordLoginFailure(user.getUserId());
             throw new BusinessException(ErrorCode.ACCOUNT_LOCKED_BY_ADMIN);
         }
@@ -100,7 +106,8 @@ public class GoogleAuthService {
         return authService.issueLoginResponseForActiveUser(user);
     }
 
-    /** First-time Google sign-in: unknown subject. Everything runs in the caller's single transaction. */
+    /** Đăng nhập Google lần đầu: subject chưa biết. Mọi thứ chạy trong một transaction của caller. */
+    // Không bao giờ gộp tài khoản theo email: nếu email đã có tài khoản mật khẩu thì từ chối (chống chiếm tài khoản qua email trùng).
     private LoginResponse signUp(GoogleIdTokenVerifier.VerifiedGoogleCredential credential) {
         if (!credential.emailVerified()) {
             throw new BusinessException(ErrorCode.GOOGLE_EMAIL_NOT_VERIFIED);
@@ -111,13 +118,13 @@ public class GoogleAuthService {
         }
         String email = EmailNormalizer.normalize(rawEmail);
         if (users.existsByEmail(email)) {
-            // A parallel request for this very Google identity may have committed the account between our identity
-            // lookup and this check (SQL Server blocks the email read until it commits). Re-read the identity: if it
-            // exists now this is that race, so the caller retries and signs the same Google user in.
+            // Một request song song cho chính danh tính Google này có thể đã commit tài khoản giữa lúc tra cứu danh tính
+            // và bước kiểm tra này (SQL Server chặn việc đọc email đến khi commit). Đọc lại danh tính: nếu
+            // giờ đã tồn tại thì đây là cuộc đua đó, nên caller thử lại và đăng nhập đúng người dùng Google ấy.
             if (identities.findByProviderCodeAndSubject(GOOGLE_PROVIDER, credential.subject()).isPresent()) {
                 throw new GoogleSignupRaceException();
             }
-            // Never merge by email: the owner proves control with the password, then links Google from the profile.
+            // Không bao giờ gộp theo email: chủ tài khoản chứng minh quyền kiểm soát bằng mật khẩu, rồi liên kết Google từ hồ sơ.
             throw new BusinessException(ErrorCode.GOOGLE_EMAIL_ALREADY_REGISTERED);
         }
 
@@ -128,9 +135,9 @@ public class GoogleAuthService {
             created = authService.createGoogleOwner(email, credential.name());
             identities.saveAndFlush(new ExternalAuthIdentity(GOOGLE_PROVIDER, credential.subject(), created));
         } catch (DataIntegrityViolationException exception) {
-            // A parallel request with another token created the same email or subject first; unique indexes decide.
-            // This transaction is now rolled back, so the caller retries once: if the winner is the same Google
-            // user the retry signs them in, and if the email really belongs to someone else it gets the real 409.
+            // Một request song song với token khác đã tạo cùng email hoặc subject trước; unique index quyết định.
+            // Transaction này giờ đã rollback, nên caller thử lại một lần: nếu người thắng là cùng người dùng Google
+            // thì lần thử lại đăng nhập cho họ, còn nếu email thật sự thuộc người khác thì nhận lỗi 409 thật.
             if (violatesConstraint(exception, "UQ_users_email")
                     || violatesConstraint(exception, "UQ_external_auth_identities_provider_subject")) {
                 throw new GoogleSignupRaceException();
@@ -140,6 +147,11 @@ public class GoogleAuthService {
         return authService.issueLoginResponseForActiveUser(created);
     }
 
+    /**
+     * Đánh dấu Google ID token đã được dùng bằng cách chèn hash vào bảng {@code google_login_credential_uses} (khóa chính = hash).
+     * Chèn trùng khóa nghĩa là token bị dùng lại (replay) và bị từ chối; các bản ghi hết hạn được dọn trước.
+     * @param auditReplayAsLoginFailure true thì ghi audit đăng nhập thất bại khi phát hiện replay
+     */
     private void consumeCredential(GoogleIdTokenVerifier.VerifiedGoogleCredential credential, User user,
             boolean auditReplayAsLoginFailure) {
         credentialUses.deleteByExpiresAtLessThanEqual(LocalDateTime.now(ZoneOffset.UTC));
@@ -158,9 +170,9 @@ public class GoogleAuthService {
     }
 
     /**
-     * First password for a Google-only account. Requires a fresh Google ID token whose subject is linked to the
-     * signed-in account, so a session alone is not enough. The token is consumed in the same transaction as the
-     * password change; if the password step fails (policy, already set) everything rolls back and the token stays usable.
+     * Mật khẩu đầu tiên cho tài khoản chỉ dùng Google. Yêu cầu Google ID token mới có subject đã liên kết với
+     * tài khoản đang đăng nhập, nên chỉ có phiên là chưa đủ. Token được tiêu thụ trong cùng transaction với
+     * thay đổi mật khẩu; nếu bước mật khẩu lỗi (policy, đã có mật khẩu) mọi thứ rollback và token vẫn dùng được.
      */
     @Transactional
     public PasswordSetupResponse setupPassword(Long authenticatedUserId, PasswordSetupRequest request) {
@@ -176,14 +188,14 @@ public class GoogleAuthService {
         return authService.setupPassword(authenticatedUserId, request.password());
     }
 
-    /** Links only a verified Google subject to the authenticated account; never links by email. */
+    /** Chỉ liên kết Google subject đã xác minh vào tài khoản đã xác thực; không bao giờ liên kết theo email. */
     @Transactional
     public GoogleIdentityLinkResponse linkIdentity(GoogleLoginRequest request, Long authenticatedUserId) {
         User user = users.findById(authenticatedUserId)
                 .filter(found -> "ACTIVE".equals(found.getStatus()) && found.getDeletedAt() == null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
-        // A Google-only account (no password yet) must not add another Google identity: that would let a bare
-        // session sidestep the re-authentication that setting the first password requires. Set a password first.
+        // Tài khoản chỉ dùng Google (chưa có mật khẩu) không được thêm danh tính Google khác: điều đó sẽ cho phép một
+        // phiên trần bỏ qua bước xác thực lại mà việc đặt mật khẩu đầu tiên yêu cầu. Hãy đặt mật khẩu trước.
         if (!user.isPasswordLoginAllowed()) {
             throw new BusinessException(ErrorCode.PASSWORD_NOT_SET);
         }
@@ -211,7 +223,7 @@ public class GoogleAuthService {
             if (!violatesConstraint(exception, "UQ_external_auth_identities_provider_subject")) {
                 throw exception;
             }
-            // The database unique constraint is the final guard against concurrent link requests.
+            // Ràng buộc unique của database là chốt chặn cuối chống các request liên kết đồng thời.
             throw new BusinessException(ErrorCode.GOOGLE_IDENTITY_ALREADY_LINKED);
         }
 
@@ -232,6 +244,7 @@ public class GoogleAuthService {
         return new GoogleIdentityLinkResponse(true);
     }
 
+    // Tìm trong chuỗi cause xem lỗi có phải vi phạm đúng constraint đặt tên hay không (để phân biệt đua dữ liệu với lỗi khác).
     private static boolean violatesConstraint(DataIntegrityViolationException exception, String expectedName) {
         Throwable cause = exception;
         while (cause != null) {

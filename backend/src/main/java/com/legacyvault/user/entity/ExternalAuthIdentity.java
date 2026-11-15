@@ -13,7 +13,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
-/** Explicit provider/subject mapping. Account-linking authorization is enforced by the auth service. */
+/** Ánh xạ tường minh giữa provider và subject. Việc cho phép liên kết tài khoản do auth service kiểm soát. */
 @Entity
 @Table(name = "external_auth_identities", schema = "dbo")
 public class ExternalAuthIdentity {

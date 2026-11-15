@@ -25,6 +25,11 @@ public class ApiErrorWriter {
 		this.objectMapper = objectMapper;
 	}
 
+	/**
+	 * Ghi ApiError tương ứng ErrorCode vào response (JSON, UTF-8) với HTTP status của ErrorCode.
+	 *
+	 * @param code mã lỗi cần trả (ví dụ UNAUTHENTICATED, ACCESS_DENIED)
+	 */
 	public void write(HttpServletRequest request, HttpServletResponse response, ErrorCode code) throws IOException {
 		ApiError body = factory.create(request, code, List.of());
 		response.setStatus(code.status());

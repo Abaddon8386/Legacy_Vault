@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.legacyvault.common.web.PageResponse;
 
-/** PS-118: read-only Staff metadata catalog for an assigned pre-unlock case. */
+/** PS-118: danh mục metadata chỉ đọc cho Staff với hồ sơ được phân công ở giai đoạn trước mở khóa. */
 @RestController
 @Validated
 @RequestMapping("/api/v1/staff/verification-cases/{caseId}/assets")
@@ -27,6 +27,7 @@ public class StaffAssetCatalogController {
 
 	public StaffAssetCatalogController(StaffAssetCatalogService service) { this.service = service; }
 
+	/** GET: danh sách tài sản (chỉ metadata) có phân trang, size tối đa 100. */
 	@GetMapping
 	public ResponseEntity<PageResponse<StaffAssetCatalogDtos.Item>> list(@PathVariable UUID caseId,
 			@RequestParam(defaultValue = "0") @Min(0) int page,

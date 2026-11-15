@@ -5,6 +5,11 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Lời mời (invitation code) để một người thụ hưởng liên kết tài khoản vào vault (PS-86).
+ * Mỗi người thụ hưởng có nhiều 'generation' theo thời gian nhưng chỉ một bản {@code current}; mã thô
+ * không bao giờ được lưu, chỉ lưu {@code codeHash}. Có thể gắn {@code recipientEmail} khi do Staff phát hành (PS-106).
+ */
 @Entity
 @Table(name = "beneficiary_invitations", schema = "dbo")
 public class BeneficiaryInvitation {
@@ -26,6 +31,11 @@ public class BeneficiaryInvitation {
     @Column(name = "consumed_by_user_id") private Long consumedBy;
 
     protected BeneficiaryInvitation() { }
+    /**
+     * Tạo lời mời mới (current = true) có hạn dùng 7 ngày kể từ {@code now}.
+     * @param hash hash của mã mời (không lưu mã thô)
+     * @param actor id người phát hành (Owner hoặc Staff)
+     */
     BeneficiaryInvitation(Beneficiary beneficiary, int generation, String hash, Long actor, LocalDateTime now) {
         this.publicId = UUID.randomUUID(); this.beneficiary = beneficiary; this.generation = generation;
         this.current = true; this.codeHash = hash; this.issuedAt = now; this.expiresAt = now.plusDays(7);
@@ -36,12 +46,17 @@ public class BeneficiaryInvitation {
         this(beneficiary, generation, hash, actor, now);
         this.recipientEmail = EmailNormalizer.normalize(recipientEmail);
     }
+    /**
+     * Trạng thái suy ra theo thứ tự ưu tiên: CONSUMED &gt; REVOKED &gt; (PENDING | EXPIRED theo {@code expiresAt}).
+     * Trạng thái không được lưu mà tính tại thời điểm {@code now}.
+     */
     public String state(LocalDateTime now) {
         if (consumedAt != null) return "CONSUMED";
         if (revokedAt != null) return "REVOKED";
         return now.isBefore(expiresAt) ? "PENDING" : "EXPIRED";
     }
     void revoke(Long actor, LocalDateTime now) { revokedAt = now; revokedBy = actor; }
+    /** Bỏ cờ current để nhường chỗ cho generation mới (ràng buộc unique chỉ áp cho bản current). */
     void retire() { current = false; }
     void consume(Long account, LocalDateTime now) { consumedAt = now; consumedBy = account; }
     public Long getId() { return id; }

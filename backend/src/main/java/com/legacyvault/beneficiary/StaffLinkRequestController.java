@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 
-/** BE-01: counter confirmation of link requests and unlinked account creation; Staff Executor on an owned case only. */
+/** BE-01: Staff Executor xác nhận đối chiếu yêu cầu liên kết và tạo tài khoản chưa liên kết; chỉ trên hồ sơ do mình phụ trách. */
 @Validated
 @RestController
 @RequestMapping("/api/v1/staff/verification-cases/{caseId}")
@@ -32,6 +32,7 @@ public class StaffLinkRequestController {
 		this.provisioning = provisioning;
 	}
 
+	/** POST /accounts: Staff tạo tài khoản chưa liên kết tại quầy. */
 	@PostMapping("/accounts")
 	public ResponseEntity<BeneficiaryLinkRequestDtos.CreatedAccount> createAccount(@PathVariable UUID caseId,
 			@Valid @RequestBody BeneficiaryLinkRequestDtos.CreateAccountRequest request) {
@@ -40,11 +41,13 @@ public class StaffLinkRequestController {
 				.cacheControl(CacheControl.noStore()).body(created);
 	}
 
+	/** GET: các yêu cầu liên kết đang chờ của hồ sơ. */
 	@GetMapping("/link-requests")
 	public ResponseEntity<List<BeneficiaryLinkRequestDtos.StaffRequest>> list(@PathVariable UUID caseId) {
 		return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(linkRequests.listPending(caseId));
 	}
 
+	/** POST: duyệt yêu cầu và chọn người thụ hưởng; tài khoản đích lấy từ yêu cầu đã lưu. */
 	@PostMapping("/link-requests/{requestId}/approve")
 	public ResponseEntity<BeneficiaryLinkRequestDtos.Decision> approve(@PathVariable UUID caseId,
 			@PathVariable UUID requestId, @Valid @RequestBody BeneficiaryLinkRequestDtos.ApproveRequest request) {
@@ -52,6 +55,7 @@ public class StaffLinkRequestController {
 				.body(linkRequests.approve(caseId, requestId, request.beneficiaryId()));
 	}
 
+	/** POST: từ chối yêu cầu liên kết. */
 	@PostMapping("/link-requests/{requestId}/reject")
 	public ResponseEntity<BeneficiaryLinkRequestDtos.Decision> reject(@PathVariable UUID caseId,
 			@PathVariable UUID requestId) {

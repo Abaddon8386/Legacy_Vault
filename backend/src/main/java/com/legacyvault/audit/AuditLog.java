@@ -10,6 +10,10 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Bản ghi audit, ánh xạ bảng {@code dbo.audit_logs}. Chỉ được tạo qua {@link AuditService}; lớp không có setter.
+ * Các cột JSON ({@code details}, {@code actorRoles}, {@code stateBefore}, {@code stateAfter}) lưu dưới dạng chuỗi JSON.
+ */
 @Entity
 @Table(name = "audit_logs", schema = "dbo")
 public class AuditLog {
@@ -34,6 +38,7 @@ public class AuditLog {
     @Column(name = "entity_id")
     private Long entityId;
 
+    // Thời điểm do cơ sở dữ liệu gán, nên không insert/update từ ứng dụng.
     @Column(name = "occurred_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime occurredAt;
 
@@ -43,6 +48,7 @@ public class AuditLog {
     @Column(name = "details", columnDefinition = "nvarchar(max)")
     private String details;
 
+    // Hạn lưu giữ bản ghi; AuditService đặt bằng thời điểm ghi cộng 12 tháng.
     @Column(name = "retention_until")
     private LocalDateTime retentionUntil;
 
@@ -58,6 +64,7 @@ public class AuditLog {
     @Column(name = "state_after", columnDefinition = "nvarchar(max)")
     private String stateAfter;
 
+    // Mã truy vết lấy từ MDC (TraceIdFilter) để đối chiếu với log và phản hồi lỗi.
     @Column(name = "trace_id")
     private UUID traceId;
 

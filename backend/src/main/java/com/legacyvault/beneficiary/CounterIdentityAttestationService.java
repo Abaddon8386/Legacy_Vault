@@ -18,7 +18,7 @@ import com.legacyvault.verification.service.StaffVaultCaseGuard;
 
 import jakarta.persistence.EntityManager;
 
-/** Records authenticated Staff attestation; client-supplied identity-verification results are not accepted. */
+/** Ghi nhận xác nhận của Staff đã xác thực; kết quả xác minh danh tính do client gửi không được chấp nhận. */
 @Service
 public class CounterIdentityAttestationService {
     private final VerificationCaseRepository cases;
@@ -43,6 +43,12 @@ public class CounterIdentityAttestationService {
         this.audit = audit;
     }
 
+    /**
+     * Staff xác nhận đã kiểm tra danh tính người thụ hưởng tại quầy.
+     * Xử lý: chỉ Staff được phân công hồ sơ -> khóa Vault rồi khóa Case (thứ tự khóa chuẩn), kiểm tra lại sau khi khóa
+     * -> lưu bản xác nhận append-only -> chuyển người thụ hưởng sang VERIFIED_AT_COUNTER -> audit.
+     * @return thông tin bản xác nhận vừa tạo. Mọi lỗi truy cập trả NOT_FOUND.
+     */
     @Transactional
     public CounterIdentityAttestationDtos.Response attest(UUID caseId, UUID beneficiaryId,
             CounterIdentityAttestationDtos.Request request) {
@@ -50,7 +56,7 @@ public class CounterIdentityAttestationService {
         VerificationCase preview = cases.findByPublicIdAndAssignedStaffUserId(caseId, actor.getUserId())
                 .orElseThrow(CounterIdentityAttestationService::notFound);
 
-        // Match the established Vault -> Case locking order and recheck after acquiring both locks.
+        // Khớp thứ tự khóa Vault -> Case đã có và kiểm tra lại sau khi lấy cả hai khóa.
         caseGuard.requireOpenForWrite(preview.getVaultId(), actor.getUserId());
         VerificationCase lockedCase = caseLocks.findOwnedByStaffForUpdate(caseId, actor.getUserId())
                 .orElseThrow(CounterIdentityAttestationService::notFound);
@@ -62,14 +68,14 @@ public class CounterIdentityAttestationService {
         entities.refresh(beneficiary);
         if (!lockedCase.getVaultId().equals(beneficiary.getVault().getVaultId())) throw notFound();
 
-        // PS-140: no reference is a valid attestation; the evidence is the assigned Staff actor, UTC time, case and
-        // Beneficiary of this append-only row. Nothing is generated to fill the gap.
+        // PS-140: không có tham chiếu nào là xác nhận hợp lệ; bằng chứng là Staff được phân công, thời gian UTC, case và
+        // Beneficiary của dòng append-only này. Không sinh gì để lấp chỗ trống.
         String reference = request.normalizedEvidenceReference();
         BeneficiaryCounterAttestation saved = attestations.saveAndFlush(
                 new BeneficiaryCounterAttestation(lockedCase, beneficiary, actor.getUserId(), reference,
                         request.normalizedConfirmedEmail()));
-        // Compatibility state for existing account/delivery guards. The source is
-        // the assigned Staff's recorded in-person attestation, never a client MATCH flag.
+        // Trạng thái tương thích cho các guard tài khoản/giao hàng hiện có. Nguồn là
+        // xác nhận trực tiếp đã ghi của Staff được phân công, không bao giờ là cờ MATCH từ client.
         beneficiary.verifyAtCounter();
         beneficiaries.save(beneficiary);
         audit.record(actor.getUserId(), lockedCase.getVaultId(), "BENEFICIARY_COUNTER_ATTESTED",

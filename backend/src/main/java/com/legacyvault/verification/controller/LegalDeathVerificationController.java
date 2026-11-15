@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+/**
+ * API Legal thẩm định giấy tờ chứng tử (ST-12, LV-DEATH-002). Chỉ LEGAL_VERIFIER.
+ */
 @RestController
 @RequestMapping("/api/v1/legal-verifications/death-documents")
 @PreAuthorize("hasRole('LEGAL_VERIFIER')")

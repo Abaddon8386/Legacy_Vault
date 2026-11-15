@@ -3,6 +3,10 @@ package com.legacyvault.verification.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+/**
+ * Một quyết định xác minh của Legal (hiện dùng cho giấy chứng tử qua createDeathDecision).
+ * result: PENDING, APPROVED, REJECTED hoặc NEEDS_CORRECTION; remarks lưu lý do.
+ */
 @Entity
 @Table(name = "legal_verifications", schema = "dbo")
 public class LegalVerification {
@@ -47,6 +51,11 @@ public class LegalVerification {
     protected LegalVerification() {
     }
 
+    /**
+     * Tạo bản ghi quyết định về giấy chứng tử.
+     * Tham số: id bản ghi giấy chứng tử, id Legal, result (APPROVED/REJECTED/NEEDS_CORRECTION), reason (bắt buộc, được trim), nowUtc.
+     * Thiếu tham số hoặc result không hợp lệ ném IllegalArgumentException. requestedAt = decidedAt = nowUtc vì quyết định được ghi ngay.
+     */
     public static LegalVerification createDeathDecision(
             Long deathDocumentRecordId,
             Long verifierUserId,

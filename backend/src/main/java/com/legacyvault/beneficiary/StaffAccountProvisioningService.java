@@ -22,10 +22,10 @@ import com.legacyvault.verification.entity.VerificationCase;
 import com.legacyvault.verification.repository.StaffCaseLockRepository;
 
 /**
- * BE-01: Staff creates an account at the counter for a person, under a case they own. The account is NOT linked to any
- * recipient and gets only the personal Owner role; the person later submits a link request and Staff confirms it.
- * An email that already has an account is rejected, never reused or linked. The password is chosen by the person,
- * stored only as a hash and never logged or audited.
+ * BE-01: Staff tạo tài khoản tại quầy cho một người, dưới hồ sơ họ sở hữu. Tài khoản KHÔNG được liên kết với bất kỳ
+ * người nhận nào và chỉ có role Owner cá nhân; người đó sau đó gửi yêu cầu liên kết và Staff xác nhận.
+ * Email đã có tài khoản bị từ chối, không bao giờ dùng lại hay liên kết. Mật khẩu do người đó chọn,
+ * chỉ lưu dưới dạng hash và không bao giờ log hay audit.
  */
 @Service
 public class StaffAccountProvisioningService {
@@ -50,6 +50,11 @@ public class StaffAccountProvisioningService {
 		this.userRoles = userRoles;
 	}
 
+	/**
+	 * Tạo tài khoản chưa liên kết tại quầy dưới hồ sơ Staff đang sở hữu và còn mở.
+	 * Email đã tồn tại thì từ chối; mật khẩu được băm, không log/audit.
+	 * @return public id tài khoản và trạng thái UNLINKED
+	 */
 	@Transactional
 	public BeneficiaryLinkRequestDtos.CreatedAccount createUnlinked(UUID caseId,
 			BeneficiaryLinkRequestDtos.CreateAccountRequest request) {
@@ -70,6 +75,7 @@ public class StaffAccountProvisioningService {
 		try {
 			account = users.saveAndFlush(account);
 		}
+		// Đua tạo email trùng: ràng buộc unique của DB là chốt chặn cuối.
 		catch (DataIntegrityViolationException duplicate) {
 			throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
 		}

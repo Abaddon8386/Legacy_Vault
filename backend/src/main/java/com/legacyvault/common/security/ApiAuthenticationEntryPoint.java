@@ -22,6 +22,7 @@ public class ApiAuthenticationEntryPoint implements AuthenticationEntryPoint {
 		this.writer = writer;
 	}
 
+	// Spring Security gọi khi request cần xác thực nhưng chưa có hoặc không hợp lệ; trả 401 UNAUTHENTICATED.
 	@Override
 	public void commence(HttpServletRequest request, HttpServletResponse response,
 			AuthenticationException authException) throws IOException {

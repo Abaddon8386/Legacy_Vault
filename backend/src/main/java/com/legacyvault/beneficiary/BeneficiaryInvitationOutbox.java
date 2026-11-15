@@ -12,10 +12,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
-/** Encrypted, transactional handoff payload for the disabled-by-default PS-106 mail transport. */
+/** Payload bàn giao được mã hóa, theo transaction, cho kênh gửi thư PS-106 (mặc định tắt). */
 @Entity
 @Table(name = "beneficiary_invitation_mail_outbox", schema = "dbo")
 public class BeneficiaryInvitationOutbox {
+    /** Trạng thái vận chuyển ban đầu: đã xếp hàng, chờ transport gửi mail (mặc định đang tắt). */
     public static final String QUEUED = "QUEUED";
 
     @Id
@@ -58,6 +59,7 @@ public class BeneficiaryInvitationOutbox {
 
     protected BeneficiaryInvitationOutbox() { }
 
+    /** Payload (email người nhận + mã mời) đã được mã hóa AES; mảng byte được clone để tránh bị sửa từ bên ngoài. */
     public BeneficiaryInvitationOutbox(UUID publicId, Long beneficiaryId, Long invitationId, UUID invitationPublicId,
             int requestGeneration,
             int invitationGeneration, byte[] payloadCiphertext, byte[] payloadIv, String keyVersion) {
@@ -87,6 +89,7 @@ public class BeneficiaryInvitationOutbox {
     public String getTransportStatus() { return transportStatus; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 
+    // Không in payload để tránh lộ mã mời / email trong log.
     @Override public String toString() {
         return "BeneficiaryInvitationOutbox[publicId=" + publicId + ", transportStatus=" + transportStatus
                 + ", payload=<encrypted>]";

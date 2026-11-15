@@ -27,14 +27,15 @@ import com.legacyvault.verification.entity.VerificationCase;
 import com.legacyvault.verification.repository.VerificationCaseRepository;
 
 /**
- * BE-01 (recipient side): a signed-in account submits the case code, lists and cancels its own requests.
- * Submitting only records a PENDING request; it never links the account, grants a role or reveals case data.
- * The account row is locked first (User -> Vault order used elsewhere) so the duplicate/limit checks are serialized
- * per account. Every unusable code gets the same generic error so a code cannot be used to probe cases.
+ * BE-01 (phía người nhận): tài khoản đã đăng nhập gửi mã hồ sơ, liệt kê và hủy yêu cầu của chính nó.
+ * Gửi chỉ ghi một yêu cầu PENDING; không bao giờ liên kết tài khoản, cấp role hay tiết lộ dữ liệu hồ sơ.
+ * Dòng tài khoản được khóa trước (thứ tự User -> Vault dùng ở nơi khác) để kiểm tra trùng/giới hạn được tuần tự hóa
+ * theo tài khoản. Mọi mã không dùng được đều nhận cùng một lỗi chung để không dùng mã dò hồ sơ.
  */
 @Service
 public class BeneficiaryLinkRequestService {
 
+	/** Số yêu cầu PENDING còn hạn tối đa của mỗi tài khoản. */
 	static final int MAX_PENDING_PER_ACCOUNT = 5;
 	private static final Pattern CASE_CODE = Pattern.compile("^HS-(\\d{4})-(\\d{1,9})$", Pattern.CASE_INSENSITIVE);
 	private static final Set<String> INTERNAL_ROLES = Set.of("ROLE_STAFF_EXECUTOR", "ROLE_LEGAL_VERIFIER", "ROLE_ADMIN");
@@ -59,6 +60,12 @@ public class BeneficiaryLinkRequestService {
 		this.ttlDays = ttlDays;
 	}
 
+	/**
+	 * Gửi yêu cầu liên kết tài khoản vào một hồ sơ xác minh bằng mã hồ sơ.
+	 * Xử lý: khóa dòng tài khoản (tuần tự hóa kiểm tra trùng/giới hạn) -> loại tài khoản nội bộ -> tìm hồ sơ đang mở
+	 * -> loại chủ vault -> xử lý yêu cầu PENDING cũ (hết hạn thì đánh dấu EXPIRED) -> kiểm tra giới hạn -> lưu + audit.
+	 * @return thông tin yêu cầu cho người gửi (không chứa dữ liệu hồ sơ/vault).
+	 */
 	@Transactional
 	public BeneficiaryLinkRequestDtos.MyRequest submit(Long accountId, String caseCode) {
 		User account = lockAccount(accountId);
@@ -71,6 +78,7 @@ public class BeneficiaryLinkRequestService {
 			throw invalid();
 		}
 		LocalDateTime now = now();
+		// Yêu cầu PENDING cũ cùng hồ sơ: còn hạn thì từ chối trùng; đã hết hạn thì chuyển EXPIRED và flush để giải phóng ràng buộc trùng trước khi INSERT.
 		var existing = requests.findByRequesterUserIdAndVerificationCaseIdAndStatus(accountId,
 				target.getVerificationCaseId(), BeneficiaryLinkRequest.PENDING);
 		if (existing.isPresent()) {
@@ -89,6 +97,7 @@ public class BeneficiaryLinkRequestService {
 			created = requests.saveAndFlush(new BeneficiaryLinkRequest(accountId, target.getVerificationCaseId(),
 					now.plusDays(ttlDays)));
 		}
+		// Hai request đồng thời vượt qua kiểm tra: ràng buộc unique của DB là chốt chặn cuối, quy về lỗi ALREADY_PENDING.
 		catch (DataIntegrityViolationException duplicate) {
 			throw new BusinessException(ErrorCode.BENEFICIARY_LINK_REQUEST_ALREADY_PENDING);
 		}
@@ -98,6 +107,7 @@ public class BeneficiaryLinkRequestService {
 		return BeneficiaryLinkRequestDtos.MyRequest.from(created, now);
 	}
 
+	/** Liệt kê yêu cầu của tài khoản (mới nhất trước), trạng thái được tính theo hạn tại thời điểm gọi. */
 	@Transactional(readOnly = true)
 	public List<BeneficiaryLinkRequestDtos.MyRequest> listMine(Long accountId) {
 		LocalDateTime now = now();
@@ -105,6 +115,7 @@ public class BeneficiaryLinkRequestService {
 				.map(r -> BeneficiaryLinkRequestDtos.MyRequest.from(r, now)).toList();
 	}
 
+	/** Hủy yêu cầu của chính mình. Không phải chủ yêu cầu thì báo NOT_FOUND (tránh lộ sự tồn tại); chỉ hủy được khi còn mở. */
 	@Transactional
 	public BeneficiaryLinkRequestDtos.MyRequest cancel(Long accountId, UUID requestId) {
 		lockAccount(accountId);
@@ -129,11 +140,12 @@ public class BeneficiaryLinkRequestService {
 				.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
 	}
 
-	/** The code is HS-yyyy-n: n is the case id and yyyy must match its creation year. Anything else is "invalid". */
+	/** Mã có dạng HS-yyyy-n: n là id hồ sơ và yyyy phải khớp năm tạo. Mọi thứ khác là "không hợp lệ". */
 	private VerificationCase resolveOpenCase(String caseCode) {
 		Matcher matcher = caseCode == null ? null : CASE_CODE.matcher(caseCode.trim());
 		if (matcher == null || !matcher.matches()) throw invalid();
 		VerificationCase found = cases.findById(Long.parseLong(matcher.group(2))).orElseThrow(this::invalid);
+		// Hồ sơ phải đang mở, đã có Staff phụ trách và năm trong mã khớp năm tạo hồ sơ; mọi trường hợp khác trả cùng lỗi INVALID.
 		if (!found.isOpen() || found.getAssignedStaffUserId() == null
 				|| found.getCreatedAt().getYear() != Integer.parseInt(matcher.group(1))) {
 			throw invalid();

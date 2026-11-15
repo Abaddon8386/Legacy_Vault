@@ -16,7 +16,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
-/** Append-only Staff attestation that an in-person document check was performed. */
+/** Xác nhận của Staff chỉ ghi thêm (append-only) rằng đã đối chiếu giấy tờ trực tiếp tại quầy. */
 @Entity
 @Table(name = "beneficiary_counter_attestations", schema = "dbo")
 public class BeneficiaryCounterAttestation {

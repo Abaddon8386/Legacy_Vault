@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/** PS-79 partial self-profile update. currentPassword is reauthentication proof, never a writable account field. */
+/** PS-79: cập nhật một phần hồ sơ cá nhân. currentPassword là bằng chứng xác thực lại, không phải trường tài khoản được ghi. */
 public class ProfileUpdateRequest {
     @Size(min = 1, max = 150)
     @Pattern(regexp = ".*\\S.*")
@@ -33,6 +33,7 @@ public class ProfileUpdateRequest {
     public String getCurrentPassword() { return currentPassword; }
     public void setCurrentPassword(String currentPassword) { this.currentPassword = currentPassword; }
 
+    // Từ chối mọi trường lạ trong JSON (không cho client ghi trường ngoài danh sách cho phép, ví dụ role hay trạng thái).
     @JsonAnySetter
     public void rejectUnrecognizedField(String field, Object value) {
         throw new IllegalArgumentException("Unsupported profile field");

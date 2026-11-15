@@ -22,6 +22,10 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * API phiên bàn giao (handover session) của Staff cho một ca xác minh.
+ * Chỉ STAFF_EXECUTOR; mỗi ca chỉ được có một phiên OPEN tại một thời điểm (xem HandoverSessionService).
+ */
 @RestController
 @RequestMapping("/api/v1/staff/verification-cases/{caseId}/handover-sessions")
 @PreAuthorize("hasRole('STAFF_EXECUTOR')")
@@ -32,6 +36,10 @@ public class HandoverSessionController {
         this.service = service;
     }
 
+    /**
+     * Mở phiên bàn giao mới cho ca.
+     * @return 201 Created kèm Location của phiên
+     */
     @PostMapping
     public ResponseEntity<HandoverSessionResponse> open(@PathVariable UUID caseId,
             @AuthenticationPrincipal CustomUserPrincipal principal) {
@@ -41,6 +49,9 @@ public class HandoverSessionController {
         return ResponseEntity.created(location).body(response);
     }
 
+    /**
+     * Liệt kê các phiên bàn giao của ca do Staff hiện tại mở, có thể lọc theo status.
+     */
     @GetMapping
     public List<HandoverSessionResponse> list(@PathVariable UUID caseId,
             @RequestParam(required = false) HandoverSessionStatus status,
@@ -48,12 +59,18 @@ public class HandoverSessionController {
         return service.list(caseId, status, principal);
     }
 
+    /**
+     * Xem một phiên bàn giao theo public UUID.
+     */
     @GetMapping("/{sessionId}")
     public HandoverSessionResponse get(@PathVariable UUID caseId, @PathVariable UUID sessionId,
             @AuthenticationPrincipal CustomUserPrincipal principal) {
         return service.get(caseId, sessionId, principal);
     }
 
+    /**
+     * Đổi trạng thái phiên. Hiện service chỉ hỗ trợ hủy (OPEN -> CANCELLED), bất kể status gửi lên là gì (xem ghi chú trong báo cáo).
+     */
     @PatchMapping("/{sessionId}/status")
     public HandoverSessionResponse updateStatus(@PathVariable UUID caseId, @PathVariable UUID sessionId,
             @Valid @RequestBody HandoverSessionStatusRequest request,

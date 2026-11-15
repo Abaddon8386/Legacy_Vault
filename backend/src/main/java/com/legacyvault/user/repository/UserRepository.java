@@ -16,7 +16,15 @@ import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    // One predicate keeps displayed status and filtering before pagination consistent.
+    // Một điều kiện duy nhất giúp trạng thái hiển thị và bộ lọc trước phân trang nhất quán.
+    /**
+     * Điều kiện JPQL "đang tham gia quy trình hậu sự" (trạng thái IN_PROCESS của tài khoản), dùng chung cho hiển thị và lọc để kết quả trước/sau phân trang nhất quán.
+     * Một user được coi là đang xử lý nếu có Vault ở trạng thái hậu sự và thỏa một trong ba quan hệ:
+     * <ul><li>Beneficiary: người thụ hưởng DESIGNATED của Vault đó, liên kết với user;</li>
+     * <li>Staff: được gán vào Verification Case đang OPEN của Vault;</li>
+     * <li>Legal: đã thực hiện một hành động pháp lý (theo audit) kể từ khi case OPEN được tạo, gồm cả duyệt/từ chối HANDOVER_GROUP_CHANGED.</li></ul>
+     * Tham số {@code :roleCode} (null nghĩa là xét mọi role) thu hẹp quan hệ theo role đang lọc.
+     */
     String PROCESSING_RELATION = """
             exists (select v.vaultId from Vault v where v.status in (
                 'AWAITING_VERIFICATION', 'DOCUMENT_VERIFICATION', 'WILL_VERIFICATION',
@@ -50,14 +58,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
                 ))
             """;
 
+    /**
+     * Trong danh sách userIds, trả về các tài khoản ACTIVE (chưa xóa) đang ở trạng thái xử lý theo {@link #PROCESSING_RELATION}.
+     */
     @Query("select u.userId from User u where u.userId in :userIds and u.status = 'ACTIVE' and u.deletedAt is null and " + PROCESSING_RELATION)
     java.util.Set<Long> findProcessingUserIds(@Param("userIds") java.util.Collection<Long> userIds, @Param("roleCode") String roleCode);
 
+    /**
+     * Khóa ghi (SELECT FOR UPDATE) dòng user ACTIVE chưa xóa; dùng để tuần tự hóa các thao tác ghi của chủ sở hữu trên cùng một user.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where u.userId = :id and u.status = 'ACTIVE' and u.deletedAt is null")
     Optional<User> findActiveAccountForUpdate(@Param("id") Long id);
 
-    /** Row lock for admin state changes; unlike the ACTIVE-only variant it also finds LOCKED and PENDING accounts. */
+    /** Khóa dòng cho các thay đổi trạng thái của admin; khác bản chỉ ACTIVE, bản này tìm cả tài khoản LOCKED và PENDING. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where u.userId = :id and u.deletedAt is null")
     Optional<User> findLiveAccountForUpdate(@Param("id") Long id);
@@ -70,6 +84,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByPublicId(UUID publicId);
 
+    /**
+     * Tìm kiếm tài khoản cho Admin; lọc xong mới phân trang nên tổng số và trang nhất quán.
+     *
+     * <ul><li>{@code query}: khớp một phần tên hoặc email (không phân biệt hoa thường); nếu {@code hasUuid} thì khớp thêm public ID chính xác;</li>
+     * <li>{@code roleCode}: có role đó; với role nghiệp vụ chỉ lấy tài khoản ACTIVE/LOCKED chưa xóa;</li>
+     * <li>{@code status}: DELETED theo deletedAt; IN_PROCESS là ACTIVE và đang xử lý; ACTIVE là ACTIVE và không đang xử lý; còn lại so trực tiếp với status;</li>
+     * <li>{@code vaultStatus}: NO_VAULT (chưa có Vault), IN_PROCESS (nhóm trạng thái hậu sự) hoặc trạng thái Vault khớp chính xác.</li></ul>
+     */
     @Query("""
             select distinct u from User u
             where (:query is null or lower(u.fullName) like lower(concat('%', :query, '%'))

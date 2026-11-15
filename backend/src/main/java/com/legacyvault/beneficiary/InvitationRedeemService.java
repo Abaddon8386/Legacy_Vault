@@ -8,8 +8,8 @@ import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.UserRepository;
 
-/** Authenticated PS-87 orchestration. The account-row lock is the cross-instance limiter mutex and
- * also establishes the PS-86 User -> Vault lock order. */
+/** Điều phối PS-87 cho tài khoản đã xác thực. Khóa dòng tài khoản là mutex của limiter giữa các instance
+ * và cũng thiết lập thứ tự khóa User -> Vault của PS-86. */
 @Service
 public class InvitationRedeemService {
     private final UserRepository users;
@@ -28,6 +28,13 @@ public class InvitationRedeemService {
         this.failures = failures;
     }
 
+    /**
+     * Đổi mã mời cho tài khoản đã xác thực.
+     * Xử lý: khóa dòng User (mutex cho limiter và đúng thứ tự User -> Vault) -> kiểm tra giới hạn thử -> redeemBoundAccount.
+     * Chỉ lỗi INVALID mới bị tính vào số lần thất bại.
+     * @param code mã mời thô do người dùng nhập
+     * @return kết quả liên kết
+     */
     @Transactional
     public InvitationDtos.Linked redeem(Long authenticatedAccountId, String code) {
         User account = users.findActiveAccountForUpdate(authenticatedAccountId)
@@ -40,6 +47,7 @@ public class InvitationRedeemService {
         }
         catch (BusinessException ex) {
             if (ex.getErrorCode() == ErrorCode.BENEFICIARY_INVITATION_INVALID) {
+                // Ghi nhận thất bại ở transaction riêng để không bị rollback cùng lỗi được ném ra.
                 failures.record(authenticatedAccountId, codeHash);
             }
             throw ex;

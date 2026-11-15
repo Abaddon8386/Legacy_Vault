@@ -45,6 +45,10 @@ public class SecurityConfig {
 			"/api/v1/system/db-check" // chỉ tồn tại khi chạy profile "dev"
 	};
 
+	/**
+	 * Chuỗi filter bảo mật: stateless, CORS, quy tắc phân quyền, xử lý 401/403 và gắn {@link JwtAuthenticationFilter}.
+	 * Thứ tự {@code requestMatchers} quan trọng vì quy tắc khớp đầu tiên được áp dụng; {@code anyRequest().authenticated()} là mặc định cuối.
+	 */
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, ApiAuthenticationEntryPoint entryPoint,
 			ApiAccessDeniedHandler accessDeniedHandler) throws Exception {
@@ -55,9 +59,11 @@ public class SecurityConfig {
 				.cors(cors -> { })
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
+						// Callback IPN của VNPay do máy chủ VNPay gọi, không mang JWT nên không yêu cầu đăng nhập ở tầng này.
 						.requestMatchers(HttpMethod.GET, "/api/v1/payments/vnpay/ipn").permitAll()
 						.requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
 						.requestMatchers(PUBLIC_PATHS).permitAll()
+						// Cho phép dispatch lỗi nội bộ để trả đúng JSON lỗi thay vì bị chặn thành 401/403.
 						.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
 						.requestMatchers("/api/v1/vaults/**").hasRole("VAULT_OWNER")
 						.requestMatchers("/api/v1/trustees/**").hasRole("VAULT_OWNER")
@@ -103,6 +109,9 @@ public class SecurityConfig {
 		return source;
 	}
 
+	/**
+	 * Bộ băm mật khẩu BCrypt dùng cho đăng ký, đăng nhập, đổi và đặt lại mật khẩu.
+	 */
 	@Bean
 	public PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();

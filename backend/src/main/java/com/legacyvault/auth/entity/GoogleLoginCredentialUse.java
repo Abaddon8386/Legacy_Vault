@@ -11,7 +11,8 @@ import org.springframework.data.domain.Persistable;
 
 import java.time.LocalDateTime;
 
-/** One-time use marker for a verified Google ID token; persists only its SHA-256 fingerprint. */
+/** Dấu đánh dấu dùng một lần cho Google ID token đã xác minh; chỉ lưu dấu vân tay SHA-256 của token. */
+// Khóa chính là hash của token nên INSERT trùng sẽ lỗi: đó chính là cơ chế chống dùng lại token. expires_at để dọn bản ghi hết hạn.
 @Entity
 @Table(name = "google_login_credential_uses", schema = "dbo")
 public class GoogleLoginCredentialUse implements Persistable<String> {

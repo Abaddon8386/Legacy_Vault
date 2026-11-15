@@ -21,6 +21,7 @@ import java.util.UUID;
 @Table(name = "legal_basis_version_allocations", schema = "dbo")
 public class LegalBasisVersionAllocation {
 
+    // Trạng thái dòng phân bổ: DRAFT, APPROVED, REJECTED; SUPERSEDED khi bị thay thế.
     public static final String STATUS_DRAFT = "DRAFT";
     public static final String STATUS_APPROVED = "APPROVED";
     public static final String STATUS_REJECTED = "REJECTED";

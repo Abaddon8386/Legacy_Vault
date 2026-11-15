@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/** Public, allow-listed account fields returned to authorized Admin users. */
+/** Các trường tài khoản công khai (theo danh sách cho phép) trả về cho Admin được ủy quyền. */
 public record AdminUserResponse(
         UUID publicId,
         String fullName,

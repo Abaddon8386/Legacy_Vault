@@ -21,7 +21,7 @@ import com.legacyvault.verification.service.StaffVaultCaseGuard;
 
 import jakarta.persistence.EntityManager;
 
-/** PS-106: Staff-confirmed address + existing PS-86 token lifecycle + encrypted transactional outbox. */
+/** PS-106: địa chỉ email do Staff xác nhận + vòng đời token PS-86 hiện có + outbox giao dịch được mã hóa. */
 @Service
 public class StaffInvitationEmailService {
     private final VerificationCaseRepository cases;
@@ -61,6 +61,13 @@ public class StaffInvitationEmailService {
         this.entities = entities;
     }
 
+    /**
+     * Staff yêu cầu gửi thư mời cho người thụ hưởng đã xác minh tại quầy.
+     * Xử lý: kiểm tra Staff/hồ sơ (khóa Vault -> Case) -> kiểm tra quy trình pháp lý ở bước HANDOVER -> người thụ hưởng đã xác minh,
+     * chưa có tài khoản, thuộc phạm vi bàn giao -> lấy email đã xác nhận -> xoay mã gắn email -> ghi outbox mã hóa -> audit.
+     * @param expectedGeneration generation Staff đang thấy (0 = chưa có); cũng là khóa idempotency của outbox
+     * @return thông tin xếp hàng; transportStatus luôn DISABLED
+     */
     @Transactional
     public InvitationEmailDtos.Queued request(UUID caseId, UUID beneficiaryId, int expectedGeneration) {
         User actor = staff.requireStaff();
@@ -84,6 +91,7 @@ public class StaffInvitationEmailService {
         if (beneficiary.hasAccount()) throw new BusinessException(ErrorCode.BENEFICIARY_ACCOUNT_ALREADY_LINKED);
 
         int currentVersion = versions.findMaxVersionNo(legal.dossier().getLegalBasisDossierId());
+        // Xác nhận người thụ hưởng nằm trong phạm vi bàn giao của phiên bản dossier pháp lý hiện tại.
         handoverScope.resolve(legal.dossier().getLegalBasisDossierId(), currentVersion, beneficiaryId);
 
         BeneficiaryCounterAttestation attestation = attestations
@@ -93,6 +101,7 @@ public class StaffInvitationEmailService {
             throw new BusinessException(ErrorCode.BENEFICIARY_INVITATION_COUNTER_EMAIL_REQUIRED);
         }
 
+        // Idempotent: request lặp với cùng generation trả lại outbox cũ, không phát hành thêm mã mới.
         var duplicate = outboxService.findByRequest(beneficiary.getId(), expectedGeneration);
         if (duplicate.isPresent()) return queued(duplicate.get());
 

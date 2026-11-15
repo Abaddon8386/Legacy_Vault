@@ -16,7 +16,7 @@ import java.util.UUID;
 /**
  * Quản lý Vault và các trạng thái xử lý nghiệp vụ.
  *
- * Package: com.legacyvault.vault.entity
+ * Gói: com.legacyvault.vault.entity
  */
 @Entity
 @Table(
@@ -67,9 +67,13 @@ public class Vault {
     public static final String STATUS_ACTIVE = "ACTIVE";
     public static final String STATUS_ARCHIVED = "ARCHIVED";
 
+    /**
+     * HANDOVER_IN_PROGRESS sang ARCHIVED sau khi bàn giao hoàn tất.
+     */
     public void archiveAfterHandover() {
         moveTo(STATUS_HANDOVER_IN_PROGRESS, STATUS_ARCHIVED);
     }
+    // Chuỗi trạng thái hậu sự: ACTIVE, AWAITING_VERIFICATION, DOCUMENT_VERIFICATION, WILL_VERIFICATION, (ON_HOLD hoặc AWAITING_LEGAL_BASIS), LEGAL_BASIS_VERIFICATION, UNLOCKED, HANDOVER_IN_PROGRESS, ARCHIVED.
     public static final String STATUS_AWAITING_VERIFICATION = "AWAITING_VERIFICATION";
     public static final String STATUS_DOCUMENT_VERIFICATION = "DOCUMENT_VERIFICATION";
     public static final String STATUS_WILL_VERIFICATION = "WILL_VERIFICATION";
@@ -79,7 +83,7 @@ public class Vault {
     public static final String STATUS_UNLOCKED = "UNLOCKED";
     public static final String STATUS_HANDOVER_IN_PROGRESS = "HANDOVER_IN_PROGRESS";
 
-    /** PS-59: only a protected Legal workflow may move a Vault to UNLOCKED. */
+    /** PS-59: chỉ workflow Legal được bảo vệ mới được chuyển Vault sang UNLOCKED. */
     public void unlockAfterLegalApproval() {
         if (!STATUS_LEGAL_BASIS_VERIFICATION.equals(status)) {
             throw new IllegalStateException("Vault is not in legal-basis verification");
@@ -88,7 +92,7 @@ public class Vault {
         updatedAt = Instant.now();
     }
 
-    /** PS-65 / ST-25: the first delivery at the counter moves UNLOCKED -> HANDOVER_IN_PROGRESS; later deliveries keep it. */
+    /** PS-65 / ST-25: lần giao đầu tiên tại quầy chuyển UNLOCKED -> HANDOVER_IN_PROGRESS; các lần giao sau giữ nguyên. */
     public void markHandoverInProgress() {
         if (STATUS_HANDOVER_IN_PROGRESS.equals(status)) {
             return;
@@ -100,11 +104,19 @@ public class Vault {
         updatedAt = Instant.now();
     }
 
+    /**
+     * Đưa Vault về ACTIVE (VaultService#cancelAlert dùng khi chủ Vault hủy cảnh báo). Không tự kiểm tra trạng thái hiện tại; nơi gọi chịu trách nhiệm về điều kiện.
+     */
     public void restoreActive() {
         this.status = STATUS_ACTIVE;
         this.updatedAt = Instant.now();
     }
 
+    /**
+     * AWAITING_VERIFICATION sang DOCUMENT_VERIFICATION khi bắt đầu xác minh giấy tờ tử vong.
+     *
+     * @throws IllegalStateException nếu Vault không ở AWAITING_VERIFICATION
+     */
     public void markDocumentVerification() {
         if (!STATUS_AWAITING_VERIFICATION.equals(this.status)) {
             throw new IllegalStateException(
@@ -135,7 +147,7 @@ public class Vault {
         moveTo(STATUS_ON_HOLD, STATUS_AWAITING_LEGAL_BASIS);
     }
 
-    /** Legal reopens review on new dispute/missing evidence; this never unlocks the Vault. */
+    /** Legal mở lại review khi có tranh chấp/thiếu chứng cứ mới; việc này không bao giờ mở khóa Vault. */
     public void holdLegalBasisReview() {
         if (!STATUS_AWAITING_LEGAL_BASIS.equals(status) && !STATUS_LEGAL_BASIS_VERIFICATION.equals(status))
             throw new IllegalStateException("Vault is not in the legal-basis workflow");
@@ -155,8 +167,8 @@ public class Vault {
     }
 
     /**
-     * States in which Staff may receive and forward the distribution document. All of them come after Legal decided
-     * the death document, so the death verification cannot be skipped; AWAITING_VERIFICATION is not included.
+     * Các trạng thái mà Staff có thể nhận và chuyển tiếp văn bản phân chia. Tất cả đều đứng sau khi Legal đã quyết định
+     * giấy tờ tử vong, nên không thể bỏ qua xác minh tử vong; AWAITING_VERIFICATION không nằm trong đó.
      */
     public boolean isLegalBasisIntakeState() {
         return STATUS_DOCUMENT_VERIFICATION.equals(status) || STATUS_WILL_VERIFICATION.equals(status)
@@ -175,6 +187,9 @@ public class Vault {
                 STATUS_AWAITING_LEGAL_BASIS);
     }
 
+    /**
+     * Chuyển trạng thái có kiểm tra: chỉ khi trạng thái hiện tại đúng {@code expectedFrom}, ngược lại ném IllegalStateException.
+     */
     private void moveTo(String expectedFrom, String to) {
         if (!expectedFrom.equals(this.status)) {
             throw new IllegalStateException(
@@ -185,10 +200,18 @@ public class Vault {
         this.updatedAt = Instant.now();
     }
 
+    /**
+     * Chỉ Vault ACTIVE mới được chuyển sang quy trình xác minh.
+     */
     public boolean canEnterVerification() {
         return STATUS_ACTIVE.equals(status);
     }
 
+    /**
+     * ACTIVE sang AWAITING_VERIFICATION (DMS gọi khi hết Grace Period, ST-09).
+     *
+     * @throws IllegalStateException nếu Vault không ở ACTIVE
+     */
     public void markAwaitingVerification() {
         if (!canEnterVerification()) {
             throw new IllegalStateException(

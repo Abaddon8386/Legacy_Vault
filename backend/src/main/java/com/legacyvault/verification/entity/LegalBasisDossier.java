@@ -19,20 +19,23 @@ import java.util.UUID;
  * Legal tạo khi phân loại nhánh; Staff bổ sung phiên bản văn bản.
  * Mỗi ca tối đa một hồ sơ theo ràng buộc unique tại DB.
  *
- * Package: com.legacyvault.verification.entity
+ * Gói: com.legacyvault.verification.entity
  */
 @Entity
 @Table(name = "legal_basis_dossiers", schema = "dbo")
 public class LegalBasisDossier {
 
+    // Nhánh xử lý: NOTARIAL (công chứng), COURT (Tòa án), ON_HOLD (tạm dừng, chưa nhận hồ sơ).
     public static final String ROUTE_NOTARIAL = "NOTARIAL";
     public static final String ROUTE_COURT = "COURT";
     public static final String ROUTE_ON_HOLD = "ON_HOLD";
 
+    // Trạng thái hồ sơ: DRAFT -> LEGAL_BASIS_PROVIDED (Staff đã nhập văn bản) -> LEGAL_BASIS_FORWARDED (đã chuyển Legal).
     public static final String STATUS_DRAFT = "DRAFT";
     public static final String STATUS_PROVIDED = "LEGAL_BASIS_PROVIDED";
     public static final String STATUS_FORWARDED = "LEGAL_BASIS_FORWARDED";
 
+    // Tình trạng tranh chấp: không có / có tranh chấp / chưa xác định.
     public static final String DISPUTE_NONE = "NONE";
     public static final String DISPUTE_DISPUTED = "DISPUTED";
     public static final String DISPUTE_UNDETERMINED = "UNDETERMINED";
@@ -60,9 +63,11 @@ public class LegalBasisDossier {
     @Column(name = "dispute_status", nullable = false, length = 20)
     private String disputeStatus;
 
+    // Số phiên bản văn bản tối thiểu phải có; được nâng lên khi Legal đặt ON_HOLD (xem placeOnHold).
     @Column(name = "required_version_no", nullable = false)
     private int requiredVersionNo = 1;
 
+    // Nhóm cột review_*/last_reviewed_*: snapshot lần rà soát gần nhất, dùng để so với dữ liệu hiện tại.
     @Column(name = "review_status", nullable = false, length = 30)
     private String reviewStatus = LegalBasisReviewStatus.REVIEW_REQUIRED.name();
 
@@ -171,19 +176,19 @@ public class LegalBasisDossier {
         this.classifiedByUserId = legalUserId;
     }
 
-    /** NOTARIAL and COURT dossiers take Staff intake and forward; ON_HOLD does not. */
+    /** Dossier NOTARIAL và COURT nhận intake của Staff và chuyển tiếp; ON_HOLD thì không. */
     public boolean acceptsIntake() {
         return ROUTE_COURT.equals(route) || ROUTE_NOTARIAL.equals(route);
     }
 
-    /** Routes Legal may review, approve and unlock. */
+    /** Các nhánh mà Legal có thể review, duyệt và mở khóa. */
     public boolean isLegalReviewable() {
         return acceptsIntake();
     }
 
     /**
-     * Dossier opened by Staff intake when Legal has not classified yet: the route follows the document actually
-     * submitted. Nobody is recorded as the classifier; Legal still reviews validity and may place it on hold.
+     * Dossier do Staff intake mở khi Legal chưa phân loại: nhánh theo giấy tờ thực sự được
+     * nộp. Không ghi nhận ai là người phân loại; Legal vẫn review tính hợp lệ và có thể đặt ON_HOLD.
      */
     public static LegalBasisDossier openedByIntake(Long verificationCaseId, String route, String disputeStatus,
             Long staffUserId) {
@@ -193,7 +198,7 @@ public class LegalBasisDossier {
         return dossier;
     }
 
-    /** A hold invalidates earlier clearance while preserving all versions and assessment history. */
+    /** Hold làm mất hiệu lực xác nhận trước đó nhưng giữ nguyên mọi phiên bản và lịch sử đánh giá. */
     public void placeOnHold(String reason, String dispute, Long legalUserId, int requiredVersion) {
         if (!acceptsIntake() || requiredVersion < 1) throw new IllegalStateException("Invalid hold transition");
         route = ROUTE_ON_HOLD;
@@ -275,11 +280,18 @@ public class LegalBasisDossier {
         return lastReviewedAllocationHash;
     }
 
+    /**
+     * Đánh dấu hồ sơ cần rà soát lại (REVIEW_REQUIRED) kèm mã lý do; không xóa snapshot cũ.
+     */
     public void requireReview(String reasonCode) {
         this.reviewStatus = LegalBasisReviewStatus.REVIEW_REQUIRED.name();
         this.reviewRequiredReason = reasonCode;
     }
 
+    /**
+     * Ghi snapshot rà soát và đặt trạng thái FRESH. Yêu cầu đủ version, sha256, dispute, allocationHash và reviewer;
+     * thiếu một trường sẽ ném IllegalArgumentException.
+     */
     public void recordReviewSnapshot(
             int versionNo,
             String sha256Hash,

@@ -16,10 +16,16 @@ import java.util.UUID;
  */
 public interface DeathDocumentRecordRepository extends JpaRepository<DeathDocumentRecord, Long> {
 
+    /**
+     * Danh sách giấy tờ chứng tử của một ca, mới nhận nhất trước.
+     */
     List<DeathDocumentRecord> findByVerificationCaseIdOrderByReceivedAtDescDeathDocumentRecordIdDesc(
             Long verificationCaseId
     );
 
+    /**
+     * Tìm giấy tờ theo public UUID và bắt buộc thuộc đúng ca (tránh truy cập chéo ca).
+     */
     Optional<DeathDocumentRecord> findByPublicIdAndVerificationCaseId(UUID publicId, Long verificationCaseId);
 
     /** Dùng cho luồng Legal quyết định (ST-12): khóa bản ghi để hai quyết định không chạy song song. */
@@ -31,5 +37,8 @@ public interface DeathDocumentRecordRepository extends JpaRepository<DeathDocume
         """)
     Optional<DeathDocumentRecord> findByPublicIdForUpdate(@Param("publicId") UUID publicId);
 
+    /**
+     * Tìm theo public UUID, không khóa; dùng cho luồng đọc.
+     */
     Optional<DeathDocumentRecord> findByPublicId(UUID publicId);
 }

@@ -23,12 +23,12 @@ import com.legacyvault.verification.service.StaffVaultCaseGuard;
 import jakarta.persistence.EntityManager;
 
 /**
- * BE-01 (Staff side): confirm or reject a recipient's link request at the counter.
- * The account to link is always the stored requester of the request; the body only names the recipient.
- * Lock order matches the other linkers: account -> Vault -> case -> request -> recipient. Approval, link, role,
- * invitation revocation and audit run in one transaction, so any failure leaves nothing half-applied.
- * Two requests racing for one recipient: the second approval sees the recipient already linked
- * (BENEFICIARY_ACCOUNT_ALREADY_LINKED) and its request stays PENDING for Staff to reject.
+ * BE-01 (phía Staff): xác nhận hoặc từ chối yêu cầu liên kết của người thụ hưởng tại quầy.
+ * Tài khoản cần liên kết luôn là người gửi đã lưu của yêu cầu; body chỉ chỉ định người thụ hưởng.
+ * Thứ tự khóa giống các luồng liên kết khác: tài khoản -> Vault -> case -> yêu cầu -> người thụ hưởng. Duyệt, liên kết, role,
+ * thu hồi lời mời và audit chạy trong một transaction, nên lỗi nào cũng không để lại trạng thái dở dang.
+ * Hai yêu cầu đua nhau cho một người thụ hưởng: lần duyệt thứ hai thấy người thụ hưởng đã liên kết
+ * (BENEFICIARY_ACCOUNT_ALREADY_LINKED) và yêu cầu của nó vẫn PENDING để Staff từ chối.
  */
 @Service
 public class StaffLinkRequestService {
@@ -57,6 +57,7 @@ public class StaffLinkRequestService {
 		this.entities = entities;
 	}
 
+	/** Liệt kê yêu cầu PENDING còn hạn của hồ sơ Staff phụ trách, cũ nhất trước (kèm tên/email người gửi để đối chiếu tại quầy). */
 	@Transactional(readOnly = true)
 	public List<BeneficiaryLinkRequestDtos.StaffRequest> listPending(UUID caseId) {
 		User actor = staff.requireStaff();
@@ -72,6 +73,11 @@ public class StaffLinkRequestService {
 				}).toList();
 	}
 
+	/**
+	 * Duyệt yêu cầu: liên kết tài khoản người gửi với người thụ hưởng Staff chọn.
+	 * Xử lý: khóa tài khoản -> kiểm tra vault/hồ sơ -> khóa yêu cầu và đọc lại -> kiểm tra người thụ hưởng đã xác minh tại quầy,
+	 * chưa liên kết và tài khoản đủ điều kiện -> attach (role, thu hồi mã mời) -> đánh dấu APPROVED -> audit; tất cả trong một transaction.
+	 */
 	@Transactional
 	public BeneficiaryLinkRequestDtos.Decision approve(UUID caseId, UUID requestId, UUID beneficiaryId) {
 		User actor = staff.requireStaff();
@@ -80,7 +86,7 @@ public class StaffLinkRequestService {
 				.filter(r -> r.getVerificationCaseId().equals(target.getVerificationCaseId()))
 				.orElseThrow(StaffLinkRequestService::notFound);
 
-		// The target account comes from the stored request, never from the caller.
+		// Tài khoản đích lấy từ yêu cầu đã lưu, không bao giờ từ caller.
 		User account = users.findActiveAccountForUpdate(preview.getRequesterUserId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.BENEFICIARY_ACCOUNT_INELIGIBLE));
 		entities.refresh(account);
@@ -107,6 +113,7 @@ public class StaffLinkRequestService {
 				beneficiary.getPublicId(), account.getPublicId());
 	}
 
+	/** Từ chối yêu cầu đang PENDING của hồ sơ Staff phụ trách; không liên kết gì. */
 	@Transactional
 	public BeneficiaryLinkRequestDtos.Decision reject(UUID caseId, UUID requestId) {
 		User actor = staff.requireStaff();
@@ -124,7 +131,7 @@ public class StaffLinkRequestService {
 		return new BeneficiaryLinkRequestDtos.Decision(request.getPublicId(), request.getStatus(), null, null);
 	}
 
-	/** Re-read the request under its row lock: a cancel, expiry or another Staff decision may have won the race. */
+	/** Đọc lại yêu cầu dưới khóa dòng của nó: hủy, hết hạn hoặc quyết định của Staff khác có thể đã thắng cuộc đua. */
 	private BeneficiaryLinkRequest lockPending(UUID requestId, VerificationCase target) {
 		BeneficiaryLinkRequest request = requests.findByPublicIdForUpdate(requestId)
 				.filter(r -> r.getVerificationCaseId().equals(target.getVerificationCaseId()))

@@ -16,9 +16,9 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Verifies that the latest Legal approval still covers the authoritative dossier snapshot.
- * Invalidation is derived from immutable version/scope records and the already audited dossier changes;
- * this read-only gate avoids writing duplicate invalidation events for repeated transition attempts.
+ * Xác minh phê duyệt Legal mới nhất vẫn phủ đúng snapshot dossier có thẩm quyền.
+ * Việc mất hiệu lực được suy ra từ bản ghi version/scope bất biến và các thay đổi dossier đã audit;
+ * cổng chỉ đọc này tránh ghi sự kiện mất hiệu lực trùng lặp cho các lần thử chuyển trạng thái lặp lại.
  */
 @Component
 public class LegalApprovalGuard {
@@ -35,13 +35,24 @@ public class LegalApprovalGuard {
         this.allocations = allocations;
     }
 
+    /**
+     * Cổng ghi: ném BusinessException nếu phê duyệt Legal mới nhất không còn phủ đúng snapshot hiện tại. Bắt buộc chạy trong transaction có sẵn.
+     * @throws BusinessException LEGAL_DECISION_STALE hoặc LEGAL_APPROVAL_REQUIRED
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public void requireCurrentApproval(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion) {
         ErrorCode blocker = currentApprovalBlocker(dossier, currentVersion);
         if (blocker != null) throw new BusinessException(blocker);
     }
 
-    /** Same rules as the write guard, without throwing through a transactional proxy during GET. */
+    /**
+     * Cùng quy tắc với cổng ghi, nhưng không ném exception qua transactional proxy trong GET.
+     *
+     * Xác định lý do chặn của phê duyệt hiện hành, null nếu hợp lệ.
+     * Thứ tự: (1) review snapshot phải còn FRESH và khớp phiên bản/hash/tranh chấp/phân bổ -> nếu không là LEGAL_DECISION_STALE;
+     * (2) chưa có quyết định hoặc quyết định mới nhất là REJECTED -> LEGAL_APPROVAL_REQUIRED;
+     * (3) quyết định APPROVE phải khớp đúng version id, sha256, dispute status và allocation hash hiện tại -> nếu lệch là LEGAL_DECISION_STALE.
+     */
     public ErrorCode currentApprovalBlocker(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion) {
         String currentAllocationHash = allocationHash(dossier.getLegalBasisDossierId(), currentVersion.version());
         if (!reviewMatches(dossier, currentVersion, currentAllocationHash)) {
@@ -66,11 +77,18 @@ public class LegalApprovalGuard {
         return null;
     }
 
+    /**
+     * Chỉ kiểm tra snapshot review còn khớp (chưa xét quyết định phê duyệt); null nếu khớp, LEGAL_DECISION_STALE nếu lệch.
+     */
     public ErrorCode reviewBlocker(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion) {
         String hash = allocationHash(dossier.getLegalBasisDossierId(), currentVersion.version());
         return reviewMatches(dossier, currentVersion, hash) ? null : ErrorCode.LEGAL_DECISION_STALE;
     }
 
+    /**
+     * Review còn hiệu lực khi hồ sơ đủ điều kiện xem xét, phiên bản hiện tại đạt requiredVersionNo, reviewStatus là FRESH
+     * và toàn bộ snapshot đã review (version, sha256, dispute status, allocation hash) trùng với dữ liệu hiện tại.
+     */
     private static boolean reviewMatches(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion, String hash) {
         return dossier.isLegalReviewable()
             && currentVersion.version() >= dossier.getRequiredVersionNo()
@@ -81,6 +99,9 @@ public class LegalApprovalGuard {
             && sameHash(dossier.getLastReviewedAllocationHash(), hash);
     }
 
+    /**
+     * Tính allocation hash của phân bổ hiện hành đúng phiên bản, cùng công thức với lúc Legal duyệt (AllocationScopeHash).
+     */
     private String allocationHash(Long dossierId, int versionNo) {
         List<AllocationRow> rows = allocations.findRowsByDossier(dossierId).stream()
                 .filter(row -> row.versionNo() == versionNo)
@@ -88,6 +109,9 @@ public class LegalApprovalGuard {
         return AllocationScopeHash.hashApprovalRows(rows);
     }
 
+    /**
+     * So sánh hash không phân biệt hoa thường; null được coi là không khớp.
+     */
     private static boolean sameHash(String first, String second) {
         return first != null && second != null && first.equalsIgnoreCase(second);
     }

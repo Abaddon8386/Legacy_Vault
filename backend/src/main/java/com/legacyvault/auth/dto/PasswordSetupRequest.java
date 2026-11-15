@@ -4,8 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * First-time password for an account that so far only signs in with Google. A fresh Google ID token is required so
- * that a bare session cannot set the password: the token's subject must be linked to the signed-in account.
+ * Mật khẩu lần đầu cho tài khoản từ trước đến nay chỉ đăng nhập bằng Google. Bắt buộc có Google ID token mới để
+ * một phiên đăng nhập trơn không thể tự đặt mật khẩu: subject của token phải được liên kết với tài khoản đang đăng nhập.
  */
 public record PasswordSetupRequest(
         @NotBlank(message = "{auth.register.password.required}")

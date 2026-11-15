@@ -11,6 +11,9 @@ import java.util.List;
 public interface UserRoleRepository extends JpaRepository<UserRole, UserRole.UserRoleId> {
     List<UserRole> findByUser_UserId(Long userId);
 
+    /**
+     * Lấy các liên kết role của một user, JOIN FETCH role để tránh N+1 và lỗi lazy; dùng khi nạp authority ở mỗi request.
+     */
     @Query("""
     SELECT ur
     FROM UserRole ur

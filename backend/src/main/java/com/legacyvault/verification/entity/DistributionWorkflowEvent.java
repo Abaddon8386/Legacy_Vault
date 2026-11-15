@@ -13,13 +13,14 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 /**
- * One append-only step of the distribution workflow (document request, document assessment, allocation review).
- * The current phase is derived from the events of a case; an event never moves a vault by itself.
+ * Một bước chỉ-thêm-mới của quy trình phân phối (yêu cầu tài liệu, đánh giá tài liệu, duyệt phân bổ).
+ * Phase hiện tại được suy ra từ các sự kiện của ca; một sự kiện không tự chuyển trạng thái Vault.
  */
 @Entity
 @Table(name = "distribution_workflow_events", schema = "dbo")
 public class DistributionWorkflowEvent {
 
+    // Các loại action của workflow: yêu cầu/duyệt/yêu cầu bổ sung giấy tờ; nộp/duyệt/yêu cầu chỉnh sửa phân bổ.
     public static final String REQUEST_DOCUMENTS = "REQUEST_DOCUMENTS";
     public static final String APPROVE_DOCUMENTS = "APPROVE_DOCUMENTS";
     public static final String REQUEST_DOCUMENT_SUPPLEMENTATION = "REQUEST_DOCUMENT_SUPPLEMENTATION";
@@ -82,6 +83,7 @@ public class DistributionWorkflowEvent {
         this.allocationSha256 = allocationSha256;
     }
 
+    // Thời gian tạo luôn theo UTC.
     @PrePersist
     void onCreate() {
         createdAt = LocalDateTime.now(ZoneOffset.UTC);

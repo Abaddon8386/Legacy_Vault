@@ -22,6 +22,7 @@ public class ApiAccessDeniedHandler implements AccessDeniedHandler {
 		this.writer = writer;
 	}
 
+	// Spring Security gọi khi người dùng đã xác thực nhưng không đủ role; trả 403 ACCESS_DENIED.
 	@Override
 	public void handle(HttpServletRequest request, HttpServletResponse response,
 			AccessDeniedException accessDeniedException) throws IOException {

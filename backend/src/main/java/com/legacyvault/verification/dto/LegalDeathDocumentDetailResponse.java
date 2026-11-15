@@ -5,6 +5,9 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Chi tiết giấy chứng tử cho Legal: metadata của tài liệu và lịch sử các quyết định.
+ */
 public record LegalDeathDocumentDetailResponse(
         UUID deathDocumentPublicId,
         UUID verificationCasePublicId,

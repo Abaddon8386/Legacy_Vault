@@ -3,6 +3,9 @@ package com.legacyvault.verification.dto;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Phản hồi quyết định phê duyệt của Legal, kèm biên nhận thông báo (nếu có) qua withNotification.
+ */
 public record LegalApprovalResponse(UUID dossierId,
         String decision,
         Integer versionNo,

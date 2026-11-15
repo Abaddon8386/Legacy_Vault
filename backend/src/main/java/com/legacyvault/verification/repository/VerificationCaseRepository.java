@@ -16,6 +16,9 @@ import java.util.UUID;
 
 public interface VerificationCaseRepository extends JpaRepository<VerificationCase, Long> {
 
+    /**
+     * Khóa ghi bi quan các ca của Vault (mới nhất trước); dùng để tuần tự hóa các thao tác trên ca theo Vault.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
         select c from VerificationCase c
@@ -24,8 +27,12 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
         """)
     List<VerificationCase> findByVaultIdForUpdate(@Param("vaultId") Long vaultId);
 
+    /**
+     * Vault có ca ở trạng thái này không.
+     */
     boolean existsByVaultIdAndStatus(Long vaultId, String status);
 
+    // Hàng đợi của Staff: ca đã giao cho mình, hoặc ca OPEN chưa có người nhận (để có thể claim). Tham số status null nghĩa là không lọc.
     @Query("""
     select c from VerificationCase c
     where (
@@ -41,11 +48,12 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
     );
 
     /**
-     * PS-88: same visibility scope as {@link #findQueueByStaff}, narrowed by a search term (Vault, owner or
-     * Beneficiary name, case reference, public UUID).
-     * LIKE uses '!' as escape so user input never acts as a wildcard; unused sentinel
-     * arguments (caseId -1, year -1, zero UUID) never match a real row.
+     * PS-88: cùng phạm vi hiển thị với {@link #findQueueByStaff}, thu hẹp bằng từ khóa tìm kiếm (Vault, tên chủ hoặc
+     * người thụ hưởng, mã hồ sơ, UUID công khai).
+     * LIKE dùng '!' làm ký tự escape để đầu vào người dùng không bao giờ thành wildcard; các tham số
+     * sentinel không dùng (caseId -1, year -1, UUID toàn 0) không bao giờ khớp dòng thật.
      */
+    // Tìm kiếm trong cùng phạm vi hiển thị ở trên: khớp public UUID của ca/Vault, mã ca (id + năm tạo), tên Vault, tên chủ Vault hoặc tên người thụ hưởng.
     @Query("""
     select c from VerificationCase c
     where (
@@ -74,11 +82,15 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
             Pageable pageable
     );
 
+    /**
+     * Ca theo public UUID và đúng Staff được giao (dùng cho thao tác của Staff).
+     */
     Optional<VerificationCase> findByPublicIdAndAssignedStaffUserId(
             UUID publicId,
             Long assignedStaffUserId
     );
 
+    // Ca Staff được xem: đã giao cho mình hoặc đang OPEN chưa có người nhận.
     @Query("""
     select c from VerificationCase c
     where c.publicId = :publicId
@@ -92,6 +104,10 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
             @Param("staffUserId") Long staffUserId
     );
 
+    /**
+     * Nhận ca bằng một UPDATE có điều kiện (chưa giao, trạng thái OPEN): nếu hai Staff cùng nhận, chỉ một người cập nhật được 1 dòng.
+     * @return số dòng cập nhật (1 = thành công, 0 = đã có người nhận hoặc ca không còn OPEN)
+     */
     @Modifying
     @Query("""
     update VerificationCase c
@@ -106,6 +122,9 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
             @Param("staffUserId") Long staffUserId
     );
 
+    /**
+     * Khóa ghi bi quan ca theo khóa nội bộ; trong luồng chuẩn phải gọi sau khi đã khóa Vault.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
     select c from VerificationCase c
@@ -115,6 +134,9 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
             @Param("caseId") Long caseId
     );
 
+    /**
+     * Ca theo public UUID, không khóa và không ràng buộc Staff.
+     */
     Optional<VerificationCase> findByPublicId(UUID publicId);
 
 }

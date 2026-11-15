@@ -28,12 +28,14 @@ public class TraceIdFilter extends OncePerRequestFilter {
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
+		// Luôn sinh traceId mới ở server, không dùng giá trị client gửi (tránh giả mạo/chèn log).
 		String traceId = UUID.randomUUID().toString();
 		MDC.put(MDC_KEY, traceId);
 		response.setHeader(HEADER, traceId);
 		try {
 			chain.doFilter(request, response);
 		}
+		// Xóa MDC để traceId không rò sang request khác trên cùng thread của pool.
 		finally {
 			MDC.remove(MDC_KEY);
 		}

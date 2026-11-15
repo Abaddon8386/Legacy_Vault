@@ -14,9 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Email-ownership verification. The account is always taken from the authenticated principal (request)
- * or from the credential itself (confirm); a client never names the account or supplies a verified flag.
- * Lock order everywhere: User -> Credential. A job is only ever locked by claim/prepare, before the User.
+ * Xác minh quyền sở hữu email. Tài khoản luôn lấy từ principal đã xác thực (request)
+ * hoặc từ chính credential (confirm); client không bao giờ chỉ định tài khoản hay gửi cờ đã xác minh.
+ * Thứ tự khóa ở mọi nơi: User -> Credential. Job chỉ bị khóa bởi claim/prepare, trước User.
  */
 @Service
 public class EmailVerificationService {
@@ -33,6 +33,7 @@ public class EmailVerificationService {
         this.jdbc=jdbc; this.users=users; this.entities=entities; this.secrets=secrets; this.config=config; this.audit=audit;
     }
 
+    /** Trạng thái xác minh: đã xác minh chưa, có thể yêu cầu gửi không (chưa xác minh + đủ điều kiện + đã bật gửi mail) và trạng thái job gần nhất. */
     @Transactional(readOnly=true)
     public Status status(Long userId) {
         User user=users.findById(userId).orElseThrow(()->new BusinessException(ErrorCode.UNAUTHENTICATED));
@@ -43,7 +44,7 @@ public class EmailVerificationService {
                 last.isEmpty()?null:last.getFirst().state(),last.isEmpty()?null:last.getFirst().at());
     }
 
-    /** Queues a delivery job for the caller's current email. First request and resend are the same operation. */
+    /** Đưa vào hàng đợi một job gửi cho email hiện tại của caller. Yêu cầu lần đầu và gửi lại là cùng một thao tác. */
     @Transactional
     public Outcome enqueue(Long userId,String locale) {
         User user=users.findActiveAccountForUpdate(userId).orElseThrow(()->new BusinessException(ErrorCode.UNAUTHENTICATED));
@@ -55,6 +56,10 @@ public class EmailVerificationService {
         return Outcome.QUEUED;
     }
 
+    /**
+     * Nhận một job QUEUED chuyển sang CLAIMED. UPDLOCK + READPAST cho phép nhiều worker chạy song song mà không lấy trùng job.
+     * @return job_id hoặc null nếu không có job
+     */
     @Transactional
     public Long claim() {
         var ids=jdbc.query("""
@@ -66,10 +71,10 @@ public class EmailVerificationService {
     }
 
     /**
-     * Mints the credential for a claimed job exactly once; the raw value exists only in the returned Delivery.
-     * Lock order is User -> Job -> Credential, the same as an email change: the job is read without taking a lock,
-     * the User is locked, and only then is the job moved on with a status-conditional update. A job that an email
-     * change skipped (or another worker prepared) while this call waited for the User lock updates zero rows.
+     * Tạo credential cho job đã claim đúng một lần; giá trị thô chỉ tồn tại trong Delivery trả về.
+     * Thứ tự khóa là User -> Job -> Credential, giống thao tác đổi email: job được đọc không khóa,
+     * User bị khóa, rồi mới chuyển job bằng update có điều kiện theo status. Job mà đổi email
+     * đã bỏ qua (hoặc worker khác đã prepare) trong lúc lời gọi chờ khóa User sẽ update 0 dòng.
      */
     @Transactional
     public Delivery prepare(Long jobId) {
@@ -77,20 +82,20 @@ public class EmailVerificationService {
                 (rs,n)->new Job(rs.getLong(1),rs.getString(2),rs.getString(3),rs.getObject(4,LocalDateTime.class)),jobId);
         if(jobs.isEmpty()) return null;
         Job job=jobs.getFirst();
-        // These two exits hold only the job row and take no further lock afterwards.
+        // Hai lối thoát này chỉ giữ dòng job và không lấy thêm khóa nào sau đó.
         if(!config.ready()) { mark(jobId,"SKIPPED"); return null; }
-        // A job older than one credential lifetime is stale: the worker may have been off for a long time.
+        // Job cũ hơn một vòng đời credential là job cũ: worker có thể đã tắt rất lâu.
         if(job.requestedAt().isBefore(now().minusMinutes(config.ttlMinutes()))) { mark(jobId,"SKIPPED"); return null; }
         User user=users.findActiveAccountForUpdate(job.userId()).orElse(null);
         if(user==null) { mark(jobId,"SKIPPED"); return null; }
         entities.refresh(user);
-        // Still CLAIMED? Anyone who changed it did so under the User lock we now hold, so this check is race-free.
+        // Vẫn CLAIMED? Ai đã đổi nó đều làm dưới khóa User mà ta đang giữ, nên kiểm tra này không có race.
         if(jdbc.update("UPDATE dbo.email_verification_jobs SET status='PREPARED' WHERE job_id=? AND status='CLAIMED'",jobId)!=1) return null;
         if(user.getEmailVerifiedAt()!=null || !eligible(user) || !job.fingerprint().equals(fingerprint(user))) {
             mark(jobId,"SKIPPED"); return null;
         }
         LocalDateTime now=now();
-        // Resend supersedes: only the newest generation can ever be consumed.
+        // Gửi lại sẽ thay thế: chỉ thế hệ mới nhất mới có thể được tiêu thụ.
         jdbc.update("UPDATE dbo.email_verification_credentials SET revoked_at=? WHERE user_id=? AND consumed_at IS NULL AND revoked_at IS NULL",now,user.getUserId());
         Integer generation=jdbc.queryForObject("SELECT ISNULL(MAX(generation),0)+1 FROM dbo.email_verification_credentials WHERE user_id=?",Integer.class,user.getUserId());
         String raw=secrets.generate();
@@ -100,6 +105,7 @@ public class EmailVerificationService {
         return new Delivery(jobId,user.getEmail(),job.locale(),raw);
     }
 
+    /** Chuyển job sang trạng thái kết thúc (ACCEPTED/FAILED/SKIPPED); chỉ áp dụng khi job còn CLAIMED hoặc PREPARED. */
     @Transactional
     public void mark(Long jobId,String status) {
         if(!java.util.Set.of("ACCEPTED","FAILED","SKIPPED").contains(status))
@@ -107,7 +113,9 @@ public class EmailVerificationService {
         jdbc.update("UPDATE dbo.email_verification_jobs SET status=? WHERE job_id=? AND status IN ('CLAIMED','PREPARED')",status,jobId);
     }
 
-    /** Consumes the credential and records email_verified_at in one transaction; any failure rolls both back. */
+    /** Tiêu thụ credential và ghi email_verified_at trong một transaction; mọi lỗi rollback cả hai. */
+    // Mọi lỗi (sai định dạng, không tồn tại, hết hạn, đã dùng, bị thay thế, sai email...) đều trả cùng EMAIL_VERIFICATION_INVALID để không lộ thông tin.
+    // UPDATE có điều kiện đảm bảo credential chỉ dùng được một lần và phải là thế hệ (generation) mới nhất.
     @Transactional
     public void verify(String credential) {
         if(!secrets.valid(credential)) throw invalid();
@@ -115,7 +123,7 @@ public class EmailVerificationService {
         var ids=jdbc.query("SELECT user_id FROM dbo.email_verification_credentials WHERE credential_hash=?",(r,n)->r.getLong(1),hash);
         if(ids.isEmpty()) throw invalid();
         User user=users.findActiveAccountForUpdate(ids.getFirst()).orElseThrow(this::invalid);
-        entities.refresh(user); // The lookup may have populated JPA before the User lock was granted.
+        entities.refresh(user); // Lần tra cứu có thể đã nạp JPA trước khi khóa User được cấp.
         if(!eligible(user) || user.getEmailVerifiedAt()!=null) throw invalid();
         LocalDateTime at=now();
         int changed=jdbc.update("""
@@ -132,9 +140,9 @@ public class EmailVerificationService {
     }
 
     /**
-     * Called by AuthService inside the email-change transaction: open credentials die with the old address and
-     * queued jobs for it are dropped. Nothing new is sent; the user must ask again. The caller already holds the
-     * User lock; jobs then credentials is the same order prepare and cleanup use.
+     * Được AuthService gọi trong transaction đổi email: credential đang mở chết cùng địa chỉ cũ và
+     * job đang chờ cho địa chỉ đó bị bỏ. Không gửi gì mới; người dùng phải yêu cầu lại. Caller đã giữ
+     * khóa User; job rồi đến credential là thứ tự mà prepare và cleanup cũng dùng.
      */
     @Transactional
     public void revokeForEmailChange(Long userId) {
@@ -142,6 +150,7 @@ public class EmailVerificationService {
         jdbc.update("UPDATE dbo.email_verification_credentials SET revoked_at=SYSUTCDATETIME() WHERE user_id=? AND consumed_at IS NULL AND revoked_at IS NULL",userId);
     }
 
+    /** Xóa job cũ hơn 1 ngày và credential đã hết hạn quá 7 ngày. */
     @Transactional
     public void cleanup() {
         LocalDateTime now=now();
@@ -149,7 +158,7 @@ public class EmailVerificationService {
         jdbc.update("DELETE dbo.email_verification_credentials WHERE expires_at<?",now.minusDays(7));
     }
 
-    // Only a password-registered account may prove its mailbox here; Google-only accounts are not touched (PS-85).
+    // Chỉ tài khoản đăng ký bằng mật khẩu mới chứng minh được hộp thư ở đây; tài khoản chỉ dùng Google không bị đụng tới (PS-85).
     private boolean eligible(User u) { return "ACTIVE".equals(u.getStatus()) && u.getDeletedAt()==null && u.isPasswordLoginEnabled(); }
     private String fingerprint(User user) { return secrets.emailFingerprint(EmailNormalizer.normalize(user.getEmail())); }
     private BusinessException invalid() { return new BusinessException(ErrorCode.EMAIL_VERIFICATION_INVALID); }

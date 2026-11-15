@@ -5,8 +5,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * Verification message over the existing Resend call (provider key, sender and approved-recipient allowlist are
- * shared with recovery). Returning normally means provider acceptance only. Never log recipient, link or body.
+ * Thư xác minh gửi qua lời gọi Resend hiện có (khóa nhà cung cấp, người gửi và allowlist người nhận được duyệt
+ * dùng chung với khôi phục mật khẩu). Trả về bình thường chỉ có nghĩa nhà cung cấp đã nhận. Không ghi log người nhận, link hay nội dung.
  */
 @Component
 @ConditionalOnProperty(name="legacyvault.auth.email-verification.delivery-enabled",havingValue="true")

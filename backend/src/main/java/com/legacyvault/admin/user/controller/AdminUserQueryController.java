@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-/** ROLE_ADMIN-only read API for account search and detail. */
+/** API đọc chỉ dành cho ROLE_ADMIN: tìm kiếm tài khoản và xem chi tiết. */
 @RestController
 @RequestMapping("/api/v1/admin/users")
 @PreAuthorize("hasRole('ADMIN')")
@@ -27,6 +27,17 @@ public class AdminUserQueryController {
         this.service = service;
     }
 
+    /**
+     * Tìm kiếm và phân trang danh sách tài khoản cho Admin.
+     *
+     * @param query       chuỗi tìm theo tên/email; nếu là UUID đầy đủ thì khớp thêm theo public ID
+     * @param role        lọc theo role (ví dụ ROLE_VAULT_OWNER)
+     * @param status      lọc theo trạng thái tài khoản (PENDING, ACTIVE, LOCKED, IN_PROCESS, DELETED)
+     * @param vaultStatus lọc theo nhóm trạng thái Vault; chỉ hợp lệ khi đồng thời lọc role Vault Owner
+     * @param page        số trang (từ 0)
+     * @param size        số phần tử mỗi trang (1 đến 100)
+     * @return một trang tài khoản
+     */
     @GetMapping
     public PageResponse<AdminUserResponse> listUsers(
             @RequestParam(required = false) @Size(max = 100) String query,
@@ -38,6 +49,13 @@ public class AdminUserQueryController {
         return service.listUsers(query, role, status, vaultStatus, page, size);
     }
 
+    /**
+     * Xem chi tiết một tài khoản theo public ID.
+     *
+     * @param publicId public ID của tài khoản
+     * @param role     (tùy chọn) nếu là role nghiệp vụ thì chỉ chấp nhận tài khoản ACTIVE/LOCKED chưa bị xóa
+     * @return thông tin tài khoản; 404 nếu không tồn tại hoặc không khớp bộ lọc role
+     */
     @GetMapping("/{publicId}")
     public AdminUserResponse getUser(@PathVariable UUID publicId,
             @RequestParam(required = false) @Size(max = 50) String role) {

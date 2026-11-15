@@ -13,6 +13,8 @@ import java.util.Optional;
 /** Phiên bản chỉ thêm mới; các truy vấn đọc trả {@link BasisVersionRow} để không nạp nội dung file. */
 public interface LegalBasisDossierVersionRepository extends JpaRepository<LegalBasisDossierVersion, Long> {
 
+    // Đọc metadata chứng cứ của một phiên bản dưới dạng projection CourtEvidenceVersion; hasFile được tính trong JPQL
+    // (có nội dung mã hóa và kích thước > 0) để không phải nạp nội dung file đã mã hóa vào bộ nhớ.
     @Query("""
         select new com.legacyvault.verification.repository.CourtEvidenceVersion(
             v.dossierVersionId, v.versionNo, v.sha256Hash, v.legalBasisType, v.issuingAuthority,
@@ -25,6 +27,7 @@ public interface LegalBasisDossierVersionRepository extends JpaRepository<LegalB
     java.util.Optional<CourtEvidenceVersion> findCourtEvidence(@Param("dossierId") Long dossierId,
             @Param("versionNo") int versionNo);
 
+    // Số phiên bản lớn nhất của hồ sơ; 0 khi chưa có phiên bản nào (coalesce).
     @Query("select coalesce(max(v.versionNo), 0) from LegalBasisDossierVersion v where v.legalBasisDossierId = :dossierId")
     int findMaxVersionNo(@Param("dossierId") Long dossierId);
 
@@ -37,6 +40,7 @@ public interface LegalBasisDossierVersionRepository extends JpaRepository<LegalB
      * Đánh dấu một phiên bản đã chuyển Legal bằng một câu UPDATE có điều kiện (chỉ khi chưa chuyển): an toàn khi hai Staff
      * cùng chuyển và không nạp nội dung file. Trả 1 nếu thành công.
      */
+    // UPDATE có điều kiện forwardStatus = 'NOT_FORWARDED' đóng vai trò tương tranh lạc quan: chỉ một lần chuyển thành công (trả 1), lần chạy trùng trả 0.
     @Modifying
     @Query("""
         update LegalBasisDossierVersion v
@@ -46,6 +50,7 @@ public interface LegalBasisDossierVersionRepository extends JpaRepository<LegalB
     int markForwarded(@Param("dossierId") Long dossierId, @Param("versionNo") int versionNo,
             @Param("staffUserId") Long staffUserId, @Param("at") LocalDateTime at);
 
+    // Danh sách phiên bản của hồ sơ (mới nhất trước) dạng projection BasisVersionRow, không kèm nội dung file.
     @Query("""
         select new com.legacyvault.verification.repository.BasisVersionRow(
             v.versionNo, v.legalBasisType, v.issuingAuthority, v.documentNumber, v.issueDate, v.notaryAuthority,

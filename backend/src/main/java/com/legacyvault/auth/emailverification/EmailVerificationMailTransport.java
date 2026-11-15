@@ -1,10 +1,14 @@
 package com.legacyvault.auth.emailverification;
 
 /**
- * Delivery boundary for the verification credential. No production implementation exists yet: link-vs-code,
- * redirect allowlist and provider settings are unapproved. Implementations must treat a normal return as
- * "provider accepted" only, and must never log the recipient, credential or message body.
+ * Ranh giới gửi credential xác minh. Hiện chưa có bản cài đặt production: lựa chọn link hay mã,
+ * allowlist redirect và cấu hình nhà cung cấp chưa được duyệt. Bản cài đặt chỉ được coi việc trả về bình thường
+ * là "nhà cung cấp đã nhận", và tuyệt đối không ghi log người nhận, credential hay nội dung thư.
  */
 public interface EmailVerificationMailTransport {
+    /**
+     * Gửi thư xác minh. Trả về bình thường chỉ có nghĩa nhà cung cấp đã nhận thư.
+     * @param credential credential thô để nhúng vào link; tuyệt đối không ghi log
+     */
     void send(String recipient, String locale, String credential);
 }

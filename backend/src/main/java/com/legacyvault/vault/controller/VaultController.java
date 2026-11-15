@@ -17,6 +17,9 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.util.UUID;
 
+/**
+ * API Vault của chủ sở hữu ({@code /api/v1/vaults}); mọi endpoint yêu cầu ROLE_VAULT_OWNER và chỉ thao tác trên Vault của chính người gọi.
+ */
 @RestController
 @RequestMapping("/api/v1/vaults")
 public class VaultController {
@@ -27,6 +30,11 @@ public class VaultController {
         this.vaultService = vaultService;
     }
 
+    /**
+     * Tạo Vault mới cho người đang đăng nhập.
+     *
+     * @return 201 kèm header Location trỏ tới Vault mới
+     */
     @PostMapping
     @PreAuthorize("hasRole('VAULT_OWNER')")
     public ResponseEntity<VaultResponse> createVault(
@@ -66,6 +74,9 @@ public class VaultController {
     }
 
 
+    /**
+     * Chủ Vault hủy cảnh báo DMS: chỉ hợp lệ khi Vault đang AWAITING_VERIFICATION và DMS ở GRACE_PERIOD_EXCEEDED; các vụ xác minh còn mở bị hủy, Vault về ACTIVE và DMS về MONITORING (xem {@code VaultService#cancelAlert}).
+     */
     @PostMapping("/{vaultId}/cancel-alert")
     @PreAuthorize("hasRole('VAULT_OWNER')")
     public VaultResponse cancelAlert(

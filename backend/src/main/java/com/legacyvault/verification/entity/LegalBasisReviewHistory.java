@@ -6,6 +6,10 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
+/**
+ * Lịch sử rà soát hồ sơ căn cứ pháp lý: mỗi dòng là một lần kiểm tra, lưu snapshot (phiên bản, sha256,
+ * tình trạng tranh chấp, allocationHash), trạng thái review, mã lý do và người rà soát.
+ */
 @Entity
 @Table(name = "legal_basis_review_history", schema = "dbo")
 public class LegalBasisReviewHistory {

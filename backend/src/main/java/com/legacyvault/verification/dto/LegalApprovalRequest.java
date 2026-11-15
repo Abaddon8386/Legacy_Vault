@@ -6,6 +6,10 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+/**
+ * Yêu cầu Legal duyệt/từ chối phân bổ theo văn bản căn cứ.
+ * versionNo, sha256Hash, allocationHash: Legal gửi đúng phiên bản và mã băm đã xem để tránh duyệt nhầm bản đã thay đổi; reason bắt buộc.
+ */
 public record LegalApprovalRequest(
         @NotNull Decision decision,
         @NotNull @Min(1) Integer versionNo,

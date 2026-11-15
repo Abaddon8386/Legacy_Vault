@@ -5,6 +5,13 @@ import com.legacyvault.common.error.ErrorCode;
 
 import java.util.UUID;
 
+/**
+ * Principal của người dùng đã xác thực, được {@link JwtAuthenticationFilter} đặt vào SecurityContext.
+ *
+ * @param userId   id nội bộ (khóa chính), dùng cho truy vấn và audit
+ * @param publicId id công khai (UUID), là subject của JWT
+ * @param email    email đăng nhập
+ */
 public record CustomUserPrincipal(
         Long userId,
         UUID publicId,

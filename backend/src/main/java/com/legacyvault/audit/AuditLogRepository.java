@@ -3,6 +3,9 @@ package com.legacyvault.audit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+/**
+ * Repository của {@link AuditLog}. Việc ghi đi qua {@link AuditService}; repository này còn phục vụ truy vấn đếm sự kiện.
+ */
 @Repository
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 

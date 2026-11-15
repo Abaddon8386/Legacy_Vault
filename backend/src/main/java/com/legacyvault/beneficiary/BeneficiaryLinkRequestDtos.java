@@ -9,17 +9,17 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/** BE-01: link requests (recipient side) and counter confirmation (Staff side). */
+/** BE-01: yêu cầu liên kết (phía người nhận) và xác nhận tại quầy (phía Staff). */
 public final class BeneficiaryLinkRequestDtos {
 
 	private BeneficiaryLinkRequestDtos() { }
 
-	/** The recipient only types the case code (for example HS-2026-000123). */
+	/** Người nhận chỉ gõ mã hồ sơ (ví dụ HS-2026-000123). */
 	public record SubmitRequest(
 			@NotBlank(message = "validation.NotBlank")
 			@Size(max = 30, message = "validation.Size") String caseCode) { }
 
-	/** What the requester sees about their own request. Deliberately carries no case, vault or recipient data. */
+	/** Những gì người gửi thấy về yêu cầu của chính mình. Cố ý không chứa dữ liệu hồ sơ, vault hay người nhận. */
 	public record MyRequest(UUID requestId, String status, Instant createdAt, Instant expiresAt) {
 		static MyRequest from(BeneficiaryLinkRequest request, java.time.LocalDateTime now) {
 			return new MyRequest(request.getPublicId(), request.effectiveStatus(now),
@@ -27,16 +27,16 @@ public final class BeneficiaryLinkRequestDtos {
 		}
 	}
 
-	/** Staff view of a pending request: enough to compare the person at the counter with the account. */
+	/** Góc nhìn Staff của yêu cầu đang chờ: đủ để so người tại quầy với tài khoản. */
 	public record StaffRequest(UUID requestId, String status, String requesterName, String requesterEmail,
 			Instant createdAt, Instant expiresAt) { }
 
-	/** Staff picks the recipient. The target account is never part of the body; it comes from the stored request. */
+	/** Staff chọn người nhận. Tài khoản đích không bao giờ nằm trong body; nó lấy từ yêu cầu đã lưu. */
 	public record ApproveRequest(@NotNull(message = "validation.NotNull") UUID beneficiaryId) { }
 
 	public record Decision(UUID requestId, String status, UUID beneficiaryId, UUID accountId) { }
 
-	/** Create an account at the counter without linking it. The person chooses their own password. */
+	/** Tạo tài khoản tại quầy mà không liên kết. Người đó tự chọn mật khẩu. */
 	public record CreateAccountRequest(
 			@NotBlank(message = "validation.NotBlank")
 			@jakarta.validation.constraints.Email(message = "validation.Email")
@@ -46,7 +46,7 @@ public final class BeneficiaryLinkRequestDtos {
 			@NotBlank(message = "validation.NotBlank")
 			@Size(min = 8, max = 72, message = "validation.Size") String password,
 			@Pattern(regexp = "^$|^\\+?[0-9]{8,15}$", message = "validation.Pattern") String phone) {
-		/** Keep the secret out of any accidental toString/log output. */
+		/** Giữ bí mật khỏi mọi đầu ra toString/log vô tình. */
 		@Override
 		public String toString() {
 			return "CreateAccountRequest[email=" + email + ", password=<redacted>]";

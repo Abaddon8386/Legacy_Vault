@@ -12,10 +12,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
-/** Immutable server-recorded Staff attestation of a completed handover. */
+/** Xác nhận bàn giao hoàn tất của Staff do server ghi nhận, bất biến. */
 @Entity
 @Table(name = "handover_receipts", schema = "dbo")
 public class HandoverReceipt {
+    // Loại xác nhận duy nhất hiện có: Staff tự xác nhận đã bàn giao.
     public static final String STAFF_ATTESTATION = "STAFF_ATTESTATION";
 
     @Id
@@ -35,6 +36,7 @@ public class HandoverReceipt {
     @Column(name = "staff_user_id", nullable = false, updatable = false)
     private Long staffUserId;
 
+    // Lưu cả id và số phiên bản hồ sơ cùng sha256/allocationHash để biên bản truy vết đúng bản đã được duyệt.
     @Column(name = "dossier_version_id", nullable = false, updatable = false)
     private Long dossierVersionId;
 
@@ -53,6 +55,7 @@ public class HandoverReceipt {
     @Column(name = "confirmed_at", nullable = false, updatable = false)
     private LocalDateTime confirmedAt;
 
+    // Trỏ tới biên bản cũ bị thay thế (nếu có); biên bản không bị sửa mà được thay bằng biên bản mới.
     @Column(name = "supersedes_receipt_id", updatable = false)
     private Long supersedesReceiptId;
 

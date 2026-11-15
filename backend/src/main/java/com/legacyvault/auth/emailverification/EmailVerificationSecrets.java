@@ -6,7 +6,7 @@ import java.util.HexFormat;
 import com.legacyvault.auth.recovery.RecoverySecrets;
 import org.springframework.stereotype.Component;
 
-/** Reuses the recovery generator/format check/HMAC buckets; only the hash domain differs so credentials never cross purposes. */
+/** Tái dùng bộ sinh/kiểm tra định dạng/HMAC bucket của luồng khôi phục; chỉ khác miền băm để credential không bị dùng lẫn mục đích. */
 @Component
 public class EmailVerificationSecrets {
     private final RecoverySecrets secrets;
@@ -14,7 +14,9 @@ public class EmailVerificationSecrets {
 
     public String generate() { return secrets.generate(); }
     public boolean valid(String value) { return secrets.valid(value); }
+    // Fingerprint của email dùng để ràng buộc job/credential với đúng địa chỉ email lúc yêu cầu; đổi email thì fingerprint đổi và credential cũ vô hiệu.
     public String emailFingerprint(String normalizedEmail) { return secrets.bucket("verify-email", normalizedEmail); }
+    // Tiền tố "EMAIL_VERIFICATION:" tách miền băm, để credential của luồng này không dùng được ở luồng khác (ví dụ khôi phục mật khẩu). DB chỉ lưu hash.
     public String hash(String value) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")

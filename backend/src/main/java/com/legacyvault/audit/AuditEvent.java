@@ -2,6 +2,22 @@ package com.legacyvault.audit;
 
 import java.util.Map;
 
+/**
+ * Dữ liệu đầu vào của một sự kiện audit; {@link AuditService#record(AuditEvent)} sẽ lưu thành {@link AuditLog}.
+ *
+ * @param action      hành động nghiệp vụ
+ * @param actorType   USER hoặc SYSTEM
+ * @param actorUserId id người thực hiện; bắt buộc với USER (trừ AUTH_LOGIN_FAILED vì khi đó có thể chưa xác định được người dùng)
+ * @param vaultId     Vault liên quan (có thể null)
+ * @param entityType loại đối tượng bị tác động (tối đa 50 ký tự)
+ * @param entityId    id đối tượng bị tác động
+ * @param stateBefore trạng thái trước (JSON object hoặc chuỗi trạng thái đơn giản)
+ * @param stateAfter  trạng thái sau
+ * @param ipAddress   IP nguồn (tối đa 45 ký tự, có thể null)
+ * @param context     thông tin bổ sung; khóa nhạy cảm bị loại khi ghi
+ * @param stepId      mã bước quy trình (tối đa 50 ký tự)
+ * @param ruleId      mã quy tắc nghiệp vụ (tối đa 100 ký tự)
+ */
 public record AuditEvent(
         AuditAction action,
         AuditActorType actorType,
@@ -16,6 +32,7 @@ public record AuditEvent(
         String stepId,
         String ruleId
 ) {
+    // Kiểm tra bất biến ngay khi tạo event để không bao giờ lưu bản ghi thiếu thông tin định danh; context được sao chép thành Map bất biến.
     public AuditEvent {
         if (action == null) {
             throw new IllegalArgumentException("Audit action is required");

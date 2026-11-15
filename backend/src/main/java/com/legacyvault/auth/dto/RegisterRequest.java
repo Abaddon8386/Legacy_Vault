@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+/** Dữ liệu đăng ký tài khoản; chỉ kiểm tra định dạng đầu vào, các quy tắc nghiệp vụ (trùng email) nằm ở {@link com.legacyvault.auth.AuthService}. */
 public record RegisterRequest(
         // Họ tên không được null, rỗng hoặc chỉ chứa khoảng trắng.
         // Độ dài tối đa là 150 ký tự.

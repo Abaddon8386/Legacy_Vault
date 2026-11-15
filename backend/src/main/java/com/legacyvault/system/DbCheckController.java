@@ -28,6 +28,11 @@ public class DbCheckController {
 		this.jdbcTemplate = jdbcTemplate;
 	}
 
+	/**
+	 * Kiểm tra kết nối cơ sở dữ liệu bằng {@code SELECT 1}.
+	 *
+	 * @return {@code database} là "UP" hoặc "DOWN"; không bao giờ trả chi tiết lỗi
+	 */
 	@GetMapping("/db-check")
 	public DbCheckResponse dbCheck() {
 		try {

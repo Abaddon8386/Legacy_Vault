@@ -23,11 +23,17 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Dịch vụ ghi audit tập trung. Tự bổ sung những thông tin nơi gọi không cần biết: thời điểm UTC, hạn lưu 12 tháng,
+ * traceId (từ MDC) và danh sách role của người đang đăng nhập (từ SecurityContext).
+ * Nội dung {@code context} được lọc các khóa nhạy cảm (mật khẩu, token, khóa mã hóa, nội dung file/tài sản, số định danh...) trước khi lưu.
+ */
 @Service
 public class AuditService {
 
     private static final String TRACE_ID_KEY = "traceId";
 
+    // Khóa (so khớp theo chuỗi con, không phân biệt hoa thường) bị loại khỏi context để audit không rò rỉ bí mật hay dữ liệu cá nhân.
     private static final Set<String> BLOCKED_CONTEXT_KEYS = Set.of(
             "password", "passwd", "token", "access_token", "refresh_token",
             "jwt", "secret", "client_secret", "encryption_key", "private_key",
@@ -82,9 +88,13 @@ public class AuditService {
                 event.ruleId()
         );
 
+        // Flush ngay: nếu ghi audit lỗi thì exception nổ tại đây và transaction nghiệp vụ cùng bị rollback, tránh thao tác thành công mà thiếu dấu vết.
         auditLogRepository.saveAndFlush(log);
     }
 
+    /**
+     * Chuẩn hóa trạng thái về JSON object: nếu đã là object JSON thì giữ nguyên, ngược lại (ví dụ "ACTIVE") bọc thành {@code {"status": ...}}.
+     */
     private String normalizeStateJson(String state) {
         if (state == null) {
             return null;
@@ -106,6 +116,11 @@ public class AuditService {
         }
     }
 
+    /**
+     * Ghi sự kiện đăng nhập sai trong transaction riêng (REQUIRES_NEW) để bản ghi vẫn được commit dù transaction đăng nhập bên ngoài bị rollback do ném lỗi xác thực.
+     *
+     * @param actorUserId id người dùng bị nhập sai thông tin đăng nhập
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordLoginFailure(Long actorUserId) {
         record(new AuditEvent(
@@ -127,6 +142,9 @@ public class AuditService {
         ));
     }
 
+    /**
+     * Lấy traceId từ MDC; null nếu không có (ví dụ job nền). Giá trị MDC sai định dạng UUID là lỗi lập trình nên ném IllegalStateException.
+     */
     private UUID resolveTraceId() {
         String value = MDC.get(TRACE_ID_KEY);
         if (value == null || value.isBlank()) {
@@ -139,6 +157,9 @@ public class AuditService {
         }
     }
 
+    /**
+     * Danh sách authority (role) của người đang đăng nhập; rỗng nếu chưa xác thực.
+     */
     private Collection<String> currentAuthorities() {
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
@@ -153,6 +174,9 @@ public class AuditService {
                 .collect(Collectors.toUnmodifiableSet());
     }
 
+    /**
+     * Loại các khóa nhạy cảm khỏi context, kể cả trong Map/Collection lồng nhau.
+     */
     private Map<String, Object> filterContext(Map<String, Object> context) {
         Map<String, Object> filtered = new LinkedHashMap<>();
         if (context == null) {
@@ -190,6 +214,9 @@ public class AuditService {
         return value;
     }
 
+    /**
+     * Khóa nhạy cảm nếu (sau khi chuyển chữ thường, "-" thành "_") chứa bất kỳ mục nào trong {@link #BLOCKED_CONTEXT_KEYS}.
+     */
     private boolean isSensitiveKey(String key) {
         String normalized = key.toLowerCase().replace("-", "_");
         return BLOCKED_CONTEXT_KEYS.stream().anyMatch(normalized::contains);

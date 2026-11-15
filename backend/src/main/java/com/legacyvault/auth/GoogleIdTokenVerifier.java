@@ -16,7 +16,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HexFormat;
 
-/** Verifies GIS ID-token signature, Google issuer, configured audience, timestamps and OIDC claims. */
+/** Xác minh chữ ký GIS ID-token, issuer Google, audience đã cấu hình, timestamp và các claim OIDC. */
 @Component
 public class GoogleIdTokenVerifier {
     private final JwtDecoder decoder;
@@ -29,6 +29,12 @@ public class GoogleIdTokenVerifier {
         this.clientId = clientId == null ? "" : clientId.trim();
     }
 
+    /**
+     * Xác thực một Google ID token (GIS credential).
+     * @param credential chuỗi JWT do Google Identity Services cấp
+     * @return thông tin đã xác thực kèm hash SHA-256 của token (để chống dùng lại)
+     * @throws BusinessException GOOGLE_SIGNIN_UNAVAILABLE nếu chưa cấu hình client-id hoặc không lấy được JWKS của Google; INVALID_GOOGLE_CREDENTIAL nếu token sai
+     */
     public VerifiedGoogleCredential verify(String credential) {
         if (clientId.isBlank()) {
             throw new BusinessException(ErrorCode.GOOGLE_SIGNIN_UNAVAILABLE);
@@ -43,10 +49,12 @@ public class GoogleIdTokenVerifier {
         } catch (BadJwtException | IllegalArgumentException exception) {
             throw invalidCredential();
         } catch (JwtException exception) {
-            // Google JWKS/network failures are operational outages, not proof of a bad credential.
+            // Lỗi JWKS/mạng của Google là sự cố vận hành, không phải bằng chứng credential sai.
             throw new BusinessException(ErrorCode.GOOGLE_SIGNIN_UNAVAILABLE);
         }
 
+        // Ngoài chữ ký, phải khớp: issuer là Google, audience chứa client-id của hệ thống (chống token cấp cho app khác),
+        // có subject, chưa hết hạn, iat không ở tương lai quá 60 giây (cho phép lệch đồng hồ) và đã qua nbf.
         Instant now = Instant.now();
         String issuer = jwt.getIssuer() == null ? null : jwt.getIssuer().toString();
         Instant expiresAt = jwt.getExpiresAt();
@@ -66,11 +74,12 @@ public class GoogleIdTokenVerifier {
                 jwt.getClaimAsString("email"), isTrue(jwt.getClaim("email_verified")), jwt.getClaimAsString("name"));
     }
 
-    /** Google sends {@code email_verified} as a boolean, but older tokens carried the string "true". */
+    /** Google gửi {@code email_verified} dạng boolean, nhưng token cũ mang chuỗi "true". */
     private static boolean isTrue(Object claim) {
         return Boolean.TRUE.equals(claim) || (claim instanceof String text && "true".equalsIgnoreCase(text));
     }
 
+    // Chỉ lưu fingerprint SHA-256 của token (không lưu token gốc) trong bảng chống replay.
     private static String sha256(String value) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
@@ -84,7 +93,7 @@ public class GoogleIdTokenVerifier {
         return new BusinessException(ErrorCode.INVALID_GOOGLE_CREDENTIAL);
     }
 
-    /** {@code email}/{@code name} are null when the token carries no such claim; {@code emailVerified} defaults to false. */
+    /** {@code email}/{@code name} là null khi token không có claim đó; {@code emailVerified} mặc định false. */
     public record VerifiedGoogleCredential(String subject, String credentialHash, Instant expiresAt,
             String email, boolean emailVerified, String name) {
     }

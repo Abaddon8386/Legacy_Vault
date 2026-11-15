@@ -13,8 +13,8 @@ public final class CounterIdentityAttestationDtos {
     private CounterIdentityAttestationDtos() { }
 
     /**
-     * PS-140: {@code evidenceReference} is optional. Absent, empty and whitespace-only values mean "no reference" and
-     * are stored as NULL; a client that still sends a reference keeps it (trimmed, at most 200 characters).
+     * PS-140: {@code evidenceReference} là tùy chọn. Giá trị vắng mặt, rỗng hoặc chỉ gồm khoảng trắng nghĩa là "không có tham chiếu" và
+     * được lưu là NULL; client vẫn gửi tham chiếu thì được giữ lại (đã trim, tối đa 200 ký tự).
      */
     public record Request(@Size(max = 200) String evidenceReference,
             @Email @Size(max = 254) String confirmedEmail) {

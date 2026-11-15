@@ -19,7 +19,7 @@ import com.legacyvault.common.security.CustomUserPrincipal;
 
 import jakarta.validation.Valid;
 
-/** BE-01: any signed-in account (a Beneficiary role is not required) manages its own link requests. */
+/** BE-01: mọi tài khoản đã đăng nhập (không yêu cầu role Beneficiary) tự quản lý yêu cầu liên kết của mình. */
 @RestController
 @RequestMapping("/api/v1/beneficiary-link-requests")
 @PreAuthorize("isAuthenticated()")
@@ -29,6 +29,7 @@ public class BeneficiaryLinkRequestController {
 
 	public BeneficiaryLinkRequestController(BeneficiaryLinkRequestService service) { this.service = service; }
 
+	/** POST: gửi yêu cầu liên kết bằng mã hồ sơ. Trả 201 kèm Location; Cache-Control no-store vì là dữ liệu cá nhân. */
 	@PostMapping
 	public ResponseEntity<BeneficiaryLinkRequestDtos.MyRequest> submit(
 			@Valid @RequestBody BeneficiaryLinkRequestDtos.SubmitRequest request,
@@ -38,6 +39,7 @@ public class BeneficiaryLinkRequestController {
 				.cacheControl(CacheControl.noStore()).body(created);
 	}
 
+	/** GET: liệt kê các yêu cầu liên kết của chính tài khoản đang đăng nhập. */
 	@GetMapping
 	public ResponseEntity<List<BeneficiaryLinkRequestDtos.MyRequest>> listMine(
 			@AuthenticationPrincipal CustomUserPrincipal principal) {
@@ -45,6 +47,7 @@ public class BeneficiaryLinkRequestController {
 				.body(service.listMine(CustomUserPrincipal.requireUserId(principal)));
 	}
 
+	/** POST: hủy yêu cầu của chính mình khi còn PENDING (service kiểm tra quyền sở hữu). */
 	@PostMapping("/{requestId}/cancel")
 	public ResponseEntity<BeneficiaryLinkRequestDtos.MyRequest> cancel(@PathVariable UUID requestId,
 			@AuthenticationPrincipal CustomUserPrincipal principal) {

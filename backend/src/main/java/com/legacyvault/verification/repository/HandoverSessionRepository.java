@@ -12,7 +12,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Kho phiên bàn giao. Các hàm tìm kiếm luôn ràng buộc đồng thời ca và Staff sở hữu phiên.
+ */
 public interface HandoverSessionRepository extends JpaRepository<HandoverSession, Long> {
+    /**
+     * Ca đã có phiên ở trạng thái này chưa (dùng để chặn mở phiên OPEN thứ hai).
+     */
     boolean existsByVerificationCaseIdAndStatus(Long verificationCaseId, HandoverSessionStatus status);
 
     List<HandoverSession> findByVerificationCaseIdAndStaffUserIdOrderByOpenedAtDesc(
@@ -24,6 +30,9 @@ public interface HandoverSessionRepository extends JpaRepository<HandoverSession
     Optional<HandoverSession> findByPublicIdAndVerificationCaseIdAndStaffUserId(
             UUID publicId, Long verificationCaseId, Long staffUserId);
 
+    /**
+     * Khóa ghi bi quan phiên của đúng ca và đúng Staff trước khi đóng/hủy phiên.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
         select s from HandoverSession s

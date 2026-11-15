@@ -7,9 +7,13 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
+/**
+ * Kho các dòng tài sản thuộc một biên nhận bàn giao.
+ */
 public interface HandoverReceiptAssetRepository extends JpaRepository<HandoverReceiptAsset, Long> {
     List<HandoverReceiptAsset> findByHandoverReceiptIdOrderById(Long handoverReceiptId);
 
+    // Lấy public UUID của các tài sản trong biên nhận (join theo assetId) theo thứ tự thêm vào, để trả ra API mà không lộ khóa nội bộ.
     @Query("""
         select a.publicId from HandoverReceiptAsset item, Asset a
         where item.handoverReceiptId = :receiptId and a.assetId = item.assetId

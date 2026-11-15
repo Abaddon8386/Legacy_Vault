@@ -18,6 +18,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Objects;
 
+/**
+ * Liên kết nhiều-nhiều giữa user và role, ánh xạ bảng {@code dbo.user_roles} với khóa ghép (userId, roleId). Lưu Admin cấp role ({@code assignedByUserId}) và thời điểm cấp.
+ */
 @Entity
 @Table(name = "user_roles", schema = "dbo")
 public class UserRole {
@@ -81,6 +84,9 @@ public class UserRole {
         return assignedAt;
     }
 
+    /**
+     * Khóa ghép (user_id, role_id) của {@link UserRole}.
+     */
     @Embeddable
     public static class UserRoleId implements Serializable {
 

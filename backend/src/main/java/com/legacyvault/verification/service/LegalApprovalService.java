@@ -29,6 +29,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Nghiệp vụ ST-21 (LV-LEG-001): Legal phê duyệt hoặc từ chối đúng snapshot hồ sơ căn cứ mà mình đã xem xét.
+ * Quyết định được gắn với phiên bản, sha256 của chứng cứ và hash phạm vi phân bổ để phê duyệt cũ không áp dụng cho dữ liệu đã thay đổi.
+ */
 @Service
 public class LegalApprovalService {
     private final com.legacyvault.notification.WorkflowNotificationService notifications;
@@ -55,6 +59,19 @@ public class LegalApprovalService {
         this.court = court;
     }
 
+    /**
+     * Ghi quyết định phê duyệt/từ chối của Legal.
+     *
+     * Xử lý: validate đầu vào (lý do bắt buộc, tối đa 1000 ký tự); khóa Vault/ca/hồ sơ qua LegalBasisCaseAccess; yêu cầu ca mở, không ON_HOLD,
+     * Vault ở LEGAL_BASIS_VERIFICATION, hồ sơ FORWARDED; kiểm tra căn cứ tòa án hợp lệ; so khớp phiên bản/sha256/allocation hash do client gửi
+     * với phiên bản mới nhất và với snapshot đã review (FRESH); cập nhật trạng thái phân bổ, lưu lịch sử quyết định, ghi audit
+     * và thông báo cho Staff.
+     *
+     * @param caseId public UUID của ca
+     * @param request quyết định kèm snapshot mà Legal đã xem (versionNo, sha256Hash, allocationHash) và lý do
+     * @return kết quả quyết định cùng hash đã chốt
+     * @throws BusinessException VALIDATION_FAILED, BASIS_DOSSIER_INVALID_STATE, LEGAL_DECISION_STALE
+     */
     @Transactional
     public LegalApprovalResponse decide(UUID caseId, CustomUserPrincipal principal, LegalApprovalRequest request) {
         Long actorId = CustomUserPrincipal.requireUserId(principal);
@@ -88,11 +105,13 @@ public class LegalApprovalService {
         }
 
         String currentAllocationHash = allocationHash(dossier.getLegalBasisDossierId(), current.versionNo());
+        // Chống "phê duyệt mù": snapshot client gửi phải đúng bằng phiên bản mới nhất đang lưu, nếu không dữ liệu đã đổi sau khi Legal xem.
         if (!Objects.equals(request.versionNo(), current.versionNo())
                 || !current.sha256Hash().equalsIgnoreCase(request.sha256Hash())
                 || !currentAllocationHash.equalsIgnoreCase(request.allocationHash())) {
             throw new BusinessException(ErrorCode.LEGAL_DECISION_STALE);
         }
+        // Ngoài khớp với client, snapshot lúc Legal bấm hoàn tất review (lastReviewed*) cũng phải trùng dữ liệu hiện tại; thiếu bước review hoặc review đã cũ thì không được quyết định.
         if (!"FRESH".equals(dossier.getReviewStatus())
                 || !Objects.equals(dossier.getLastReviewedVersionNo(), current.versionNo())
                 || !sameHash(dossier.getLastReviewedSha256Hash(), current.sha256Hash())
@@ -107,11 +126,13 @@ public class LegalApprovalService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.LEGAL_DECISION_STALE));
         String decision = request.decision() == LegalApprovalRequest.Decision.APPROVE
                 ? "LEGAL_APPROVED" : "LEGAL_REJECTED";
+        // Đồng bộ trạng thái APPROVED/REJECTED xuống các dòng phân bổ của phiên bản; dòng SUPERSEDED không bị đụng tới.
         allocations.updateStatusForVersion(versionId,
                 request.decision() == LegalApprovalRequest.Decision.APPROVE
                         ? LegalBasisVersionAllocation.STATUS_APPROVED
                         : LegalBasisVersionAllocation.STATUS_REJECTED);
         String reason = request.reason() == null ? "" : request.reason().trim();
+        // Lưu quyết định vào lịch sử (append-only). reviewStatus là LEGAL_APPROVED/LEGAL_REJECTED còn reasonCode là APPROVE/REJECT, LegalApprovalGuard dựa vào cặp này để kiểm tra phê duyệt.
         var savedDecision = history.saveAndFlush(new LegalBasisReviewHistory(
                 dossier.getLegalBasisDossierId(), versionId, current.versionNo(), current.sha256Hash(),
                 dossier.getDisputeStatus(), currentAllocationHash, decision,
@@ -128,6 +149,9 @@ public class LegalApprovalService {
                 current.sha256Hash(), currentAllocationHash, principal.publicId(), LocalDateTime.now(ZoneOffset.UTC)).withNotification(notification);
     }
 
+    /**
+     * Tính allocation hash của phân bổ hiện hành đúng phiên bản (AllocationScopeHash).
+     */
     private String allocationHash(Long dossierId, int versionNo) {
         List<AllocationRow> rows = allocations.findRowsByDossier(dossierId).stream()
                 .filter(row -> row.versionNo() == versionNo)

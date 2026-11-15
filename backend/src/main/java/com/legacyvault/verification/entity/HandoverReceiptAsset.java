@@ -7,7 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/** Immutable link from a receipt to the authoritative allocation row and asset. */
+/** Liên kết bất biến từ biên nhận tới dòng phân bổ gốc và tài sản. */
 @Entity
 @Table(name = "handover_receipt_assets", schema = "dbo")
 public class HandoverReceiptAsset {

@@ -1,5 +1,5 @@
 package com.legacyvault.auth.dto;
 
-/** Acknowledges a successful Google identity link without exposing the provider subject. */
+/** Xác nhận liên kết danh tính Google thành công mà không để lộ subject của provider. */
 public record GoogleIdentityLinkResponse(boolean linked) {
 }

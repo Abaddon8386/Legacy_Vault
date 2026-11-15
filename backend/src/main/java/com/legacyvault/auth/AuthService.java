@@ -42,6 +42,10 @@ import java.util.Map;
 import java.util.Objects;
 
 
+/**
+ * Nghiệp vụ xác thực cốt lõi: đăng ký, đăng nhập mật khẩu, cấp JWT, thiết lập mật khẩu lần đầu và đọc/cập nhật hồ sơ.
+ * Được {@link AuthController} và {@link GoogleAuthService} sử dụng; các sự kiện quan trọng được ghi qua {@code AuditService}.
+ */
 @Service
 public class AuthService {
 
@@ -56,7 +60,7 @@ public class AuthService {
     private final PasswordReauthService passwordReauthService;
     private final EmailVerificationService emailVerificationService;
     private final LoginAttemptLimiter loginAttemptLimiter;
-    /** Hash verified when the email is unknown so the response time matches a real wrong password. */
+    /** Hash được kiểm tra khi email không tồn tại, để thời gian phản hồi giống trường hợp sai mật khẩu thật. */
     private volatile String dummyPasswordHash;
 
     public AuthService(
@@ -81,6 +85,12 @@ public class AuthService {
         this.loginAttemptLimiter = loginAttemptLimiter;
     }
 
+    /**
+     * Đăng ký tài khoản mới với role mặc định {@code ROLE_VAULT_OWNER}.
+     * Chuẩn hóa email, từ chối nếu đã tồn tại, băm mật khẩu bằng {@link PasswordEncoder}, lưu user + user_role và ghi audit AUTH_REGISTERED.
+     * @throws BusinessException EMAIL_ALREADY_EXISTS nếu email đã được dùng
+     * @return thông tin công khai của tài khoản (role trả về đã bỏ tiền tố {@code ROLE_})
+     */
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
         String normalizedEmail = EmailNormalizer.normalize(request.email());
@@ -135,15 +145,16 @@ public class AuthService {
     }
 
     /**
-     * Creates the Owner account for a first-time Google sign-in. The caller has already verified the Google
-     * credential and that the email is Google-verified and not yet registered. The account has no usable
-     * password: the stored hash is random and unknown to everyone, and password login stays off until the
-     * user sets one through {@link #setupPassword}.
+     * Tạo tài khoản Owner cho lần đăng nhập Google đầu tiên. Caller đã xác minh credential Google
+     * và email đã được Google xác minh, chưa đăng ký. Tài khoản chưa có mật khẩu dùng được:
+     * hash lưu là chuỗi ngẫu nhiên không ai biết, và đăng nhập bằng mật khẩu vẫn tắt cho đến khi
+     * người dùng đặt mật khẩu qua {@link #setupPassword}.
      */
     User createGoogleOwner(String normalizedEmail, String displayName) {
         Role ownerRole = roleRepository.findByRoleCode(DEFAULT_ROLE)
                 .orElseThrow(() -> new IllegalStateException("Required role not found: " + DEFAULT_ROLE));
 
+        // Hash lưu là chuỗi ngẫu nhiên 32 byte không ai biết, nên không thể đăng nhập mật khẩu cho tới khi gọi setupPassword.
         byte[] secret = new byte[32];
         new java.security.SecureRandom().nextBytes(secret);
 
@@ -180,8 +191,8 @@ public class AuthService {
     }
 
     /**
-     * Lets a Google-only account choose its first password. Not allowed once password login is on. The caller
-     * ({@link GoogleAuthService#setupPassword}) must already have proven control of the linked Google account.
+     * Cho phép tài khoản chỉ dùng Google chọn mật khẩu đầu tiên. Không được phép khi đăng nhập bằng mật khẩu đã bật. Caller
+     * ({@link GoogleAuthService#setupPassword}) phải đã chứng minh quyền kiểm soát tài khoản Google đã liên kết.
      */
     @Transactional
     public PasswordSetupResponse setupPassword(Long userId, String password) {
@@ -193,7 +204,7 @@ public class AuthService {
         if (!new PasswordPolicy().isValid(password, null)) {
             throw new BusinessException(ErrorCode.PASSWORD_POLICY);
         }
-        // The current session stays valid (no auth-version bump): the user is mid-action and must not be logged out.
+        // Phiên hiện tại vẫn hợp lệ (không tăng auth-version): người dùng đang giữa thao tác và không được bị đăng xuất.
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setPasswordLoginEnabled(true);
         userRepository.flush();
@@ -215,29 +226,36 @@ public class AuthService {
         return new PasswordSetupResponse(true);
     }
 
-    // Transactional here too: the call below is a self-invocation, so the annotation on the two-argument
-    // method is bypassed when this one is entered (lazy roles and the locked read then run without a session).
+    // Cũng cần transactional ở đây: lời gọi bên dưới là self-invocation, nên annotation trên phương thức hai tham số
+    // bị bỏ qua khi vào phương thức này (lazy roles và lần đọc có khóa sẽ chạy mà không có session).
     @Transactional
     public LoginResponse login(LoginRequest request) {
         return login(request, null);
     }
 
+    /**
+     * Đăng nhập bằng email/mật khẩu.
+     * Luồng: (1) đặt chỗ lượt thử trong limiter, (2) tìm user, (3) luôn chạy một lần BCrypt kể cả khi email không tồn tại (chống dò email qua thời gian phản hồi),
+     * (4) tài khoản bị admin khóa chỉ được tiết lộ cho người đã đúng mật khẩu, (5) mọi lỗi còn lại trả INVALID_CREDENTIALS chung, (6) thành công thì xóa bộ đếm sai.
+     * @param clientIp IP client để giới hạn theo IP (có thể null)
+     * @throws BusinessException INVALID_CREDENTIALS, ACCOUNT_LOCKED_BY_ADMIN, TOO_MANY_ATTEMPTS, RATE_LIMITED
+     */
     @Transactional
     public LoginResponse login(LoginRequest request, String clientIp) {
         String normalizedEmail = EmailNormalizer.normalize(request.email());
 
-        // Atomic check + count before any password work, so parallel requests cannot all slip under the limit.
+        // Kiểm tra + đếm nguyên tử trước mọi xử lý mật khẩu, để các request song song không cùng lọt dưới giới hạn.
         loginAttemptLimiter.reserveAttempt(normalizedEmail, clientIp);
 
         User user = userRepository.findByEmail(normalizedEmail).orElse(null);
 
-        // Always run one BCrypt verification, even for an unknown email, so timing does not reveal
-        // which emails exist.
+        // Luôn chạy một lần BCrypt, kể cả với email không tồn tại, để thời gian phản hồi không lộ
+        // email nào tồn tại.
         String hashToCheck = user != null ? user.getPasswordHash() : dummyPasswordHash();
         boolean passwordMatches = passwordEncoder.matches(request.password(), hashToCheck);
 
-        // A locked account is only disclosed to someone who proved knowledge of its password, so a wrong password
-        // or an unknown email still gets the same generic failure and locked emails cannot be enumerated.
+        // Tài khoản bị khóa chỉ được tiết lộ cho người đã chứng minh biết mật khẩu, nên sai mật khẩu
+        // hoặc email không tồn tại vẫn nhận cùng một lỗi chung và không thể dò email bị khóa.
         if (user != null && passwordMatches && user.isPasswordLoginAllowed() && user.getDeletedAt() == null
                 && "LOCKED".equals(user.getStatus())) {
             auditService.recordLoginFailure(user.getUserId());
@@ -255,11 +273,12 @@ public class AuthService {
         }
 
         LoginResponse response = issueLoginResponseForActiveUser(user);
-        // A successful login proves the password, so the earlier failures of this email no longer count.
+        // Đăng nhập thành công chứng minh mật khẩu, nên các lần sai trước của email này không còn được tính.
         loginAttemptLimiter.clearFailures(normalizedEmail);
         return response;
     }
 
+    // Khởi tạo lười hash giả (volatile; ghi trùng là vô hại) dùng để cân bằng thời gian khi email không tồn tại.
     private String dummyPasswordHash() {
         String hash = dummyPasswordHash;
         if (hash == null) {
@@ -269,7 +288,7 @@ public class AuthService {
         return hash;
     }
 
-    /** Shared JWT/session issuance for password and already-linked provider logins. */
+    /** Cấp JWT/phiên dùng chung cho đăng nhập bằng mật khẩu và bằng nhà cung cấp đã liên kết. */
     LoginResponse issueLoginResponseForActiveUser(User user) {
         if (user == null || !"ACTIVE".equals(user.getStatus()) || user.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
@@ -285,9 +304,11 @@ public class AuthService {
                 .sorted()
                 .toList();
 
-        // Personal account policy (29/10/2026): repair legacy counter-created / Beneficiary-only
-        // accounts individually at authenticated login, never through a bulk migration or invitation.
-        // A closed allowlist excludes internal and unknown roles, including mixed internal accounts.
+        // Chính sách tài khoản cá nhân (29/10/2026): sửa từng tài khoản cũ do quầy tạo / chỉ có Beneficiary
+        // khi đăng nhập có xác thực, không bao giờ qua migration hàng loạt hay lời mời.
+        // Allowlist đóng loại trừ role nội bộ và không xác định, kể cả tài khoản nội bộ có nhiều role.
+        // Nếu tài khoản chỉ có ROLE_BENEFICIARY thì tự bổ sung ROLE_VAULT_OWNER.
+        // Khóa dòng user rồi đọc lại role và so authVersion để hai lần đăng nhập song song không thêm role hai lần hoặc dùng dữ liệu cũ.
         if (securityRoles.stream().allMatch("ROLE_BENEFICIARY"::equals)) {
             User locked = userRepository.findActiveAccountForUpdate(user.getUserId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
@@ -347,6 +368,10 @@ public class AuthService {
         );
     }
 
+    /**
+     * Trả về hồ sơ của người dùng đang đăng nhập (chỉ đọc).
+     * @throws BusinessException UNAUTHENTICATED nếu tài khoản không còn ACTIVE
+     */
     @Transactional(readOnly = true)
     public ProfileResponse getCurrentUser(
             Authentication authentication
@@ -355,6 +380,12 @@ public class AuthService {
         return toProfileResponse(user);
     }
 
+    /**
+     * Cập nhật một phần hồ sơ (họ tên, SĐT, email, mật khẩu) trong một transaction, có khóa dòng user.
+     * Đổi email hoặc mật khẩu là thay đổi nhạy cảm: tài khoản phải đang bật đăng nhập mật khẩu và phải nhập lại mật khẩu hiện tại;
+     * gửi currentPassword khi không cần thì bị coi là request sai. Đổi email hủy xác minh email cũ; đổi mật khẩu tăng authVersion để vô hiệu hóa token đã cấp.
+     * @throws BusinessException PASSWORD_POLICY, PASSWORD_NOT_SET, MALFORMED_REQUEST, EMAIL_ALREADY_EXISTS
+     */
     @Transactional
     public ProfileResponse updateCurrentUser(Authentication authentication, ProfileUpdateRequest request) {
         User user = requireCurrentUser(authentication, true);
@@ -400,7 +431,7 @@ public class AuthService {
                 throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
             }
             user.setEmail(normalizedEmail);
-            // A changed address must not retain a prior proof; PS-116 credentials are also bound to the old address.
+            // Địa chỉ đã đổi không được giữ bằng chứng cũ; credential PS-116 cũng gắn với địa chỉ cũ.
             user.setEmailVerifiedAt(null);
             emailVerificationService.revokeForEmailChange(user.getUserId());
             profileFieldsChanged.add("email");
@@ -411,6 +442,7 @@ public class AuthService {
             profileFieldsChanged.add("password");
         }
         try {
+            // Flush sớm để bắt vi phạm unique index UQ_users_email khi hai request đổi cùng email chạy song song, rồi đổi thành lỗi nghiệp vụ.
             userRepository.flush();
         } catch (DataIntegrityViolationException exception) {
             if (emailChanged && violatesEmailUniqueConstraint(exception)) {
@@ -426,6 +458,7 @@ public class AuthService {
         return toProfileResponse(user);
     }
 
+    // Duyệt chuỗi cause để tìm ConstraintViolationException của UQ_users_email.
     private boolean violatesEmailUniqueConstraint(DataIntegrityViolationException exception) {
         for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
             if (cause instanceof ConstraintViolationException violation
@@ -453,6 +486,7 @@ public class AuthService {
         ));
     }
 
+    // lock=true: khóa ghi dòng user (dùng cho thao tác sửa); lock=false: đọc thường theo publicId và đối chiếu lại userId/trạng thái.
     private User requireCurrentUser(Authentication authentication, boolean lock) {
         if (authentication == null || !authentication.isAuthenticated()
                 || !(authentication.getPrincipal() instanceof CustomUserPrincipal principal)) {

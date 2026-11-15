@@ -18,8 +18,14 @@ public interface VaultRepository extends JpaRepository<Vault, Long> {
 
     boolean existsByOwnerUserId(Long ownerUserId);
 
+    /**
+     * Chủ sở hữu có Vault ở một trong các trạng thái cho trước không (Admin dùng để chặn khóa tài khoản đang trong quy trình hậu sự).
+     */
     boolean existsByOwnerUserIdAndStatusIn(Long ownerUserId, java.util.Collection<String> statuses);
 
+    /**
+     * Tải Vault của nhiều chủ sở hữu trong một truy vấn (danh sách Admin).
+     */
     java.util.List<Vault> findByOwnerUserIdIn(java.util.Collection<Long> ownerUserIds);
 
     Optional<Vault> findByPublicId(UUID publicId);
@@ -32,6 +38,9 @@ public interface VaultRepository extends JpaRepository<Vault, Long> {
 
     Page<Vault> findByOwnerUserId(Long ownerUserId, Pageable pageable);
 
+    /**
+     * Khóa ghi Vault theo cặp (publicId, owner) để đổi trạng thái không đua với luồng DMS; luôn kèm điều kiện chủ sở hữu.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select v from Vault v where v.publicId = :publicId and v.ownerUserId = :ownerUserId")
     Optional<Vault> findOwnedVaultForUpdate(
@@ -39,6 +48,9 @@ public interface VaultRepository extends JpaRepository<Vault, Long> {
             @Param("ownerUserId") Long ownerUserId
     );
 
+    /**
+     * Khóa ghi Vault theo chủ sở hữu (mỗi chủ một Vault); DMS dùng với thứ tự khóa Vault trước rồi DMS.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
     select v from Vault v

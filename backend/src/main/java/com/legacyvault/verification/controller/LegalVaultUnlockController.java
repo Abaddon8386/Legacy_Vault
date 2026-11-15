@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
+/**
+ * API Legal mở khóa Vault sau khi đã có phê duyệt cuối hợp lệ. Chỉ LEGAL_VERIFIER.
+ */
 @RestController
 @RequestMapping("/api/v1/legal-verifications/verification-cases/{caseId}/unlock")
 @PreAuthorize("hasRole('LEGAL_VERIFIER')")
@@ -22,6 +25,10 @@ public class LegalVaultUnlockController {
         this.service = service;
     }
 
+    /**
+     * Mở khóa Vault của ca. Việc kiểm tra phase, phê duyệt còn hiệu lực và khóa dữ liệu nằm trong DistributionWorkflowService.unlock.
+     * @param caseId public UUID của VerificationCase
+     */
     @PostMapping
     public LegalVaultUnlockResponse unlock(@PathVariable UUID caseId,
             @AuthenticationPrincipal CustomUserPrincipal principal) {

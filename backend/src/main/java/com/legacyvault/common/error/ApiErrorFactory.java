@@ -31,6 +31,13 @@ public class ApiErrorFactory {
 		this.localeResolver = localeResolver;
 	}
 
+	/**
+	 * Dựng ApiError từ ErrorCode: status/code/messageKey lấy từ enum, message dịch theo locale của request (vi/en);
+	 * traceId lấy từ MDC, thiếu thì sinh UUID mới để phản hồi vẫn có mã tra cứu.
+	 *
+	 * @param items danh sách lỗi theo trường (rỗng nếu không phải lỗi validation)
+	 * @param args  tham số điền vào message ({0}, {1}...)
+	 */
 	public ApiError create(HttpServletRequest request, ErrorCode code, List<ApiError.FieldItem> items, Object... args) {
 		Locale locale = localeResolver.resolveLocale(request);
 		return new ApiError(Instant.now().toString(), code.status(), code.name(), code.messageKey(),
@@ -50,6 +57,9 @@ public class ApiErrorFactory {
 		return create(request, ErrorCode.VALIDATION_FAILED, items);
 	}
 
+	/**
+	 * Chuyển một lỗi Bean Validation thành FieldItem. Nếu {@code message} của ràng buộc bắt đầu bằng "validation." thì dùng làm messageKey, ngược lại dùng "validation.&lt;mã ràng buộc&gt;".
+	 */
 	private ApiError.FieldItem toItem(Locale locale, ObjectError error) {
 		String field = error instanceof FieldError fieldError ? fieldError.getField() : "";
 		String rawCode = error.getCode() == null ? "invalid" : error.getCode();
@@ -60,6 +70,9 @@ public class ApiErrorFactory {
 		return new ApiError.FieldItem(field, toUpperSnake(rawCode), key, messages.get(locale, key));
 	}
 
+	/**
+	 * Đổi camelCase sang UPPER_SNAKE (ví dụ "NotBlank" thành "NOT_BLANK") để làm mã lỗi công khai.
+	 */
 	static String toUpperSnake(String value) {
 		return value.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toUpperCase(Locale.ROOT);
 	}

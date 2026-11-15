@@ -25,6 +25,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Nghiệp vụ ST-19: Staff chuyển (forward) phiên bản hồ sơ căn cứ mới nhất cho Legal xem xét.
+ * Sau khi chuyển, Vault sang trạng thái xác minh căn cứ pháp lý và snapshot được đánh giá lại (LegalBasisReviewService).
+ */
 @Service
 public class BasisForwardService {
     private final com.legacyvault.notification.WorkflowNotificationService notifications;
@@ -70,6 +74,16 @@ public class BasisForwardService {
      * ST-19: chuyển phiên bản dossier mới nhất cho Legal.
      *
      * Thứ tự khóa chuẩn: Vault -> VerificationCase -> Dossier.
+     *
+     * Xử lý: kiểm tra ca thuộc Staff, ca đang mở, Vault ở trạng thái tiếp nhận căn cứ, hồ sơ PROVIDED và không ON_HOLD;
+     * chỉ chuyển đúng phiên bản mới nhất và không thấp hơn requiredVersionNo; đánh dấu FORWARDED bằng UPDATE có điều kiện,
+     * ghi audit, đánh giá lại snapshot review và tạo thông báo cho Legal.
+     *
+     * @param caseId public UUID của ca
+     * @param versionNo số phiên bản cần chuyển
+     * @param principal Staff đang đăng nhập
+     * @return hồ sơ căn cứ sau khi chuyển
+     * @throws BusinessException RESOURCE_NOT_FOUND, BASIS_DOSSIER_INVALID_STATE, BASIS_VERSION_STALE
      */
     @Transactional
     public BasisDossierResponse forward(
@@ -83,6 +97,7 @@ public class BasisForwardService {
         VerificationCase initialCase = staffCases.findOwnedByStaff(caseId, staffUserId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
+        // Khóa Vault trước tiên (đầu chuỗi Vault -> ca -> hồ sơ) để tuần tự hóa với mọi thao tác khác trên cùng Vault.
         Vault vault = vaultRepository.findByIdForUpdate(initialCase.getVaultId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         lockedState.refresh(vault);
@@ -91,6 +106,7 @@ public class BasisForwardService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         lockedState.refresh(verificationCase);
 
+        // Kiểm tra lại sau khi khóa: ca có thể đã đổi người phụ trách giữa lần đọc không khóa và lần khóa; trả NOT_FOUND để không lộ sự tồn tại của ca.
         if (!Objects.equals(verificationCase.getAssignedStaffUserId(), staffUserId)
                 || !Objects.equals(verificationCase.getVaultId(), vault.getVaultId())
                 || !Objects.equals(verificationCase.getPublicId(), caseId)) {
@@ -116,12 +132,14 @@ public class BasisForwardService {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
 
+        // Chỉ phiên bản mới nhất, và phải đạt mức yêu cầu (requiredVersionNo), mới được chuyển; phiên bản cũ là BASIS_VERSION_STALE.
         if (versionNo != latestVersionNo || versionNo < dossier.getRequiredVersionNo()) {
             throw new BusinessException(ErrorCode.BASIS_VERSION_STALE);
         }
 
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
+        // UPDATE có điều kiện (chỉ khi NOT_FORWARDED): nếu bản ghi vừa bị chuyển bởi luồng khác thì trả khác 1 và bị từ chối.
         if (versions.markForwarded(
                 dossier.getLegalBasisDossierId(),
                 versionNo,
@@ -159,6 +177,7 @@ public class BasisForwardService {
          */
         reviewService.evaluateAfterChange(verificationCase.getPublicId());
 
+        // Thông báo cho workspace Legal; khóa idempotency "forward:<dossier>:<version>" tránh tạo thông báo trùng khi gọi lại.
         var notification = notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL, "LEGAL_BASIS_FORWARDED", "forward:" + dossier.getPublicId() + ":" + versionNo, null);
         return views.view(verificationCase, false).withNotification(notification);
     }

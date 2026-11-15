@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/** Admin-provisioned account: the Admin chooses the initial password and exactly one assignable role. */
+/** Tài khoản do Admin cấp: Admin chọn mật khẩu ban đầu và đúng một role được phép gán. */
 public record AdminCreateUserRequest(
         @NotBlank @Size(max = 150) String fullName,
         @NotBlank @Email @Size(max = 254) String email,
@@ -14,7 +14,7 @@ public record AdminCreateUserRequest(
         @NotBlank @Size(min = 8, max = 72) @ValidPassword String password,
         @NotBlank String role) {
 
-    /** Keeps the initial password out of logs and accidental toString() output. */
+    /** Giữ mật khẩu ban đầu khỏi log và đầu ra toString() ngoài ý muốn. */
     @Override
     public String toString() {
         return "AdminCreateUserRequest[email=" + email + ", role=" + role + "]";

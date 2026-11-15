@@ -8,8 +8,14 @@ import java.util.Locale;
 public final class EmailNormalizer {
     private EmailNormalizer() {}
 
-    // NFKC first (folds full-width and other compatibility forms, turns NBSP into a space), then trim and lowercase.
-    // Login lockout keys are derived from this value, so equivalent spellings of one address must collapse to one key.
+    // Trước hết NFKC (gộp dạng full-width và các dạng tương thích khác, đổi NBSP thành dấu cách), sau đó trim và chuyển chữ thường.
+    // Khóa giới hạn đăng nhập được suy ra từ giá trị này, nên các cách viết tương đương của một địa chỉ phải gộp về cùng một khóa.
+    /**
+     * Chuẩn hóa email về một dạng duy nhất: NFKC, bỏ khoảng trắng hai đầu, chữ thường (Locale.ROOT).
+     * Dùng cho đăng ký, đăng nhập, khóa giới hạn đăng nhập và so sánh trùng email.
+     * @param email email gốc, có thể null
+     * @return email đã chuẩn hóa, hoặc null nếu đầu vào null
+     */
     public static String normalize(String email) {
         if (email == null) {
             return null;

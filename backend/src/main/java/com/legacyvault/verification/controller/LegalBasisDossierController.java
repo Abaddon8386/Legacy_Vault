@@ -65,6 +65,10 @@ public class LegalBasisDossierController {
         return ResponseEntity.ok(distribution.decide(caseId, principal, request));
     }
 
+    /**
+     * Phân loại hồ sơ căn cứ lần đầu cho ca (route court/notarial/...) do BasisClassificationService xử lý.
+     * @return 201 Created kèm Location của hồ sơ căn cứ
+     */
     @PostMapping
     public ResponseEntity<BasisDossierResponse> classify(
             @PathVariable UUID caseId,
@@ -139,6 +143,9 @@ public class LegalBasisDossierController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Xem hồ sơ căn cứ của ca dưới góc nhìn Legal (metadata, phiên bản, phân bổ), không nạp nội dung file.
+     */
     @GetMapping
     public BasisDossierResponse get(@PathVariable UUID caseId) {
         return views.forLegal(caseId);

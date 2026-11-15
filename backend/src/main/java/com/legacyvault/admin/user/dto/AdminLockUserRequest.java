@@ -2,6 +2,6 @@ package com.legacyvault.admin.user.dto;
 
 import jakarta.validation.constraints.Size;
 
-/** Optional free-text reason recorded in the audit trail when an Admin locks an account. */
+/** Lý do dạng văn bản tự do (tùy chọn), được ghi vào audit trail khi Admin khóa tài khoản. */
 public record AdminLockUserRequest(@Size(max = 255) String reason) {
 }

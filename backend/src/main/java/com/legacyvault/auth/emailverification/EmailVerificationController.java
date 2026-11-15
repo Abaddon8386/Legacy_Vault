@@ -15,6 +15,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * API xác minh quyền sở hữu email dưới {@code /api/v1/auth/email-verification}: xem trạng thái, yêu cầu gửi (hoặc gửi lại) và xác nhận bằng credential.
+ * Tài khoản luôn được xác định từ principal đã đăng nhập (request) hoặc từ chính credential (confirm), client không bao giờ chỉ định tài khoản.
+ */
 @RestController
 @RequestMapping("/api/v1/auth/email-verification")
 public class EmailVerificationController {
@@ -25,6 +29,7 @@ public class EmailVerificationController {
         this.config=config; this.limits=limits; this.service=service;
     }
 
+    /** Trạng thái xác minh email của người dùng hiện tại và lần yêu cầu gần nhất. */
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<StatusResponse> status(@AuthenticationPrincipal CustomUserPrincipal principal) {
@@ -33,7 +38,7 @@ public class EmailVerificationController {
                 status.requestAvailable(),status.lastRequestState(),status.lastRequestedAt()));
     }
 
-    /** Request and resend are the same call; the server decides generation and what happens to older credentials. */
+    /** Yêu cầu gửi và gửi lại là cùng một lời gọi; server quyết định việc tạo credential mới và xử lý các credential cũ. */
     @PostMapping("/requests")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<RequestResponse> request(@Valid @RequestBody(required=false) Request body,
@@ -41,7 +46,7 @@ public class EmailVerificationController {
         Long userId=CustomUserPrincipal.requireUserId(principal);
         if(!config.ready()) throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_UNAVAILABLE);
         var outcome=operational(()->{
-            // Every window must admit the request: 60 s cooldown, then the short and daily caps.
+            // Mọi cửa sổ giới hạn đều phải cho phép request: cooldown 60 giây, rồi đến giới hạn ngắn hạn và giới hạn theo ngày.
             int index=0;
             for(var limit:config.sendLimits())
                 if(!limits.allow("verify-email-send-"+(index++),String.valueOf(userId),limit.max(),limit.seconds()))
@@ -55,7 +60,8 @@ public class EmailVerificationController {
         };
     }
 
-    /** Public: the credential, not the client, identifies the account. */
+    /** Công khai: credential (không phải client) xác định tài khoản. */
+    // Giới hạn theo IP vì endpoint công khai: tránh dò đoán credential.
     @PostMapping("/confirm")
     public ResponseEntity<Void> confirm(@Valid @RequestBody Confirm body,HttpServletRequest request) {
         operational(()->{
@@ -67,6 +73,7 @@ public class EmailVerificationController {
         return ResponseEntity.noContent().header("Cache-Control","no-store").build();
     }
 
+    // Lỗi hạ tầng bất ngờ (RuntimeException) được che thành EMAIL_VERIFICATION_UNAVAILABLE để không lộ chi tiết nội bộ; lỗi nghiệp vụ được giữ nguyên.
     private <T> T operational(java.util.function.Supplier<T> work) {
         try { return work.get(); }
         catch(BusinessException e) { throw e; }

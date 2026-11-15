@@ -26,6 +26,14 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+/**
+ * Filter xác thực Bearer JWT, chạy trước UsernamePasswordAuthenticationFilter.
+ *
+ * <p>Quy trình: bỏ qua hai endpoint khôi phục mật khẩu; không có Bearer thì cho đi tiếp (SecurityConfig quyết định endpoint có công khai không);
+ * có token thì kiểm tra chữ ký/hạn, tải user theo subject, so khớp {@code authVersion} với {@code users.auth_version},
+ * yêu cầu user ACTIVE và chưa xóa, rồi nạp role từ DB ở mỗi request nên đổi role hoặc khóa tài khoản có hiệu lực ngay.
+ * Mọi lỗi xác thực đều trả 401 qua {@link ApiAuthenticationEntryPoint}.
+ */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
@@ -46,7 +54,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        // Recovery authenticates only its purpose-bound credential, never a stale tab JWT.
+        // Hai endpoint khôi phục mật khẩu tự xác thực bằng credential riêng; bỏ qua JWT để một token cũ còn trong tab không làm request bị từ chối.
         String path=request.getRequestURI().substring(request.getContextPath().length());
         if ("POST".equals(request.getMethod()) && (path.equals("/api/v1/auth/password-recovery/requests")
                 || path.equals("/api/v1/auth/password-recovery/reset"))) {
@@ -74,6 +82,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             User user = userRepository.findByPublicId(publicUserId).orElseThrow(()
                     -> new InsufficientAuthenticationException("Invalid authentication"));
 
+            // authVersion trong token phải khớp đúng DB: đổi/đặt lại mật khẩu hoặc khóa tài khoản làm tăng giá trị này và vô hiệu mọi token cũ.
+            // Cũng từ chối tài khoản không ACTIVE hoặc đã xóa mềm.
             Object version = claims.get("authVersion");
             if (!(version instanceof Number number) || number.longValue() != user.getAuthVersion()
                     || number.doubleValue() != number.longValue()
@@ -82,6 +92,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
+            // Role luôn đọc từ DB ở mỗi request (không tin claim trong token) nên đổi role áp dụng ngay.
             List<SimpleGrantedAuthority> authorities =
                     userRoleRepository.findByUserIdWithRole(user.getUserId())
                             .stream()
@@ -111,6 +122,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * Xóa SecurityContext và trả 401 qua {@link ApiAuthenticationEntryPoint}.
+     */
     private void reject(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
         SecurityContextHolder.clearContext();
         authenticationEntryPoint.commence(request, response,

@@ -3,6 +3,9 @@ package com.legacyvault.verification.dto;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Ca xác minh hiển thị cho Staff: thông tin Vault, chủ sở hữu, trạng thái phân công và người được ủy thác (trustee).
+ */
 public record StaffVerificationCaseResponse(
         UUID caseId,
         String caseNumber,

@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+/**
+ * API Staff xem và nhận (claim) ca xác minh. Chỉ STAFF_EXECUTOR; @Validated để ràng buộc page/size.
+ */
 @RestController
 @Validated
 @RequestMapping("/api/v1/staff/verification-cases")
@@ -28,6 +31,12 @@ public class StaffVerificationCaseController {
         this.caseService = caseService;
     }
 
+    /**
+     * Danh sách ca Staff được thấy: ca được giao cho mình hoặc ca OPEN chưa ai nhận.
+     * @param status lọc trạng thái
+     * @param query từ khóa tìm kiếm (Vault, chủ sở hữu, người thụ hưởng, mã ca)
+     * @param size 1..100
+     */
     @GetMapping
     public PageResponse<StaffVerificationCaseResponse> listCases(
             @RequestParam(required = false) String status,
@@ -39,6 +48,9 @@ public class StaffVerificationCaseController {
         return caseService.listCases(principal, status, query, page, size);
     }
 
+    /**
+     * Xem một ca Staff được phép thấy.
+     */
     @GetMapping("/{caseId}")
     public StaffVerificationCaseResponse getCase(
             @PathVariable UUID caseId,
@@ -47,6 +59,9 @@ public class StaffVerificationCaseController {
         return caseService.getCase(caseId, principal);
     }
 
+    /**
+     * Staff nhận một ca OPEN chưa có người phụ trách.
+     */
     @PostMapping("/{caseId}/claim")
     public StaffVerificationCaseResponse claimCase(
             @PathVariable UUID caseId,

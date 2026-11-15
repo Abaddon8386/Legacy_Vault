@@ -8,6 +8,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+/**
+ * Danh mục role, ánh xạ bảng {@code dbo.roles}. {@code roleCode} có tiền tố ROLE_ (ROLE_ADMIN, ROLE_VAULT_OWNER, ROLE_BENEFICIARY, ROLE_STAFF_EXECUTOR, ROLE_LEGAL_VERIFIER).
+ */
 @Entity
 @Table(name = "roles", schema = "dbo")
 public class Role {

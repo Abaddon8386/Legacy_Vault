@@ -12,6 +12,10 @@ import com.legacyvault.verification.repository.VerificationCaseRepository;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
 
+/**
+ * Xử lý từng cấu hình DMS đến hạn, mỗi phương thức một transaction. Thứ tự khóa luôn là Vault trước rồi DMS (cùng thứ tự với luồng hủy cảnh báo/lưu trữ) để tránh deadlock.
+ * Truy vấn của {@link DmsScanJob} chỉ là bước lọc sơ bộ; mọi điều kiện được kiểm tra lại ở đây dưới khóa.
+ */
 @Service
 public class DmsTriggerProcessor {
 
@@ -50,7 +54,7 @@ public class DmsTriggerProcessor {
 			return;
 		}
 
-		// Same Vault -> DMS order as archive/cancel; check fresh state before business writes or log INSERTs.
+		// Cùng thứ tự Vault -> DMS như luồng lưu trữ/hủy; kiểm tra trạng thái mới nhất trước khi ghi nghiệp vụ hoặc INSERT log.
 		Vault vault = vaults.findByOwnerUserIdForUpdate(config.getOwnerUserId()).orElse(null);
 		if (vault != null) {
 			state.refresh(vault);
@@ -58,6 +62,7 @@ public class DmsTriggerProcessor {
 		}
 		LocalDateTime deadline = now.plusMinutes(config.getGracePeriodMinutes());
 
+		// UPDATE có điều kiện (status MONITORING và nextCheckAt đã đến hạn) nên chỉ một luồng thắng; updated khác 1 nghĩa là luồng khác (ví dụ check-in) đã đổi trạng thái.
 		int updated = configs.triggerIfExpired(configId, now, deadline);
 		if (updated != 1) {
 			return;
@@ -89,6 +94,7 @@ public class DmsTriggerProcessor {
 	 */
 	@Transactional
 	public void processGracePeriodExpired(Long configId, LocalDateTime now) {
+		// Kiểm tra nhanh không khóa; sau khi khóa Vault và DMS sẽ kiểm tra lại vì trạng thái có thể đã đổi.
 		DmsConfig snapshot = configs.findById(configId).orElse(null);
 
 		if (snapshot == null || !snapshot.isGracePeriodExpired(now)) {
@@ -128,6 +134,7 @@ public class DmsTriggerProcessor {
 			return;
 		}
 
+		// Mốc triggeredAt của vụ xác minh là hạn Grace Period (thời điểm thực sự hết hạn), không phải thời điểm job chạy.
 		LocalDateTime triggeredAt = config.getGraceDeadline();
 
 		// ST-08: DMS xác nhận hết Grace Period, không xác nhận tử vong.

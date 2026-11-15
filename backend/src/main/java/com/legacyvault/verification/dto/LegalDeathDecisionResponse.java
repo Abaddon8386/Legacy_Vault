@@ -3,6 +3,9 @@ package com.legacyvault.verification.dto;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Phản hồi quyết định giấy chứng tử: kết quả, trạng thái ca xác minh và trạng thái Vault sau quyết định.
+ */
 public record LegalDeathDecisionResponse(UUID deathDocumentPublicId,
         UUID verificationCasePublicId,
         String result,

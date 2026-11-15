@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Locks the authoritative Vault then its assigned Staff case for handover writes. */
+/** Khóa Vault gốc rồi đến ca Staff được giao để ghi dữ liệu bàn giao. */
 @Component
 public class HandoverSessionCaseAccess {
     private final VerificationCaseRepository cases;
@@ -30,12 +30,21 @@ public class HandoverSessionCaseAccess {
         this.state = state;
     }
 
+    /**
+     * Khóa Vault và ca theo public UUID của ca. Yêu cầu đã có transaction (Propagation.MANDATORY).
+     * @throws BusinessException RESOURCE_NOT_FOUND khi ca không tồn tại hoặc không được giao cho Staff
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public LockedCase lockByPublicCaseId(UUID casePublicId, Long staffUserId) {
         VerificationCase initial = cases.findByPublicId(casePublicId).orElseThrow(HandoverSessionCaseAccess::notFound);
         return lock(initial.getVerificationCaseId(), staffUserId);
     }
 
+    /**
+     * Khóa theo thứ tự Vault -> VerificationCase (ca phải thuộc đúng Staff) và xác nhận lại ca vẫn thuộc Vault vừa khóa.
+     * Mọi lỗi đều trả RESOURCE_NOT_FOUND để không phân biệt "không tồn tại" với "không có quyền".
+     * @return cặp Vault và ca đã khóa và đã refresh
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public LockedCase lock(Long verificationCaseId, Long staffUserId) {
         VerificationCase initial = cases.findById(verificationCaseId).orElseThrow(HandoverSessionCaseAccess::notFound);

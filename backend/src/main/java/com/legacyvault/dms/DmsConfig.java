@@ -12,6 +12,13 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
+/**
+ * Cấu hình và trạng thái Dead Man's Switch (DMS) của một chủ Vault, ánh xạ bảng {@code dbo.dms_configs}.
+ *
+ * <p>Vòng đời: {@code MONITORING} sang {@code TRIGGERED} (quá hạn check-in, bắt đầu Grace Period) sang {@code GRACE_PERIOD_EXCEEDED}
+ * (hết Grace Period, mở vụ xác minh). Chủ Vault check-in hoặc hủy cảnh báo thì quay lại MONITORING.
+ * Chu kỳ và Grace Period lưu cả dạng ngày lẫn phút; cột phút null là dữ liệu cũ, quy đổi từ số ngày nhân 1440.
+ */
 @Entity
 @Table(name = "dms_configs", schema = "dbo")
 public class DmsConfig {
@@ -67,9 +74,9 @@ public class DmsConfig {
 	}
 
 	/**
-	 * Current UTC time at microsecond precision. SQL Server datetime2 keeps 100 ns and rounds, while Linux clocks
-	 * return nanoseconds; a value computed here and the same value read back would otherwise differ, and a
-	 * deadline compared against its own stored copy could land on the wrong side.
+	 * Thời gian UTC hiện tại ở độ chính xác microsecond. datetime2 của SQL Server giữ 100 ns và làm tròn, còn đồng hồ Linux
+	 * trả nanosecond; giá trị tính ở đây và cùng giá trị đọc lại sẽ khác nhau, và một
+	 * deadline so với bản sao đã lưu của chính nó có thể rơi sai phía.
 	 */
 	static LocalDateTime utcNow() {
 		return LocalDateTime.now(ZoneOffset.UTC).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
@@ -86,15 +93,24 @@ public class DmsConfig {
 		updatedAt = utcNow();
 	}
 
+	/**
+	 * Đặt lại chu kỳ check-in theo số ngày: quy đổi ra phút rồi khởi động lại vòng theo dõi (xem {@link #configureMinutes}).
+	 */
 	public void configure(int checkIntervalDays, LocalDateTime nextCheckAt) {
 		configureMinutes(Math.multiplyExact(checkIntervalDays, 1440), nextCheckAt);
 	}
 
+	/**
+	 * Tạo cấu hình mới với chu kỳ tính bằng phút và Grace Period tính bằng ngày.
+	 */
 	public static DmsConfig withMinutes(Long ownerId, int minutes, int graceDays, LocalDateTime nextCheckAt) {
 		var config = new DmsConfig(ownerId, 1, graceDays, nextCheckAt);
 		config.configureMinutes(minutes, nextCheckAt);
 		return config;
 	}
+	/**
+	 * Tạo cấu hình mới với cả chu kỳ và Grace Period tính bằng phút.
+	 */
 	public static DmsConfig withGraceMinutes(Long ownerId, int minutes, int graceMinutes, LocalDateTime nextCheckAt) {
 		var config = new DmsConfig(ownerId, 1, 0, nextCheckAt);
 		config.configureMinutes(minutes, nextCheckAt);
@@ -102,7 +118,7 @@ public class DmsConfig {
 		return config;
 	}
 
-	/** Grace-only change: keeps the check-in cycle (lastCheckInAt/nextCheckAt) untouched. */
+	/** Thay đổi chỉ Grace: giữ nguyên chu kỳ check-in (lastCheckInAt/nextCheckAt). */
 	public void setGraceMinutes(int graceMinutes) {
 		if (graceMinutes < 0 || graceMinutes > MAX_GRACE_MINUTES) throw new IllegalArgumentException("Invalid DMS grace minutes");
 		this.gracePeriodMinutes = graceMinutes;
@@ -110,6 +126,12 @@ public class DmsConfig {
 		this.updatedAt = utcNow();
 	}
 
+	/**
+	 * Đặt chu kỳ check-in theo phút (1 đến 47.184.480) và đưa về MONITORING: xóa lastCheckInAt, triggeredAt, graceDeadline và đặt nextCheckAt mới.
+	 * Cột số ngày chỉ có giá trị khi số phút chia hết cho 1440.
+	 *
+	 * @throws IllegalArgumentException nếu số phút ngoài khoảng cho phép
+	 */
 	public void configureMinutes(int minutes, LocalDateTime nextCheckAt) {
 		if (minutes < 1 || minutes > 47184480) throw new IllegalArgumentException("Invalid DMS minutes");
 		this.checkIntervalMinutes = minutes;
@@ -122,12 +144,18 @@ public class DmsConfig {
 		this.updatedAt = utcNow();
 	}
 
+	/**
+	 * Ghi nhận chủ Vault check-in: đặt lastCheckInAt và dời nextCheckAt thêm đúng một chu kỳ.
+	 */
 	public void checkIn(LocalDateTime now) {
 		this.lastCheckInAt = now;
 		this.nextCheckAt = now.plusMinutes(getCheckIntervalMinutes());
 		this.updatedAt = now;
 	}
 
+	/**
+	 * Quay lại MONITORING (khi hủy cảnh báo, hoặc check-in trong Grace Period): coi như vừa check-in và xóa mốc triggeredAt/graceDeadline.
+	 */
 	public void restoreAfterAlert(LocalDateTime now) {
 		this.status = "MONITORING";
 		this.lastCheckInAt = now;
@@ -137,17 +165,26 @@ public class DmsConfig {
 		this.updatedAt = now;
 	}
 
+	// Grace Period tối đa 30 ngày.
 	public static final int MAX_GRACE_MINUTES = 30 * 1440;
 	public static final String STATUS_MONITORING = "MONITORING";
 	public static final String STATUS_TRIGGERED = "TRIGGERED";
 	public static final String STATUS_GRACE_PERIOD_EXCEEDED = "GRACE_PERIOD_EXCEEDED";
 
+	/**
+	 * Grace Period đã hết khi đang TRIGGERED, có graceDeadline và graceDeadline không nằm sau {@code now}.
+	 */
 	public boolean isGracePeriodExpired(LocalDateTime now) {
 		return STATUS_TRIGGERED.equals(status)
 				&& graceDeadline != null
 				&& !graceDeadline.isAfter(now);
 	}
 
+	/**
+	 * TRIGGERED sang GRACE_PERIOD_EXCEEDED (ST-08). Chỉ xác nhận Grace Period đã hết, không xác nhận tử vong.
+	 *
+	 * @throws IllegalStateException nếu Grace Period chưa hết
+	 */
 	public void markGracePeriodExceeded(LocalDateTime now) {
 		if (!isGracePeriodExpired(now)) {
 			throw new IllegalStateException("Grace Period has not expired");
@@ -162,7 +199,7 @@ public class DmsConfig {
 	public Integer getCheckIntervalDays() { return checkIntervalDays; }
 	public int getCheckIntervalMinutes() { return checkIntervalMinutes != null ? checkIntervalMinutes : Math.multiplyExact(checkIntervalDays, 1440); }
 	public int getGracePeriodDays() { return gracePeriodDays; }
-	/** NULL column = legacy row, exactly gracePeriodDays * 1440. */
+	/** Cột NULL = dòng cũ, đúng bằng gracePeriodDays * 1440. */
 	public int getGracePeriodMinutes() { return gracePeriodMinutes != null ? gracePeriodMinutes : Math.multiplyExact(gracePeriodDays, 1440); }
 	public String getStatus() { return status; }
 	public LocalDateTime getLastCheckInAt() { return lastCheckInAt; }

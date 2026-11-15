@@ -10,33 +10,40 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Distribution workflow contract (PR #226): the server-derived phase, the current document and allocation snapshots and
- * one capability per action. The client never supplies a phase; it supplies the revision and snapshot it looked at.
+ * Hợp đồng workflow phân chia (PR #226): phase do server suy ra, snapshot tài liệu và phân bổ hiện hành, và
+ * một capability cho mỗi action. Client không bao giờ gửi phase; nó gửi revision và snapshot mà nó đã xem.
  */
 public final class DistributionWorkflowDtos {
 
     private DistributionWorkflowDtos() { }
 
+    // Điều kiện tiên quyết: giấy chứng tử đã được duyệt (deathApproved) và di chúc đã khớp (willMatched).
     public record Prerequisites(boolean deathApproved, boolean willMatched) { }
 
+    // Yêu cầu bổ sung giấy tờ hiện hành và lý do.
     public record RequestInfo(UUID id, String reason) { }
 
-    /** Latest forwarded document version; status is PENDING, APPROVED or CHANGES_REQUESTED. */
+    /** Phiên bản tài liệu đã chuyển tiếp mới nhất; status là PENDING, APPROVED hoặc CHANGES_REQUESTED. */
     public record DocumentInfo(int version, String sha256, String status) { }
 
+    // Một dòng phân bổ: tài sản nào cho người nhận nào (chỉ ID công khai).
     public record AllocationItem(UUID assetId, UUID beneficiaryId, String assetName, String recipientName, String description) { }
 
-    /** Status is SUBMITTED, APPROVED or CHANGES_REQUESTED; documentVersion is the document the allocation was prepared for. */
+    /** Status là SUBMITTED, APPROVED hoặc CHANGES_REQUESTED; documentVersion là tài liệu mà phân bổ được chuẩn bị cho. */
     public record AllocationInfo(int version, int documentVersion, String sha256, String status, List<AllocationItem> items) { }
 
-    /** blockedReason is null exactly when allowed. */
+    /** blockedReason là null đúng khi allowed. */
     public record Capability(boolean allowed, String blockedReason) { }
 
+    /**
+     * Ảnh chụp trạng thái workflow phân chia của một ca: phase do server suy ra từ chuỗi event,
+     * revision dùng làm khóa lạc quan cho action kế tiếp, capabilities cho biết action nào được phép và lý do bị chặn.
+     */
     public record View(UUID caseId, long revision, String phase, Prerequisites prerequisites, RequestInfo request,
             DocumentInfo document, AllocationInfo allocation, java.util.Map<String, Capability> capabilities,
             String feedback) { }
 
-    /** Body of every POST action; which fields are required depends on the action and is checked by the service. */
+    /** Body của mọi action POST; trường nào bắt buộc tùy action và do service kiểm tra. */
     public record ActionBody(
             @NotNull @Min(0) Long revision,
             @Size(max = 1000) String reason,
@@ -46,6 +53,7 @@ public final class DistributionWorkflowDtos {
             @Pattern(regexp = "(?i)[a-f0-9]{64}") String allocationSha256,
             @Size(max = 200) List<@Valid AllocationInput> allocations) { }
 
+    // Kết quả của một action: ca, tên action, revision mới và biên nhận thông báo.
     public record Receipt(UUID caseId, String action, long revision,
             com.legacyvault.notification.WorkflowNotificationService.Receipt notification) { }
 }

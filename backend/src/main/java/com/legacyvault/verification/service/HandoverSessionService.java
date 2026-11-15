@@ -25,6 +25,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Nghiệp vụ phiên bàn giao (ST-23, LV-HANDOVER-001): Staff mở phiên, xem phiên và hủy phiên đang mở.
+ * Mọi truy vấn đều ràng buộc ca được giao cho đúng Staff; ghi audit cho mở/hủy.
+ */
 @Service
 public class HandoverSessionService {
     private final HandoverSessionCaseAccess access;
@@ -45,6 +49,14 @@ public class HandoverSessionService {
         this.workflow = workflow;
     }
 
+    /**
+     * Mở phiên bàn giao mới.
+     * Điều kiện: ca đang mở, Vault UNLOCKED hoặc HANDOVER_IN_PROGRESS, qua cổng LegalWorkflowGuard (phê duyệt Legal còn hiệu lực)
+     * và chưa có phiên OPEN nào của ca.
+     * @param casePublicId public UUID của ca
+     * @return thông tin phiên vừa mở
+     * @throws BusinessException HANDOVER_SESSION_INVALID_STATE, HANDOVER_SESSION_ALREADY_OPEN
+     */
     @Transactional
     public HandoverSessionResponse open(UUID casePublicId, CustomUserPrincipal principal) {
         Long staffId = CustomUserPrincipal.requireUserId(principal);
@@ -55,6 +67,7 @@ public class HandoverSessionService {
                 || Vault.STATUS_HANDOVER_IN_PROGRESS.equals(vault.getStatus()))) {
             throw new BusinessException(ErrorCode.HANDOVER_SESSION_INVALID_STATE);
         }
+        // Cổng pháp lý: bàn giao chỉ được tiến hành khi phê duyệt của Legal vẫn còn khớp snapshot hiện tại.
         workflow.requireProtectedTransition(casePublicId, LegalWorkflowGuard.ProtectedTransition.HANDOVER);
         if (sessions.existsByVerificationCaseIdAndStatus(
                 verificationCase.getVerificationCaseId(), HandoverSessionStatus.OPEN)) {
@@ -63,6 +76,7 @@ public class HandoverSessionService {
 
         HandoverSession session = new HandoverSession(verificationCase.getVerificationCaseId(), staffId);
         try {
+            // saveAndFlush để ràng buộc duy nhất ở DB (một phiên OPEN mỗi ca) bắn lỗi ngay; coi xung đột là phiên đã mở, kể cả khi hai yêu cầu vượt qua bước kiểm tra exists cùng lúc.
             session = sessions.saveAndFlush(session);
         } catch (DataIntegrityViolationException conflict) {
             throw new BusinessException(ErrorCode.HANDOVER_SESSION_ALREADY_OPEN);
@@ -76,6 +90,9 @@ public class HandoverSessionService {
         return toResponse(session, verificationCase, vault, principal);
     }
 
+    /**
+     * Liệt kê phiên bàn giao của ca do Staff hiện tại mở (mới nhất trước), có thể lọc theo status.
+     */
     @Transactional(readOnly = true)
     public List<HandoverSessionResponse> list(UUID casePublicId, HandoverSessionStatus status,
             CustomUserPrincipal principal) {
@@ -91,6 +108,9 @@ public class HandoverSessionService {
         return found.stream().map(session -> toResponse(session, verificationCase, vault, principal)).toList();
     }
 
+    /**
+     * Xem một phiên bàn giao; chỉ chủ phiên (Staff được giao ca) mới xem được.
+     */
     @Transactional(readOnly = true)
     public HandoverSessionResponse get(UUID casePublicId, UUID sessionPublicId,
             CustomUserPrincipal principal) {
@@ -104,6 +124,11 @@ public class HandoverSessionService {
         return toResponse(session, verificationCase, vault, principal);
     }
 
+    /**
+     * Hủy phiên bàn giao (OPEN -> CANCELLED). Đọc không khóa để xác thực quyền, sau đó khóa Vault -> ca -> phiên rồi mới đổi trạng thái.
+     * Lưu ý: giá trị status trong request chỉ được kiểm tra khác null, trạng thái đích luôn là CANCELLED.
+     * @throws BusinessException VALIDATION_FAILED, RESOURCE_NOT_FOUND, HANDOVER_SESSION_INVALID_STATE (phiên không còn OPEN)
+     */
     @Transactional
     public HandoverSessionResponse updateStatus(UUID casePublicId, UUID sessionPublicId,
             HandoverSessionStatusRequest request, CustomUserPrincipal principal) {
@@ -125,6 +150,7 @@ public class HandoverSessionService {
             throw new BusinessException(ErrorCode.HANDOVER_SESSION_INVALID_STATE);
         }
 
+        // Hiện chỉ hỗ trợ hủy; request.status không quyết định trạng thái đích.
         HandoverSessionStatus target = HandoverSessionStatus.CANCELLED;
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         session.close(target, now);

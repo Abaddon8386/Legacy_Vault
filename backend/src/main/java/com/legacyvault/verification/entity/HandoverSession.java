@@ -15,6 +15,10 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
+/**
+ * Phiên bàn giao tài sản do Staff mở cho một ca xác minh.
+ * Vòng đời: OPEN -> COMPLETED hoặc CANCELLED (trạng thái cuối, không đổi lại).
+ */
 @Entity
 @Table(name = "handover_sessions", schema = "dbo")
 public class HandoverSession {
@@ -67,6 +71,10 @@ public class HandoverSession {
         updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
+    /**
+     * Đóng phiên sang trạng thái cuối (COMPLETED hoặc CANCELLED).
+     * Chỉ phiên đang OPEN mới được đóng; vi phạm sẽ ném IllegalStateException.
+     */
     public void close(HandoverSessionStatus terminalStatus, LocalDateTime now) {
         if (status != HandoverSessionStatus.OPEN
                 || (terminalStatus != HandoverSessionStatus.COMPLETED

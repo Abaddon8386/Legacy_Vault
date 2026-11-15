@@ -32,13 +32,14 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Admin-only account provisioning and role assignment. Only the Staff, Legal and Vault Owner roles can be
- * granted here; Admin accounts are never created or altered through this API, and an Admin cannot change
- * their own role. Roles are read from the database on every request, so a change applies immediately.
- * An Admin can also set a new password for any other non-Admin account ({@link #resetPassword}).
+ * Cấp tài khoản và gán role chỉ dành cho Admin. Chỉ các role Staff, Legal và Vault Owner được
+ * cấp ở đây; tài khoản Admin không bao giờ được tạo hay sửa qua API này, và Admin không thể đổi
+ * role của chính mình. Role đọc từ database ở mỗi request, nên thay đổi có hiệu lực ngay.
+ * Admin cũng có thể đặt mật khẩu mới cho mọi tài khoản không phải Admin khác ({@link #resetPassword}).
  */
 @Service
 public class AdminUserManagementService {
+    // Chỉ ba role này được Admin cấp khi tạo tài khoản; ROLE_ADMIN và ROLE_BENEFICIARY không nằm trong danh sách.
     static final String OWNER = "ROLE_VAULT_OWNER";
     static final Set<String> ASSIGNABLE = Set.of("ROLE_STAFF_EXECUTOR", "ROLE_LEGAL_VERIFIER", OWNER);
 
@@ -62,6 +63,17 @@ public class AdminUserManagementService {
         this.query = query;
     }
 
+    /**
+     * Tạo tài khoản do Admin cấp (status ACTIVE) và gán đúng một role.
+     *
+     * <p>Luồng: chuẩn hóa role và email, kiểm tra email trùng, băm mật khẩu bằng {@link PasswordEncoder},
+     * lưu user rồi lưu liên kết role (ghi {@code assignedByUserId}), ghi audit {@code ADMIN_USER_CREATED}.
+     *
+     * @param adminUserId id của Admin thực hiện
+     * @param request    thông tin tài khoản
+     * @return tài khoản vừa tạo
+     * @throws BusinessException EMAIL_ALREADY_EXISTS nếu email đã dùng; ADMIN_ROLE_NOT_ASSIGNABLE nếu role không được phép cấp
+     */
     @Transactional
     public AdminUserResponse createUser(Long adminUserId, AdminCreateUserRequest request) {
         String roleCode = assignable(request.role());
@@ -79,6 +91,7 @@ public class AdminUserManagementService {
         user.setStatus("ACTIVE");
         User saved;
         try {
+            // Flush ngay để ràng buộc unique của email nổ tại đây. Bước existsByEmail phía trên không đủ khi hai request tạo cùng một email đồng thời, nên phải bắt lỗi trùng.
             saved = users.saveAndFlush(user);
         } catch (DataIntegrityViolationException duplicate) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
@@ -93,9 +106,9 @@ public class AdminUserManagementService {
     }
 
     /**
-     * Locks (ACTIVE to LOCKED) or unlocks (LOCKED to ACTIVE) an account. Locking revokes every issued token, so
-     * unlocking later never revives an old session. Admin accounts and the caller are protected; repeating the
-     * requested state is a no-op.
+     * Khóa (ACTIVE sang LOCKED) hoặc mở khóa (LOCKED sang ACTIVE) một tài khoản. Khóa sẽ thu hồi mọi token đã cấp, nên
+     * mở khóa sau này không làm sống lại phiên cũ. Tài khoản Admin và người gọi được bảo vệ; lặp lại
+     * trạng thái được yêu cầu là no-op.
      */
     @Transactional
     public AdminUserResponse setLocked(Long adminUserId, UUID publicId, boolean lock, String reason) {
@@ -104,12 +117,14 @@ public class AdminUserManagementService {
         if (found.getUserId().equals(adminUserId)) {
             throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_PROTECTED);
         }
+        // Khóa dòng user (PESSIMISTIC_WRITE) để các thay đổi trạng thái của Admin được tuần tự hóa; hàm này tìm được cả tài khoản LOCKED/PENDING.
         User target = users.findLiveAccountForUpdate(found.getUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         if (userRoles.findByUserIdWithRole(target.getUserId()).stream()
                 .anyMatch(link -> "ROLE_ADMIN".equals(link.getRole().getRoleCode()))) {
             throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_PROTECTED);
         }
+        // Đã ở trạng thái đích thì trả về luôn (idempotent); trạng thái nguồn không đúng (ví dụ PENDING) thì báo ADMIN_ACCOUNT_STATE_INVALID.
         String from = lock ? "ACTIVE" : "LOCKED";
         String to = lock ? "LOCKED" : "ACTIVE";
         if (to.equals(target.getStatus())) {
@@ -118,11 +133,13 @@ public class AdminUserManagementService {
         if (!from.equals(target.getStatus())) {
             throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_STATE_INVALID);
         }
+        // Chủ Vault đang trong quy trình hậu sự (hoặc Vault đã ARCHIVED) không được khóa, để không làm gián đoạn việc xác minh/bàn giao.
         if (lock && vaults.existsByOwnerUserIdAndStatusIn(target.getUserId(), AdminAccountStatus.LOCK_BLOCKING_VAULT_STATUSES)) {
             throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_IN_HANDOVER);
         }
         target.setStatus(to);
         if (lock) {
+            // Tăng authVersion: JwtAuthenticationFilter sẽ từ chối mọi token cũ của tài khoản này.
             target.revokeSessions();
         }
         users.flush();
@@ -138,22 +155,22 @@ public class AdminUserManagementService {
     }
 
     /**
-     * Sets a new password for the account whose e-mail is in the request, on behalf of an Admin.
+     * Đặt mật khẩu mới cho tài khoản có e-mail trong request, thay mặt một Admin.
      *
-     * <p>Steps: normalise the e-mail and find the account (404 {@code RESOURCE_NOT_FOUND} if none or deleted); take
-     * the same row lock as the other admin state changes; refuse Admin accounts (including the caller, who must use
-     * the normal change-password flow) with 409 {@code ADMIN_ACCOUNT_PROTECTED}; refuse accounts that cannot sign in
-     * with a password (Google-only) with 409 {@code ADMIN_ACCOUNT_STATE_INVALID}; hash the new password with the
-     * application {@link PasswordEncoder}; advance {@code authVersion} so every token issued before the reset stops
-     * working (the user must sign in again with the new password); write an
-     * {@link AuditAction#ADMIN_USER_PASSWORD_RESET} audit record. The password itself is never stored in the audit
-     * trail, logs or the response.
+     * <p>Các bước: chuẩn hóa e-mail và tìm tài khoản (404 {@code RESOURCE_NOT_FOUND} nếu không có hoặc đã xóa); lấy
+     * cùng khóa dòng như các thay đổi trạng thái khác của admin; từ chối tài khoản Admin (kể cả người gọi, vốn phải dùng
+     * luồng đổi mật khẩu thông thường) bằng 409 {@code ADMIN_ACCOUNT_PROTECTED}; từ chối tài khoản không đăng nhập được
+     * bằng mật khẩu (chỉ dùng Google) bằng 409 {@code ADMIN_ACCOUNT_STATE_INVALID}; băm mật khẩu mới bằng
+     * {@link PasswordEncoder} của ứng dụng; tăng {@code authVersion} để mọi token cấp trước khi đặt lại mất hiệu lực
+     * (người dùng phải đăng nhập lại bằng mật khẩu mới); ghi một bản ghi audit
+     * {@link AuditAction#ADMIN_USER_PASSWORD_RESET}. Bản thân mật khẩu không bao giờ được lưu trong audit,
+     * log hay response.
      *
-     * <p>Locked and pending accounts can be reset: the status is left unchanged, so a locked account stays locked.
+     * <p>Tài khoản bị khóa và đang chờ vẫn đặt lại được: trạng thái giữ nguyên, nên tài khoản bị khóa vẫn bị khóa.
      *
-     * @param adminUserId id of the acting Admin
-     * @param request     target e-mail and the new (policy-checked) password
-     * @return the target account after the change
+     * @param adminUserId id của Admin thực hiện
+     * @param request     e-mail đích và mật khẩu mới (đã kiểm tra policy)
+     * @return tài khoản đích sau thay đổi
      */
     @Transactional
     public AdminUserResponse resetPassword(Long adminUserId, AdminResetPasswordRequest request) {
@@ -173,6 +190,7 @@ public class AdminUserManagementService {
             throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_STATE_INVALID);
         }
         target.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        // Tăng authVersion để mọi token phát hành trước khi đặt lại mật khẩu mất hiệu lực; người dùng phải đăng nhập lại.
         target.advanceAuthVersion(LocalDateTime.now(ZoneOffset.UTC));
         users.flush();
 
@@ -181,6 +199,11 @@ public class AdminUserManagementService {
         return query.getUser(target.getPublicId(), null);
     }
 
+    /**
+     * Chuẩn hóa mã role (viết hoa, thêm tiền tố ROLE_ nếu thiếu) và kiểm tra có thuộc {@link #ASSIGNABLE} không.
+     *
+     * @throws BusinessException ADMIN_ROLE_NOT_ASSIGNABLE nếu role không được phép cấp
+     */
     private static String assignable(String role) {
         String code = role == null ? "" : role.trim().toUpperCase(Locale.ROOT);
         if (!code.startsWith("ROLE_")) {
@@ -192,15 +215,24 @@ public class AdminUserManagementService {
         return code;
     }
 
+    /**
+     * Lấy role theo mã. Thiếu role trong bảng {@code roles} là lỗi dữ liệu/migration nên ném IllegalStateException thay vì lỗi nghiệp vụ.
+     */
     private Role requireRole(String code) {
         return roles.findByRoleCode(code)
                 .orElseThrow(() -> new IllegalStateException("Required role not found: " + code));
     }
 
+    /**
+     * Dựng mảng JSON chuỗi thủ công cho stateAfter của audit. Giá trị là mã role đã whitelist nên không cần escape.
+     */
     private static String json(List<String> values) {
         return values.stream().map(value -> "\"" + value + "\"").collect(Collectors.joining(",", "[", "]"));
     }
 
+    /**
+     * Ghi audit cho thao tác Admin: actor là USER (Admin), entity là USER (tài khoản bị tác động); stepId dùng chính tên action.
+     */
     private void record(AuditAction action, Long adminUserId, Long targetUserId, String before, String after,
                         Map<String, Object> context) {
         audit.record(new AuditEvent(action, AuditActorType.USER, adminUserId, null, "USER", targetUserId,

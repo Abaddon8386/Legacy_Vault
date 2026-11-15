@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-/** ROLE_ADMIN-only account creation, role at creation (Staff, Legal, Vault Owner), lock/unlock and password reset. */
+/** Chỉ ROLE_ADMIN: tạo tài khoản, role khi tạo (Staff, Legal, Vault Owner), khóa/mở khóa và đặt lại mật khẩu. */
 @RestController
 @RequestMapping("/api/v1/admin/users")
 @PreAuthorize("hasRole('ADMIN')")
@@ -30,6 +30,13 @@ public class AdminUserManagementController {
         this.service = service;
     }
 
+    /**
+     * Tạo tài khoản mới (Staff, Legal hoặc Vault Owner) với mật khẩu ban đầu do Admin đặt.
+     *
+     * @param admin   principal của Admin đang đăng nhập (ghi vào audit)
+     * @param request thông tin tài khoản và role cần cấp
+     * @return bản ghi công khai của tài khoản vừa tạo (HTTP 201)
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public AdminUserResponse createUser(@AuthenticationPrincipal CustomUserPrincipal admin,
@@ -37,6 +44,13 @@ public class AdminUserManagementController {
         return service.createUser(admin.userId(), request);
     }
 
+    /**
+     * Khóa tài khoản (ACTIVE sang LOCKED) và thu hồi mọi phiên đăng nhập hiện có.
+     * Body là tùy chọn; {@code reason} (nếu có) chỉ được ghi vào audit.
+     *
+     * @param publicId public ID của tài khoản bị khóa
+     * @return tài khoản sau khi khóa
+     */
     @PostMapping("/{publicId}/lock")
     public AdminUserResponse lockUser(@AuthenticationPrincipal CustomUserPrincipal admin,
                                       @PathVariable UUID publicId,
@@ -44,6 +58,12 @@ public class AdminUserManagementController {
         return service.setLocked(admin.userId(), publicId, true, request == null ? null : request.reason());
     }
 
+    /**
+     * Mở khóa tài khoản (LOCKED sang ACTIVE). Token cũ không sống lại vì authVersion đã tăng lúc khóa.
+     *
+     * @param publicId public ID của tài khoản cần mở khóa
+     * @return tài khoản sau khi mở khóa
+     */
     @PostMapping("/{publicId}/unlock")
     public AdminUserResponse unlockUser(@AuthenticationPrincipal CustomUserPrincipal admin,
                                         @PathVariable UUID publicId) {
@@ -51,13 +71,13 @@ public class AdminUserManagementController {
     }
 
     /**
-     * Sets a new password for the account identified by e-mail. The admin supplies both values in the body; the
-     * response is the account's public record (never the password). All sessions of that account are revoked.
-     * Fixed path segment, so it does not clash with the {@code /{publicId}/...} routes.
+     * Đặt mật khẩu mới cho tài khoản xác định bằng e-mail. Admin cung cấp cả hai giá trị trong body;
+     * response là bản ghi công khai của tài khoản (không bao giờ có mật khẩu). Mọi phiên của tài khoản đó bị thu hồi.
+     * Segment đường dẫn cố định, nên không xung đột với các route {@code /{publicId}/...}.
      *
-     * @param admin   the authenticated Admin (recorded in the audit trail)
-     * @param request target e-mail and new password
-     * @return the target account after the change
+     * @param admin   Admin đã xác thực (ghi vào audit)
+     * @param request e-mail đích và mật khẩu mới
+     * @return tài khoản đích sau thay đổi
      */
     @PostMapping("/reset-password")
     public AdminUserResponse resetPassword(@AuthenticationPrincipal CustomUserPrincipal admin,

@@ -3,6 +3,9 @@ package com.legacyvault.verification.dto;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Phản hồi Legal mở khóa Vault: ca, Vault, trạng thái mới, người và thời điểm mở khóa.
+ */
 public record LegalVaultUnlockResponse(UUID caseId, UUID vaultId, String status,
         UUID unlockedBy, Instant unlockedAt, com.legacyvault.notification.WorkflowNotificationService.Receipt notification) {
     public LegalVaultUnlockResponse(UUID caseId, UUID vaultId, String status,

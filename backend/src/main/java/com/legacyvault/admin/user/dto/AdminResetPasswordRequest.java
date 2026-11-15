@@ -6,20 +6,20 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * Body of {@code POST /api/v1/admin/users/reset-password}: an Admin sets a new password for any non-Admin account.
+ * Body của {@code POST /api/v1/admin/users/reset-password}: Admin đặt mật khẩu mới cho mọi tài khoản không phải Admin.
  *
  * <ul>
- *   <li>{@code email}: address of the target account. It is normalised with {@code EmailNormalizer} before the
- *       lookup, so letter case and surrounding spaces do not matter.</li>
- *   <li>{@code newPassword}: the password to store. It must satisfy the same policy as sign-up
- *       ({@link ValidPassword}, 8 to 72 characters); the server hashes it and never returns or logs it.</li>
+ *   <li>{@code email}: địa chỉ tài khoản đích. Được chuẩn hóa bằng {@code EmailNormalizer} trước
+ *       khi tra cứu, nên chữ hoa/thường và khoảng trắng hai đầu không quan trọng.</li>
+ *   <li>{@code newPassword}: mật khẩu cần lưu. Phải thỏa cùng policy với đăng ký
+ *       ({@link ValidPassword}, 8 đến 72 ký tự); server băm nó và không bao giờ trả về hay log.</li>
  * </ul>
  */
 public record AdminResetPasswordRequest(
         @NotBlank @Email @Size(max = 254) String email,
         @NotBlank @Size(min = 8, max = 72) @ValidPassword String newPassword) {
 
-    /** Keeps the new password out of logs and accidental toString() output; only the email is shown. */
+    /** Giữ mật khẩu mới khỏi log và đầu ra toString() vô tình; chỉ hiển thị email. */
     @Override
     public String toString() {
         return "AdminResetPasswordRequest[email=" + email + "]";

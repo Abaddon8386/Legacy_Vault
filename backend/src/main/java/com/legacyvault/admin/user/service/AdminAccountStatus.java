@@ -4,9 +4,9 @@ import com.legacyvault.vault.entity.Vault;
 
 import java.util.List;
 
-/** Vault statuses an Admin lock decision depends on (the post-death workflow and the archive). */
+/** Các trạng thái Vault mà quyết định khóa tài khoản của Admin phụ thuộc vào (quy trình hậu sự và lưu trữ). */
 public final class AdminAccountStatus {
-    /** Every vault status from the first verification step up to the handover itself (the whole post-death workflow). */
+    /** Mọi trạng thái Vault từ bước xác minh đầu tiên đến bàn giao (toàn bộ quy trình hậu sự). */
     public static final List<String> HANDOVER_VAULT_STATUSES = List.of(
             Vault.STATUS_AWAITING_VERIFICATION,
             Vault.STATUS_DOCUMENT_VERIFICATION,
@@ -17,7 +17,7 @@ public final class AdminAccountStatus {
             Vault.STATUS_UNLOCKED,
             Vault.STATUS_HANDOVER_IN_PROGRESS);
 
-    /** Vault statuses that stop an Admin from locking the account. */
+    /** Các trạng thái Vault khiến Admin không được khóa tài khoản. */
     public static final List<String> LOCK_BLOCKING_VAULT_STATUSES;
 
     static {

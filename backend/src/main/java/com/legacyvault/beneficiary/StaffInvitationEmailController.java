@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/** API Staff yêu cầu gửi thư mời tới email đã xác nhận tại quầy (PS-106). */
 @RestController
 @RequestMapping("/api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}/invitation-email")
 @PreAuthorize("hasAuthority('ROLE_STAFF_EXECUTOR')")
@@ -22,6 +23,7 @@ public class StaffInvitationEmailController {
         this.service = service;
     }
 
+    /** POST: xếp hàng gửi thư mời; trả 202 Accepted vì việc gửi là bất đồng bộ qua outbox. */
     @PostMapping
     public ResponseEntity<InvitationEmailDtos.Queued> request(@PathVariable UUID caseId,
             @PathVariable UUID beneficiaryId, @Valid @RequestBody InvitationEmailDtos.Request request) {

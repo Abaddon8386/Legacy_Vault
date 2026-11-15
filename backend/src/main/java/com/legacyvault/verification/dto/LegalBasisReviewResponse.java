@@ -26,6 +26,7 @@ public record LegalBasisReviewResponse(
         this(dossierId, reviewStatus, reviewRequired, reasonCode, reason, currentVersionNo, currentSha256Hash,
                 currentDisputeStatus, currentAllocationHash, checkedAt, null);
     }
+    // Trả về bản sao có gắn biên nhận thông báo (record bất biến).
     public LegalBasisReviewResponse withNotification(com.legacyvault.notification.WorkflowNotificationService.Receipt receipt) {
         return new LegalBasisReviewResponse(dossierId, reviewStatus, reviewRequired, reasonCode, reason, currentVersionNo,
                 currentSha256Hash, currentDisputeStatus, currentAllocationHash, checkedAt, receipt);
